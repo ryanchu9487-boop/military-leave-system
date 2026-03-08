@@ -1,0 +1,36 @@
+<h2>비밀번호 찾기</h2>
+<p>등록하신 Gmail을 입력해 주시면 비밀번호 재설정 링크를 보내드리겠습니다.：</p>
+<input type="email" id="gmail" placeholder="你的 Gmail" /><br /><br />
+<button id="sendBtn">전송</button>
+<p id="message" style="color: red"></p>
+<a href="/login.html">로그인 페이지로 돌아가기</a>
+
+<script>
+  document.getElementById("sendBtn").addEventListener("click", async () => {
+    const gmail = document.getElementById("gmail").value.trim();
+    const messageEl = document.getElementById("message");
+    messageEl.style.color = "red";
+    messageEl.textContent = "";
+
+    if (!gmail) return (messageEl.textContent = "입력해주세요. Gmail");
+
+    try {
+      const res = await fetch("/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gmail }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        messageEl.style.color = "green";
+        messageEl.textContent = data.message;
+      } else {
+        messageEl.textContent = data.message || data.error;
+      }
+    } catch (err) {
+      console.error(err);
+      messageEl.textContent = "서버 오류입니다. 잠시 후에 다시 시도하십시오.";
+    }
+  });
+</script>

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartMil - 출타 심의 (검토)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <style>
+      @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+      body {
+        font-family: "Pretendard", sans-serif;
+      }
+      .mesh-bg {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -1;
+        overflow: hidden;
+        background-color: #f8fafc;
+      }
+      .blob {
+        position: absolute;
+        filter: blur(80px);
+        opacity: 0.6;
+        animation: float 10s infinite alternate ease-in-out;
+      }
+      .blob-1 {
+        top: -10%;
+        left: -10%;
+        width: 50vw;
+        height: 50vw;
+        background: radial-gradient(
+          circle,
+          rgba(99, 102, 241, 0.3) 0%,
+          rgba(99, 102, 241, 0) 70%
+        );
+      }
+      .blob-2 {
+        bottom: -20%;
+        right: -10%;
+        width: 60vw;
+        height: 60vw;
+        background: radial-gradient(
+          circle,
+          rgba(59, 130, 246, 0.25) 0%,
+          rgba(59, 130, 246, 0) 70%
+        );
+        animation-delay: -5s;
+      }
+      @keyframes float {
+        0% {
+          transform: translate(0, 0) scale(1);
+        }
+        100% {
+          transform: translate(30px, 50px) scale(1.1);
+        }
+      }
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .glass-card {
+        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slideUpFade {
+        0% {
+          opacity: 0;
+          transform: translateY(20px) scale(0.98);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body
+    class="text-slate-800 min-h-screen flex items-center justify-center p-4 sm:p-8 relative selection:bg-indigo-500 selection:text-white"
+  >
+    <div class="mesh-bg">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+    </div>
+
+    <div
+      class="glass-card max-w-2xl w-full bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden"
+    >
+      <button
+        onclick="window.location.href='index.html'"
+        class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 hover:bg-gray-200 text-gray-400 transition-all z-20"
+      >
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="mb-8">
+        <div
+          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200 text-indigo-700 text-xs font-bold tracking-wider mb-4 shadow-sm"
+        >
+          <i class="fa-solid fa-file-signature"></i>
+          <span id="unitNameDisplay">소속부대</span>
+        </div>
+        <h1 class="text-3xl font-black tracking-tight text-gray-900">
+          출타 심의 <span class="text-indigo-600 font-light">검토</span>
+        </h1>
+      </div>
+
+      <div id="loading" class="text-center py-20">
+        <div
+          class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"
+        ></div>
+      </div>
+
+      <div id="leave-content" class="hidden space-y-8">
+        <div
+          class="flex items-center gap-5 p-5 rounded-3xl bg-white/50 border border-white shadow-sm"
+        >
+          <div
+            class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white text-2xl font-black"
+          >
+            <span id="userInitial">U</span>
+          </div>
+          <div>
+            <p class="text-sm font-bold text-indigo-600 mb-0.5" id="userRank">
+              계급
+            </p>
+            <h2
+              class="text-2xl font-black text-gray-800 tracking-tight leading-none"
+              id="userName"
+            >
+              이름
+            </h2>
+            <p class="text-sm text-gray-500 font-mono mt-1" id="serviceNumber">
+              군번
+            </p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div
+            class="p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm flex flex-col justify-center"
+          >
+            <span
+              class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider"
+              >출타 기간</span
+            >
+            <strong
+              id="leaveDates"
+              class="text-lg font-bold text-gray-800"
+            ></strong>
+          </div>
+          <div
+            class="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 flex flex-col justify-center items-end text-right"
+          >
+            <span
+              class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider"
+              >사용 일수</span
+            >
+            <div class="flex items-baseline gap-1">
+              <strong
+                id="totalDays"
+                class="text-3xl font-black text-indigo-600"
+              ></strong
+              ><span class="text-sm font-bold text-indigo-400">일</span>
+            </div>
+          </div>
+          <div
+            class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm"
+          >
+            <span
+              class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block"
+              >상세 사유 / 행선지</span
+            >
+            <p
+              id="leaveReason"
+              class="text-gray-700 font-medium leading-relaxed"
+            ></p>
+          </div>
+        </div>
+
+        <div>
+          <h3
+            class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2"
+          >
+            <i class="fa-solid fa-clock-rotate-left"></i> 해당 인원 출타 이력
+            (승인됨)
+          </h3>
+          <div id="historyDashboard" class="flex gap-4 mb-4 hidden"></div>
+          <div
+            class="bg-white/30 rounded-3xl p-4 border border-white/50 hide-scrollbar max-h-40 overflow-y-auto"
+          >
+            <ul
+              id="historyList"
+              class="space-y-3 relative before:absolute before:inset-y-0 before:left-2.5 before:w-px before:bg-gray-200"
+            ></ul>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-4 border-t border-gray-100/50">
+          <button
+            onclick="rejectLeave()"
+            class="flex-1 py-4 rounded-2xl bg-white text-red-500 font-bold text-base border border-gray-100 shadow-sm hover:bg-red-50 transition-all"
+          >
+            거절
+          </button>
+          <button
+            onclick="submitReview()"
+            class="flex-[2] py-4 rounded-2xl bg-gray-900 text-white font-bold text-base shadow-xl shadow-gray-900/20 hover:bg-indigo-600 transition-all flex justify-center items-center gap-2"
+          >
+            <i class="fa-solid fa-check"></i> 검토 완료
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const token = localStorage.getItem("token");
+      const urlParams = new URLSearchParams(window.location.search);
+      const leaveId = urlParams.get("id");
+
+      if (!token || !leaveId) {
+        alert("잘못된 접근입니다.");
+        window.location.href = "index.html";
+      }
+
+      async function fetchLeaveDetails() {
+        try {
+          document.getElementById("unitNameDisplay").innerText =
+            localStorage.getItem("unitName") || "소속부대";
+          const res = await fetch("/leaves/notifications", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+          const leave = data.notifications.find((l) => l._id === leaveId);
+          if (!leave) return (window.location.href = "index.html");
+
+          const name = leave.userId.name || "알수없음";
+          document.getElementById("userInitial").innerText = name.charAt(0);
+          document.getElementById("userRank").innerText =
+            leave.userId.rank || "계급 미상";
+          document.getElementById("userName").innerText = name;
+          document.getElementById("serviceNumber").innerText =
+            leave.userId.serviceNumber;
+
+          document.getElementById("leaveDates").innerText = `${leave.startDate
+            .split("T")[0]
+            .replace(/-/g, ".")} ~ ${leave.endDate
+            .split("T")[0]
+            .replace(/-/g, ".")}`;
+          document.getElementById("totalDays").innerText = leave.totalDaysUsed;
+          document.getElementById("leaveReason").innerText = leave.reason;
+
+          document.getElementById("loading").classList.add("hidden");
+          document.getElementById("leave-content").classList.remove("hidden");
+
+          loadUserHistory(leave.userId._id);
+        } catch (err) {}
+      }
+
+      async function loadUserHistory(userId) {
+        try {
+          const res = await fetch("/leaves/all", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const data = await res.json();
+
+          const userLeaves = (data.leaves || [])
+            .filter((l) => {
+              const targetId = l.userId ? l.userId._id || l.userId : "";
+              return (
+                String(targetId) === String(userId) && l.status === "APPROVED"
+              );
+            })
+            .sort((a, b) => new Date(b.startDate) - new Date(a.startDate)); // 최신순
+
+          const dash = document.getElementById("historyDashboard");
+          if (userLeaves.length > 0) {
+            const totalUsedDays = userLeaves.reduce(
+              (sum, l) => sum + (l.totalDaysUsed || 0),
+              0
+            );
+
+            dash.classList.remove("hidden");
+            dash.innerHTML = `
+              <div class="flex-1 bg-white/60 p-3 rounded-2xl border border-white text-center shadow-sm">
+                <p class="text-xs text-gray-500 font-bold mb-1">총 승인 횟수</p>
+                <p class="text-lg font-black text-indigo-600">${userLeaves.length}<span class="text-sm font-medium text-gray-600">회</span></p>
+              </div>
+              <div class="flex-1 bg-white/60 p-3 rounded-2xl border border-white text-center shadow-sm">
+                <p class="text-xs text-gray-500 font-bold mb-1">총 사용 일수</p>
+                <p class="text-lg font-black text-indigo-600">${totalUsedDays}<span class="text-sm font-medium text-gray-600">일</span></p>
+              </div>
+            `;
+          }
+
+          const historyList = document.getElementById("historyList");
+          if (userLeaves.length === 0) {
+            historyList.innerHTML = `<li class="text-gray-500 text-sm pl-8 py-2">승인된 이전 출타 기록이 없습니다. (최초 신청)</li>`;
+            return;
+          }
+
+          // 🔥 여기를 수정했습니다: 시작일과 종료일을 모두 보여주도록 변경
+          userLeaves.slice(0, 5).forEach((l) => {
+            const startStr = l.startDate.split("T")[0].replace(/-/g, ".");
+            const endStr = l.endDate.split("T")[0].replace(/-/g, ".");
+            const dateStr = `${startStr} ~ ${endStr}`;
+
+            historyList.innerHTML += `
+            <li class="relative pl-8">
+              <div class="absolute left-[5px] top-1.5 w-2 h-2 rounded-full bg-indigo-400 ring-4 ring-white shadow-sm"></div>
+              <div class="flex flex-col">
+                <span class="text-[11px] font-bold text-indigo-500 mb-0.5">${dateStr} (${
+              l.totalDaysUsed || 0
+            }일)</span>
+                <span class="text-sm text-gray-700 font-medium truncate">${
+                  l.reason
+                }</span>
+              </div>
+            </li>`;
+          });
+        } catch (err) {}
+      }
+
+      async function rejectLeave() {
+        if (!confirm("이 신청을 거절하시겠습니까?\n일수가 반환됩니다.")) return;
+        try {
+          const res = await fetch(`/leaves/${leaveId}/reject`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if ((await res.json()).success) window.location.href = "index.html";
+        } catch (err) {}
+      }
+
+      async function submitReview() {
+        if (!confirm("검토 완료하시겠습니까?")) return;
+        try {
+          const res = await fetch(`/leaves/${leaveId}/review`, {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+          if ((await res.json()).success) window.location.href = "index.html";
+        } catch (err) {}
+      }
+      fetchLeaveDetails();
+    </script>
+  </body>
+</html>

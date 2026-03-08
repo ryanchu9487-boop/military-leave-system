@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>부대 관리 시스템 - 로그인</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+    <div class="card w-full max-w-md bg-base-100 shadow-xl">
+      <div class="card-body gap-6">
+        <div class="text-center">
+          <h1 class="text-4xl font-black text-primary italic tracking-tighter">
+            UNIT PATH
+          </h1>
+          <p class="text-sm text-base-content/60 mt-2 font-medium">
+            효율적인 부대 관리를 위한 첫 걸음
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">군번</span>
+            </label>
+            <input
+              type="text"
+              id="serviceNumber"
+              placeholder="XX-XXXXXXXX"
+              class="input input-bordered focus:input-primary"
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text font-semibold">비밀번호</span>
+            </label>
+            <input
+              type="password"
+              id="password"
+              placeholder="••••••••"
+              class="input input-bordered focus:input-primary"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-3 mt-4">
+          <button id="loginBtn" class="btn btn-primary text-white text-lg">
+            로그인
+          </button>
+
+          <div id="loading" class="hidden flex justify-center py-2">
+            <span
+              class="loading loading-spinner loading-md text-primary"
+            ></span>
+          </div>
+
+          <div class="flex justify-between items-center px-1">
+            <button id="forgotBtn" class="text-xs link link-hover opacity-70">
+              비밀번호 재설정
+            </button>
+            <button
+              id="registerBtn"
+              class="text-xs font-bold text-primary link link-hover"
+            >
+              부대 등록하기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/login.js"></script>
+  </body>
+</html>
