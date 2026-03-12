@@ -23,13 +23,17 @@
         z-index: -1;
         overflow: hidden;
         background-color: #f8fafc;
+        transition: background-color 0.5s ease;
       }
       .blob {
         position: absolute;
         filter: blur(80px);
         opacity: 0.6;
         animation: float 10s infinite alternate ease-in-out;
+        transition: background 0.5s ease;
       }
+
+      /* 預設綠色 Blob */
       .blob-1 {
         top: -10%;
         right: -10%;
@@ -53,6 +57,26 @@
         );
         animation-delay: -5s;
       }
+
+      /* 取消狀態的紅色 Blob */
+      .cancel-mode .mesh-bg {
+        background-color: #fff1f2;
+      }
+      .cancel-mode .blob-1 {
+        background: radial-gradient(
+          circle,
+          rgba(239, 68, 68, 0.25) 0%,
+          rgba(239, 68, 68, 0) 70%
+        );
+      }
+      .cancel-mode .blob-2 {
+        background: radial-gradient(
+          circle,
+          rgba(220, 38, 38, 0.2) 0%,
+          rgba(220, 38, 38, 0) 70%
+        );
+      }
+
       @keyframes float {
         0% {
           transform: translate(0, 0) scale(1);
@@ -81,6 +105,7 @@
           transform: translateY(0) scale(1);
         }
       }
+
       .pulse-badge::before {
         content: "";
         position: absolute;
@@ -90,10 +115,14 @@
         z-index: -1;
         animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
       }
+      .cancel-mode .pulse-badge::before {
+        background-color: rgba(239, 68, 68, 0.4);
+      }
     </style>
   </head>
   <body
     class="text-slate-800 min-h-screen flex items-center justify-center p-4 sm:p-8 relative selection:bg-emerald-500 selection:text-white"
+    id="mainBody"
   >
     <div class="mesh-bg">
       <div class="blob blob-1"></div>
@@ -113,25 +142,32 @@
       <div class="mb-8">
         <div class="flex items-center gap-3 mb-4">
           <div
-            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/50 border border-emerald-200 text-emerald-700 text-xs font-bold tracking-wider shadow-sm"
+            id="statusBadge"
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100/50 border border-emerald-200 text-emerald-700 text-xs font-bold tracking-wider shadow-sm transition-colors"
           >
             <i class="fa-solid fa-stamp"></i>
             <span id="unitNameDisplay">소속부대</span>
           </div>
           <div
-            class="pulse-badge relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black tracking-wide border border-emerald-100"
+            id="checkBadge"
+            class="pulse-badge relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black tracking-wide border border-emerald-100 transition-colors"
           >
             <i class="fa-solid fa-circle-check"></i> 검토자 확인 완료
           </div>
         </div>
-        <h1 class="text-3xl font-black tracking-tight text-gray-900">
-          출타 최종 <span class="text-emerald-600 font-light">승인</span>
+        <h1
+          class="text-3xl font-black tracking-tight text-gray-900"
+          id="mainTitle"
+        >
+          출타 최종
+          <span class="text-emerald-600 font-light" id="subTitle">승인</span>
         </h1>
       </div>
 
       <div id="loading" class="text-center py-20">
         <div
           class="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"
+          id="loadingSpinner"
         ></div>
       </div>
 
@@ -140,12 +176,16 @@
           class="flex items-center gap-5 p-5 rounded-3xl bg-white/50 border border-white shadow-sm"
         >
           <div
-            class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-lg shadow-emerald-500/30 flex items-center justify-center text-white text-2xl font-black"
+            id="userAvatar"
+            class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-lg shadow-emerald-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors"
           >
             <span id="userInitial">U</span>
           </div>
           <div>
-            <p class="text-sm font-bold text-emerald-600 mb-0.5" id="userRank">
+            <p
+              class="text-sm font-bold text-emerald-600 mb-0.5 transition-colors"
+              id="userRank"
+            >
               계급
             </p>
             <h2
@@ -174,18 +214,24 @@
             ></strong>
           </div>
           <div
-            class="p-5 rounded-3xl bg-emerald-50/50 border border-emerald-100/50 flex flex-col justify-center items-end text-right"
+            id="daysBox"
+            class="p-5 rounded-3xl bg-emerald-50/50 border border-emerald-100/50 flex flex-col justify-center items-end text-right transition-colors"
           >
             <span
-              class="text-xs font-bold text-emerald-500 mb-1 uppercase tracking-wider"
-              >사용 일수</span
+              id="daysLabel"
+              class="text-xs font-bold text-emerald-500 mb-1 uppercase tracking-wider transition-colors"
+              >사용/취소 일수</span
             >
             <div class="flex items-baseline gap-1">
               <strong
                 id="totalDays"
-                class="text-3xl font-black text-emerald-600"
+                class="text-3xl font-black text-emerald-600 transition-colors"
               ></strong
-              ><span class="text-sm font-bold text-emerald-500">일</span>
+              ><span
+                id="daysUnit"
+                class="text-sm font-bold text-emerald-500 transition-colors"
+                >일</span
+              >
             </div>
           </div>
           <div
@@ -222,16 +268,19 @@
 
         <div class="flex gap-3 pt-4 border-t border-gray-100/50">
           <button
+            id="rejectBtn"
             onclick="rejectLeave()"
             class="flex-1 py-4 rounded-2xl bg-white text-red-500 font-bold text-base border border-gray-100 shadow-sm hover:bg-red-50 transition-all"
           >
             거절
           </button>
           <button
+            id="approveBtn"
             onclick="submitApprove()"
             class="flex-[2] py-4 rounded-2xl bg-gray-900 text-white font-bold text-base shadow-xl shadow-gray-900/20 hover:bg-emerald-500 transition-all flex justify-center items-center gap-2"
           >
-            <i class="fa-solid fa-stamp"></i> 최종 승인
+            <i class="fa-solid fa-stamp" id="approveIcon"></i>
+            <span id="approveText">최종 승인</span>
           </button>
         </div>
       </div>
@@ -242,9 +291,53 @@
       const urlParams = new URLSearchParams(window.location.search);
       const leaveId = urlParams.get("id");
 
+      let isCancelRequest = false;
+
       if (!token || !leaveId) {
         alert("잘못된 접근입니다.");
         window.location.href = "index.html";
+      }
+
+      function applyCancelModeUI() {
+        document
+          .getElementById("mainBody")
+          .classList.add("cancel-mode", "selection:bg-red-500");
+        document
+          .getElementById("mainBody")
+          .classList.remove("selection:bg-emerald-500");
+
+        document.getElementById("statusBadge").className =
+          "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100/50 border border-red-200 text-red-700 text-xs font-bold tracking-wider shadow-sm transition-colors";
+        document.getElementById("checkBadge").className =
+          "pulse-badge relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-[10px] font-black tracking-wide border border-red-100 transition-colors";
+        document.getElementById(
+          "mainTitle"
+        ).innerHTML = `휴가 취소 <span class="text-red-600 font-light">최종 승인</span>`;
+
+        document.getElementById("userAvatar").className =
+          "w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-500 to-rose-400 shadow-lg shadow-red-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
+        document.getElementById("userRank").className =
+          "text-sm font-bold text-red-600 mb-0.5 transition-colors";
+
+        document.getElementById("daysBox").className =
+          "p-5 rounded-3xl bg-red-50/50 border border-red-100/50 flex flex-col justify-center items-end text-right transition-colors";
+        document.getElementById("daysLabel").className =
+          "text-xs font-bold text-red-500 mb-1 uppercase tracking-wider transition-colors";
+        document.getElementById("totalDays").className =
+          "text-3xl font-black text-red-600 transition-colors";
+        document.getElementById("daysUnit").className =
+          "text-sm font-bold text-red-500 transition-colors";
+
+        document.getElementById("rejectBtn").innerHTML = "취소 거절 (휴가유지)";
+        document.getElementById("rejectBtn").className =
+          "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
+
+        document.getElementById("approveBtn").className =
+          "flex-[2] py-4 rounded-2xl bg-red-600 text-white font-bold text-base shadow-xl shadow-red-600/20 hover:bg-red-700 transition-all flex justify-center items-center gap-2";
+        document.getElementById("approveText").innerText =
+          "취소 최종 승인 (휴가 삭제)";
+        document.getElementById("approveIcon").className =
+          "fa-solid fa-trash-can";
       }
 
       async function fetchLeaveDetails() {
@@ -257,6 +350,12 @@
           const data = await res.json();
           const leave = data.notifications.find((l) => l._id === leaveId);
           if (!leave) return (window.location.href = "index.html");
+
+          // 🔥 偵測是否為取消申請
+          if (leave.status === "CANCEL_REQ_APPROVAL") {
+            isCancelRequest = true;
+            applyCancelModeUI();
+          }
 
           const name = leave.userId.name || "알수없음";
           document.getElementById("userInitial").innerText = name.charAt(0);
@@ -286,7 +385,6 @@
             headers: { Authorization: `Bearer ${token}` },
           });
           const data = await res.json();
-
           const userLeaves = (data.leaves || [])
             .filter((l) => {
               const targetId = l.userId ? l.userId._id || l.userId : "";
@@ -298,6 +396,9 @@
 
           const dash = document.getElementById("historyDashboard");
           if (userLeaves.length > 0) {
+            const totalColor = isCancelRequest
+              ? "text-red-600"
+              : "text-emerald-600";
             const totalUsedDays = userLeaves.reduce(
               (sum, l) => sum + (l.totalDaysUsed || 0),
               0
@@ -306,11 +407,11 @@
             dash.innerHTML = `
               <div class="flex-1 bg-white/60 p-3 rounded-2xl border border-white text-center shadow-sm">
                 <p class="text-xs text-gray-500 font-bold mb-1">총 승인 횟수</p>
-                <p class="text-lg font-black text-emerald-600">${userLeaves.length}<span class="text-sm font-medium text-gray-600">회</span></p>
+                <p class="text-lg font-black ${totalColor}">${userLeaves.length}<span class="text-sm font-medium text-gray-600">회</span></p>
               </div>
               <div class="flex-1 bg-white/60 p-3 rounded-2xl border border-white text-center shadow-sm">
                 <p class="text-xs text-gray-500 font-bold mb-1">총 사용 일수</p>
-                <p class="text-lg font-black text-emerald-600">${totalUsedDays}<span class="text-sm font-medium text-gray-600">일</span></p>
+                <p class="text-lg font-black ${totalColor}">${totalUsedDays}<span class="text-sm font-medium text-gray-600">일</span></p>
               </div>
             `;
           }
@@ -321,17 +422,20 @@
             return;
           }
 
-          // 🔥 여기를 수정했습니다: 시작일과 종료일을 모두 보여주도록 변경
           userLeaves.slice(0, 5).forEach((l) => {
             const startStr = l.startDate.split("T")[0].replace(/-/g, ".");
             const endStr = l.endDate.split("T")[0].replace(/-/g, ".");
             const dateStr = `${startStr} ~ ${endStr}`;
+            const dotColor = isCancelRequest ? "bg-red-400" : "bg-emerald-400";
+            const textColor = isCancelRequest
+              ? "text-red-500"
+              : "text-emerald-500";
 
             historyList.innerHTML += `
             <li class="relative pl-8">
-              <div class="absolute left-[5px] top-1.5 w-2 h-2 rounded-full bg-emerald-400 ring-4 ring-white shadow-sm"></div>
+              <div class="absolute left-[5px] top-1.5 w-2 h-2 rounded-full ${dotColor} ring-4 ring-white shadow-sm"></div>
               <div class="flex flex-col">
-                <span class="text-[11px] font-bold text-emerald-500 mb-0.5">${dateStr} (${
+                <span class="text-[11px] font-bold ${textColor} mb-0.5">${dateStr} (${
               l.totalDaysUsed || 0
             }일)</span>
                 <span class="text-sm text-gray-700 font-medium truncate">${
@@ -344,7 +448,10 @@
       }
 
       async function rejectLeave() {
-        if (!confirm("이 신청을 거절하시겠습니까?\n일수가 반환됩니다.")) return;
+        const msg = isCancelRequest
+          ? "취소 신청을 반려하시겠습니까?\n(기존 휴가가 그대로 유지됩니다.)"
+          : "이 신청을 거절하시겠습니까?\n(일수가 반환됩니다.)";
+        if (!confirm(msg)) return;
         try {
           const res = await fetch(`/leaves/${leaveId}/reject`, {
             method: "PUT",
@@ -355,7 +462,10 @@
       }
 
       async function submitApprove() {
-        if (!confirm("최종 승인하시겠습니까? (달력에 반영됩니다)")) return;
+        const msg = isCancelRequest
+          ? "휴가를 최종적으로 취소(삭제) 처리하시겠습니까?\n(일수가 용사에게 반환됩니다.)"
+          : "최종 승인하시겠습니까? (달력에 반영됩니다)";
+        if (!confirm(msg)) return;
         try {
           const res = await fetch(`/leaves/${leaveId}/approve`, {
             method: "PUT",

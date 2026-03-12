@@ -2,109 +2,56 @@ const mongoose = require("mongoose");
 
 const leaveSchema = new mongoose.Schema(
   {
-    // 🔐 Multi-Tenant 핵심
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
       required: true,
-      index: true,
     },
-
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true,
     },
-
     unitId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Unit",
       required: true,
-      index: true,
     },
-
-    // 📅 기간
+    type: { type: String, default: "휴가" },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
-
-    totalDaysUsed: {
-      type: Number,
-      required: true,
-      min: 0.5,
-    },
-
-    // 🎟 사용한 휴가 슬롯
+    totalDaysUsed: { type: Number, required: true },
     usedSlots: [
       {
-        slotId: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "LeaveSlot",
-          required: true,
-        },
-        qty: { type: Number, required: true },
+        slotId: { type: mongoose.Schema.Types.ObjectId, ref: "LeaveSlot" },
+        qty: Number,
       },
     ],
+    reason: { type: String, required: true },
 
-    // 🔄 3단계 상태 흐름
+    // 🔥 關鍵修復點：把 CANCEL_REQ_REVIEW 和 CANCEL_REQ_APPROVAL 加入白名單
     status: {
       type: String,
       enum: [
-        "PENDING_REVIEW", // 검토대기
-        "PENDING_APPROVAL", // 승인대기
-        "APPROVED", // 승인완료
-        "REJECTED_REVIEW", // 검토거절
-        "REJECTED_APPROVAL", // 승인거절
-        "CANCELLED",
+        "PENDING_REVIEW", // 檢核待辦
+        "PENDING_APPROVAL", // 批准待辦
+        "APPROVED", // 批准完成 (生效)
+        "REJECTED_REVIEW", // 檢核拒絕
+        "REJECTED_APPROVAL", // 批准拒絕
+        "CANCELLED", // 取消完成 (死亡)
+        "CANCEL_REQ_REVIEW", // 🔥 新增：取消申請_檢核待辦
+        "CANCEL_REQ_APPROVAL", // 🔥 新增：取消申請_批准待辦
+        "CANCEL_APPROVED", // 🔥 新增：取消已批准 (變成灰色，等待勇士點擊碎裂)
       ],
       default: "PENDING_REVIEW",
-      index: true,
     },
 
-    // 👮 검토자
-    reviewerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-
-    reviewedAt: Date,
-
-    // ⭐ 승인자
-    approverId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-
-    approvedAt: Date,
-
-    // ❌ 반려 사유
-    rejectReason: { type: String },
-
-    // 📝 신청 사유
-    reason: { type: String, trim: true },
+    reviewerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    reviewedAt: { type: Date },
+    approverId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
-
-//
-// 🔐 Multi-Tenant 인덱스 설계
-//
-
-// 조직 + 사용자 + 기간 조회 최적화
-leaveSchema.index({
-  organizationId: 1,
-  userId: 1,
-  startDate: 1,
-  endDate: 1,
-});
-
-// 조직 + 날짜별 승인 인원 체크용
-leaveSchema.index({
-  organizationId: 1,
-  startDate: 1,
-  status: 1,
-});
 
 module.exports = mongoose.model("Leave", leaveSchema);

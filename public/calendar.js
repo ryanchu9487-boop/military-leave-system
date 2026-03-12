@@ -1,5 +1,5 @@
 /**
- * SmartMil Unified Calendar Logic
+ * SmartMil Unified Calendar Logic - 終極防呆與碎裂動畫版
  */
 
 const GOOGLE_API_KEY = "AIzaSyBDbm1GF1W0wKYXSeAoIj3F8TJbmn7wHuw";
@@ -13,9 +13,13 @@ let renderEndDate = null;
 let dbLeavesCache = [];
 let leavesCache = [];
 let currentToken = localStorage.getItem("token") || "";
-let isFetchingMore = false;
 
 let currentCalendarMode = "personal";
+let myAvailableSlots = [];
+let currentUsedSlots = [];
+let isDragging = false;
+let dragStartStr = null;
+let dragEndStr = null;
 
 window.onload = async function () {
   if (!currentToken) {
@@ -67,15 +71,34 @@ function injectFloatingUI() {
   const container = document.getElementById("calendar").parentElement;
   container.classList.add("relative");
   container.style.paddingTop = "0px";
-
   if (document.getElementById("floatingPill")) return;
 
   const style = document.createElement("style");
   style.innerHTML = `
     @keyframes dynamicDrop { 0% { transform: translate(-50%, -20px) scale(0.85); opacity: 0; filter: blur(4px); } 100% { transform: translate(-50%, 0) scale(1); opacity: 1; filter: blur(0px); } }
     .dynamic-island { animation: dynamicDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-    @keyframes shatter { 0% { opacity: 1; transform: scale(1) translateY(0) rotate(0deg); } 20% { opacity: 0.8; transform: scale(1.05) translateY(-2px) rotate(-1deg); } 100% { opacity: 0; transform: scale(0.6) translateY(20px) rotate(5deg); filter: blur(4px); } }
-    .shatter-anim { animation: shatter 0.5s forwards ease-in; pointer-events: none; }
+    
+    /* 🔥 實體碎片通用動畫：速度適中 (約0.8s)，有爽快感又不會太快消失 */
+    @keyframes fragmentShatter {
+      0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+      20% { opacity: 0.9; transform: translate(var(--tx-mid), var(--ty-mid)) rotate(var(--rot-mid)) scale(1.05); }
+      100% { opacity: 0; transform: translate(var(--tx-end), var(--ty-end)) rotate(var(--rot-end)) scale(0.3); filter: blur(2px); }
+    }
+
+    .shatter-fragment {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      background-color: var(--fragment-bg); /* 將由 JS 強制指定為灰色 */
+      will-change: transform, opacity;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .bar-is-shattering {
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
   `;
   document.head.appendChild(style);
 
@@ -111,8 +134,21 @@ function setupProUX() {
   const tooltip = document.createElement("div");
   tooltip.id = "proTooltip";
   tooltip.className =
-    "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px]";
+    "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
   document.body.appendChild(tooltip);
+
+  document.addEventListener("mouseover", (e) => {
+    if (
+      e.target &&
+      typeof e.target.className === "string" &&
+      !e.target.className.includes("leave-bar")
+    ) {
+      hideProTooltip();
+    }
+  });
+  document
+    .getElementById("calendar")
+    .addEventListener("scroll", hideProTooltip, { passive: true });
 }
 
 function showProTooltip(e, title, dates, reason, color) {
@@ -122,17 +158,16 @@ function showProTooltip(e, title, dates, reason, color) {
   tt.style.top = e.clientY + "px";
   tt.classList.remove("opacity-0", "scale-95");
 }
+
 function moveProTooltip(e) {
   const tt = document.getElementById("proTooltip");
   tt.style.left = e.clientX + "px";
   tt.style.top = e.clientY + "px";
 }
-function hideProTooltip() {
-  document.getElementById("proTooltip").classList.add("opacity-0", "scale-95");
-}
 
-function triggerSuccessEffect() {
-  /* ... */
+function hideProTooltip() {
+  const tt = document.getElementById("proTooltip");
+  if (tt) tt.classList.add("opacity-0", "scale-95");
 }
 
 function toggleMonthPicker() {
@@ -144,6 +179,7 @@ function toggleMonthPicker() {
     box.classList.add("opacity-0", "pointer-events-none", "scale-95");
   }
 }
+
 document.addEventListener("click", (e) => {
   const box = document.getElementById("miniPickerBox");
   const pill = document.getElementById("floatingPill");
@@ -156,7 +192,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-// 🔥 Fix 1: 드롭다운 선택 시 상단 타이틀(floatingYearMonth)도 즉시 업데이트 되도록 수정
 function renderMiniPickerLists() {
   const yList = document.getElementById("miniYearList");
   const mList = document.getElementById("miniMonthList");
@@ -174,7 +209,7 @@ function renderMiniPickerLists() {
       currentYear = y;
       document.getElementById(
         "floatingYearMonth"
-      ).innerText = `${currentYear}년 ${currentMonth + 1}월`; // 타이틀 즉시 변경
+      ).innerText = `${currentYear}년 ${currentMonth + 1}월`;
       renderMiniPickerLists();
       resetCalendarTo(currentYear, currentMonth);
     };
@@ -194,7 +229,7 @@ function renderMiniPickerLists() {
       currentMonth = m;
       document.getElementById(
         "floatingYearMonth"
-      ).innerText = `${currentYear}년 ${currentMonth + 1}월`; // 타이틀 즉시 변경
+      ).innerText = `${currentYear}년 ${currentMonth + 1}월`;
       resetCalendarTo(currentYear, currentMonth);
     };
     mList.appendChild(btn);
@@ -203,10 +238,11 @@ function renderMiniPickerLists() {
 }
 
 async function resetCalendarTo(year, month) {
-  renderStartDate = new Date(year, month - 3, 1);
+  renderStartDate = new Date(year - 2, 0, 1);
   renderStartDate.setDate(renderStartDate.getDate() - renderStartDate.getDay());
-  renderEndDate = new Date(year, month + 3, 0);
+  renderEndDate = new Date(year + 2, 11, 31);
   renderEndDate.setDate(renderEndDate.getDate() + (6 - renderEndDate.getDay()));
+
   const holidays = await fetchGoogleHolidays(renderStartDate, renderEndDate);
   leavesCache = [...dbLeavesCache, ...holidays];
   document.getElementById("calendar").innerHTML = generateCellsHTML(
@@ -225,7 +261,7 @@ function generateCellsHTML(start, end) {
     new Date().getDate()
   );
   while (iter <= end) {
-    html += `<div class="week-row col-span-7 relative min-h-[120px] border-b border-gray-100 flex w-full">`;
+    html += `<div class="week-row col-span-7 relative min-h-[120px] transition-all duration-300 border-b border-gray-100 flex w-full">`;
     let bgHtml = `<div class="absolute inset-0 grid grid-cols-7 w-full h-full">`;
     let daysInWeek = [];
     for (let i = 0; i < 7; i++) {
@@ -251,7 +287,7 @@ function generateCellsHTML(start, end) {
     bgHtml += `</div>`;
     html +=
       bgHtml +
-      `<div class="event-layer absolute top-8 left-0 right-0 bottom-1 pointer-events-none flex flex-col gap-[3px] z-10" data-week-start="${daysInWeek[0]}"></div></div>`;
+      `<div class="event-layer absolute top-8 left-0 right-0 bottom-1 pointer-events-none flex flex-col gap-[4px] z-10" data-week-start="${daysInWeek[0]}"></div></div>`;
   }
   return html;
 }
@@ -286,32 +322,42 @@ function updateVisualFocus(focusYear, focusMonth) {
 
 function setupScrollObserver() {
   const container = document.getElementById("calendar");
-  container.addEventListener("scroll", async () => {
-    const rect = container.getBoundingClientRect();
-    const el = document.elementFromPoint(
-      rect.left + rect.width / 2,
-      rect.top + rect.height / 3
-    );
-    const cell = el ? el.closest(".day-cell") : null;
-    if (cell) {
-      const [y, m] = cell.dataset.date.split("-");
-      if (
-        parseInt(y, 10) !== currentYear ||
-        parseInt(m, 10) - 1 !== currentMonth
-      ) {
-        currentYear = parseInt(y, 10);
-        currentMonth = parseInt(m, 10) - 1;
-        updateVisualFocus(currentYear, currentMonth);
+  container.addEventListener(
+    "scroll",
+    async () => {
+      const rect = container.getBoundingClientRect();
+      const el = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 3
+      );
+      const cell = el ? el.closest(".day-cell") : null;
+      if (cell) {
+        const [y, m] = cell.dataset.date.split("-");
+        if (
+          parseInt(y, 10) !== currentYear ||
+          parseInt(m, 10) - 1 !== currentMonth
+        ) {
+          currentYear = parseInt(y, 10);
+          currentMonth = parseInt(m, 10) - 1;
+          updateVisualFocus(currentYear, currentMonth);
+        }
       }
-    }
-  });
+    },
+    { passive: true }
+  );
 }
 
 async function scrollToMonth(year, month, smooth = true) {
   const targetStr = formatDate(year, month, 1);
-  const targetCell = document.querySelector(
+  let targetCell = document.querySelector(
     `.day-cell[data-date="${targetStr}"]`
   );
+
+  if (!targetCell) {
+    await resetCalendarTo(year, month);
+    targetCell = document.querySelector(`.day-cell[data-date="${targetStr}"]`);
+  }
+
   if (targetCell) {
     const calendar = document.getElementById("calendar");
     const targetRow = targetCell.closest(".week-row") || targetCell;
@@ -322,19 +368,16 @@ async function scrollToMonth(year, month, smooth = true) {
     currentYear = year;
     currentMonth = month;
     updateVisualFocus(year, month);
-  } else {
-    await resetCalendarTo(year, month);
-    setTimeout(() => scrollToMonth(year, month, smooth), 100);
   }
 }
 
 function renderEvents() {
-  document.querySelectorAll(".event-layer").forEach((el) => {
-    el.innerHTML = "";
-  });
-  document.querySelectorAll(".holiday-name").forEach((el) => {
-    el.innerText = "";
-  });
+  document
+    .querySelectorAll(".event-layer")
+    .forEach((el) => (el.innerHTML = ""));
+  document
+    .querySelectorAll(".holiday-name")
+    .forEach((el) => (el.innerText = ""));
 
   const sortedLeaves = [...leavesCache].sort((a, b) => {
     if (a.isHoliday && !b.isHoliday) return -1;
@@ -390,6 +433,11 @@ function renderEvents() {
       if (levelMap[d]) maxLevel = Math.max(maxLevel, levelMap[d].length - 1);
     });
 
+    if (maxLevel >= 0) {
+      const requiredHeight = (maxLevel + 1) * 26 + 40;
+      if (requiredHeight > 120) weekRow.style.minHeight = `${requiredHeight}px`;
+    }
+
     for (let level = 0; level <= maxLevel; level++) {
       const levelRow = document.createElement("div");
       levelRow.className = "relative w-full h-[22px]";
@@ -417,24 +465,36 @@ function renderEvents() {
             REJECTED_REVIEW: "(검토거절)",
             REJECTED_APPROVAL: "(승인거절)",
             APPROVED: "",
+            CANCEL_REQ_REVIEW: "(취소검토대기)",
+            CANCEL_REQ_APPROVAL: "(취소승인대기)",
+            CANCEL_APPROVED: "(취소승인됨 - 클릭하여 확인)",
           }[leave.status] || "";
+
         const displayName =
           currentCalendarMode === "team"
             ? `${leave.userId?.name || ""} ${sText}`
             : `[${leave.type || "휴가"}] ${leave.reason || ""} ${sText}`;
         bar.innerText = isGlobalStart || startIdx === 0 ? displayName : "";
 
+        const fixedColor = getLeaveColor(leave.reason, leave.type);
+
         if (
           leave.status === "REJECTED_REVIEW" ||
-          leave.status === "REJECTED_APPROVAL"
+          leave.status === "REJECTED_APPROVAL" ||
+          leave.status === "CANCEL_APPROVED"
         ) {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
-          bar.style.color = "#4b5563";
+          bar.style.color = "#4b5563"; // 灰色字體
+
           bar.onclick = (e) => {
             e.stopPropagation();
             hideProTooltip();
-            bar.classList.add("shatter-anim");
+
+            // 🔥 呼叫碎裂動畫 (不再傳入顏色，內部已寫死純灰色)
+            createShatterAnimation(bar);
+
+            // 🔥 在 0.8 秒後(動畫差不多碎裂消失時)，重新整理月曆資料
             setTimeout(async () => {
               try {
                 await fetch(`/leaves/${leave._id}/confirm-reject`, {
@@ -443,22 +503,31 @@ function renderEvents() {
                 });
                 await refreshCalendarData();
               } catch (err) {}
-            }, 500);
+            }, 800);
           };
+        } else if (leave.status.includes("CANCEL_REQ")) {
+          bar.style.backgroundColor = "#f97316";
+          bar.style.opacity = "0.8";
+          bar.style.border = "1px dashed rgba(255, 255, 255, 0.9)";
         } else if (leave.status === "PENDING_REVIEW") {
-          bar.style.backgroundColor = "#f59e0b";
+          bar.style.backgroundColor = fixedColor;
+          bar.style.opacity = "0.5";
           bar.style.border = "1px dashed rgba(255, 255, 255, 0.9)";
         } else if (leave.status === "PENDING_APPROVAL") {
-          bar.style.backgroundColor = "#3b82f6";
+          bar.style.backgroundColor = fixedColor;
+          bar.style.opacity = "0.75";
           bar.style.border = "1px dashed rgba(255, 255, 255, 0.9)";
         } else {
-          bar.style.backgroundColor = getLeaveColor(leave._id);
+          bar.style.backgroundColor = fixedColor;
           bar.style.opacity = "1";
           bar.style.border = "none";
         }
 
-        if (!leave.status.includes("REJECTED")) {
-          bar.onmouseenter = (e) => {
+        if (
+          !leave.status.includes("REJECTED") &&
+          leave.status !== "CANCEL_APPROVED"
+        ) {
+          bar.addEventListener("mouseenter", (e) => {
             highlightLeave(leave._id);
             showProTooltip(
               e,
@@ -469,17 +538,35 @@ function renderEvents() {
               leave.reason || "사유 없음",
               bar.style.backgroundColor
             );
-          };
-          bar.onmousemove = moveProTooltip;
-          bar.onmouseleave = () => {
-            unhighlightLeave(leave._id);
+          });
+          bar.addEventListener("mousemove", moveProTooltip);
+          bar.addEventListener("mouseleave", () => {
+            try {
+              unhighlightLeave(leave._id);
+            } catch (err) {}
             hideProTooltip();
-          };
+          });
           bar.onclick = (e) => {
             e.stopPropagation();
             hideProTooltip();
-            if (confirm(`일정을 취소/삭제하시겠습니까?\n사유: ${leave.reason}`))
-              cancelLeave(leave._id);
+            if (
+              leave.status === "PENDING_REVIEW" ||
+              leave.status === "PENDING_APPROVAL"
+            ) {
+              if (
+                confirm(`일정을 취소/삭제하시겠습니까?\n사유: ${leave.reason}`)
+              )
+                cancelLeave(leave._id);
+            } else if (leave.status === "APPROVED") {
+              if (
+                confirm(
+                  `이미 승인된 휴가입니다. 취소 결재를 올리시겠습니까?\n사유: ${leave.reason}`
+                )
+              )
+                cancelLeave(leave._id);
+            } else if (leave.status.includes("CANCEL_REQ")) {
+              alert("현재 취소 승인 대기 중입니다. (결재 진행 중)");
+            }
           };
         }
         levelRow.appendChild(bar);
@@ -505,27 +592,6 @@ function renderEvents() {
   });
 }
 
-function toggleFabMenu() {
-  const menu = document.getElementById("fabMenu");
-  const icon = document.getElementById("fabIcon");
-  if (menu && icon) {
-    if (menu.classList.contains("opacity-0")) {
-      menu.classList.remove(
-        "opacity-0",
-        "translate-y-4",
-        "pointer-events-none"
-      );
-      icon.classList.add("rotate-45");
-    } else {
-      menu.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
-      icon.classList.remove("rotate-45");
-    }
-  }
-}
-
-let isDragging = false;
-let dragStartStr = null;
-let dragEndStr = null;
 function setupDragSelection() {
   const calendar = document.getElementById("calendar");
   calendar.addEventListener("dragstart", (e) => e.preventDefault());
@@ -567,11 +633,13 @@ function setupDragSelection() {
         end.getMonth(),
         end.getDate()
       );
+      calculateReqDays();
       await openModal("requestModal");
     }
     clearSelectionVisuals();
   });
 }
+
 function updateSelectionVisuals() {
   clearSelectionVisuals();
   if (!dragStartStr || !dragEndStr) return;
@@ -589,6 +657,7 @@ function updateSelectionVisuals() {
       );
   });
 }
+
 function clearSelectionVisuals() {
   document.querySelectorAll(".day-cell").forEach((cell) => {
     cell.classList.remove(
@@ -602,8 +671,6 @@ function clearSelectionVisuals() {
 async function openModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.classList.remove("hidden");
-  const menu = document.getElementById("fabMenu");
-  if (menu && !menu.classList.contains("opacity-0")) toggleFabMenu();
   if (id === "requestModal") await loadMySlots();
 }
 function closeModal(id) {
@@ -632,16 +699,12 @@ async function submitGrant() {
       body: formData,
     });
     if ((await res.json()).error) return alert("오류 발생");
-    triggerSuccessEffect();
     alert("부여 검토가 등록되었습니다.");
     closeModal("grantModal");
   } catch (err) {
     alert("실패");
   }
 }
-
-let myAvailableSlots = [];
-let currentUsedSlots = [];
 
 async function loadMySlots() {
   try {
@@ -657,38 +720,111 @@ async function loadMySlots() {
 
 function renderSlotList() {
   const listEl = document.getElementById("reqSlotList");
+  const remainsText = document.getElementById("totalRemainsText");
+  if (!listEl) return;
+
   if (myAvailableSlots.length === 0) {
     listEl.innerHTML =
       '<div class="text-sm text-gray-400 text-center py-6">사용 가능한 휴가가 없습니다.</div>';
+    if (remainsText) remainsText.innerText = "총 0일";
     return;
   }
 
-  let html = "";
+  const startDate = document.getElementById("reqStartDate").value;
+  const endDate = document.getElementById("reqEndDate").value;
+
+  let hasWeekday = false;
+  let hasWeekendOrHoliday = false;
+
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const holidays = leavesCache
+      .filter((l) => l.isHoliday)
+      .map((l) => l.startDate.split("T")[0]);
+    let iter = new Date(start);
+    while (iter <= end) {
+      const dStr = formatDate(
+        iter.getFullYear(),
+        iter.getMonth(),
+        iter.getDate()
+      );
+      const isWeekend = iter.getDay() === 0 || iter.getDay() === 6;
+      if (isWeekend || holidays.includes(dStr)) hasWeekendOrHoliday = true;
+      else hasWeekday = true;
+      iter.setDate(iter.getDate() + 1);
+    }
+  }
+
+  let totalAvailable = 0;
+  let hasVisibleSlots = false;
+  const groupedSlots = { 휴가: [], 외박: [], 외출: [] };
+
   myAvailableSlots.forEach((s) => {
+    const isWeekendOnly =
+      s.type === "외박" ||
+      s.reason.includes("주말") ||
+      s.reason.includes("정기외박");
+    const isWeekdayOnly = s.reason.includes("평일");
+
+    if (startDate && endDate) {
+      if (isWeekendOnly && hasWeekday) return;
+      if (isWeekdayOnly && hasWeekendOrHoliday) return;
+    }
+
+    hasVisibleSlots = true;
+    totalAvailable += s.remains;
     const usedObj = currentUsedSlots.find((u) => u.slotId === s._id);
     const qty = usedObj ? usedObj.qty : 0;
     const isUsed = qty > 0;
-    html += `
+
+    let typeTag = "휴가";
+    if (s.type === "외박" || s.reason.includes("외박")) typeTag = "외박";
+    else if (s.type === "외출" || s.reason.includes("외출")) typeTag = "외출";
+
+    const itemHtml = `
       <div class="flex items-center justify-between p-3 rounded-xl border ${
         isUsed
           ? "border-indigo-400 bg-indigo-50/40"
           : "border-gray-200 bg-white"
-      } shadow-sm">
-        <div><p class="text-sm font-bold text-gray-800">[${s.type}] ${
+      } shadow-sm transition-all mb-2">
+        <div class="flex-1 min-w-0 pr-2">
+          <p class="text-sm font-bold text-gray-800 truncate">[${typeTag}] ${
       s.reason
-    }</p><p class="text-xs text-gray-500">잔여 ${s.remains}일</p></div>
-        <div class="flex items-center gap-2">
+    }</p>
+          <p class="text-[11px] text-gray-500 font-medium">잔여 ${
+            s.remains
+          }일</p>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
           <button onclick="changeManualQty('${
             s._id
-          }', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold">-</button>
+          }', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">-</button>
           <span class="w-5 text-center font-bold text-indigo-700">${qty}</span>
           <button onclick="changeManualQty('${
             s._id
-          }', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold">+</button>
+          }', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">+</button>
         </div>
       </div>`;
+
+    groupedSlots[typeTag].push(itemHtml);
   });
-  listEl.innerHTML = html;
+
+  let finalHtml = "";
+  if (!hasVisibleSlots && startDate && endDate) {
+    finalHtml =
+      '<div class="text-sm text-red-500 text-center py-6 font-bold"><i class="fa-solid fa-triangle-exclamation mb-2 text-xl block"></i>선택하신 날짜(평일/주말)에 사용할 수 있는 휴가가 없습니다.</div>';
+  } else {
+    ["휴가", "외박", "외출"].forEach((cat) => {
+      if (groupedSlots[cat].length > 0) {
+        finalHtml += `<div class="text-xs font-black text-indigo-500 mb-2 mt-4 px-1 border-b border-indigo-100 pb-1 flex items-center"><i class="fa-solid fa-layer-group mr-1.5"></i>${cat} 목록</div>`;
+        finalHtml += groupedSlots[cat].join("");
+      }
+    });
+  }
+
+  listEl.innerHTML = finalHtml;
+  if (remainsText) remainsText.innerText = `총 ${totalAvailable}일`;
 }
 
 function changeManualQty(slotId, delta) {
@@ -715,7 +851,7 @@ function changeManualQty(slotId, delta) {
 
   const currentTotal = currentUsedSlots.reduce((sum, u) => sum + u.qty, 0);
   if (delta > 0 && currentTotal >= diffDays) {
-    alert(`신청 일수(${diffDays}일)를 초과하여 선택할 수 없습니다.`);
+    alert(`신청 일수(${diffDays}일)를 초과할 수 없습니다.`);
     return;
   }
 
@@ -724,10 +860,30 @@ function changeManualQty(slotId, delta) {
   if (newQty > slot.remains) newQty = slot.remains;
   usedObj.qty = newQty;
   currentUsedSlots = currentUsedSlots.filter((u) => u.qty > 0);
-  calculateReqDays();
+
+  renderSlotList();
+
+  const calcText = document.getElementById("daysCalcText");
+  const calcBox = document.getElementById("daysCalcBox");
+  const totalAssigned = currentUsedSlots.reduce((sum, s) => sum + s.qty, 0);
+  if (calcText) {
+    if (totalAssigned < diffDays) {
+      calcText.innerHTML = `<span class="text-red-500 text-sm">선택: ${totalAssigned}일 / 필요: ${diffDays}일</span>`;
+      if (calcBox)
+        calcBox.className =
+          "bg-red-50 border border-red-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
+    } else {
+      calcText.innerHTML = `<span class="text-indigo-600 font-bold text-sm">일치완료 (총 ${diffDays}일)</span>`;
+      if (calcBox)
+        calcBox.className =
+          "bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
+    }
+  }
 }
 
 function calculateReqDays() {
+  currentUsedSlots = [];
+
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
   let diffDays = 0;
@@ -741,22 +897,17 @@ function calculateReqDays() {
 
   const calcBox = document.getElementById("daysCalcBox");
   const calcText = document.getElementById("daysCalcText");
+
   if (!startDate || !endDate || diffDays <= 0) {
-    calcBox.classList.add("hidden");
+    if (calcBox) calcBox.classList.add("hidden");
     return;
   }
 
-  calcBox.classList.remove("hidden");
-  const totalAssigned = currentUsedSlots.reduce((sum, s) => sum + s.qty, 0);
-
-  if (totalAssigned < diffDays) {
-    calcText.innerHTML = `<span class="text-red-500 text-sm">선택: ${totalAssigned}일 / 필요: ${diffDays}일</span>`;
+  if (calcBox) calcBox.classList.remove("hidden");
+  if (calcText) {
+    calcText.innerHTML = `<span class="text-red-500 text-sm">선택: 0일 / 필요: ${diffDays}일</span>`;
     calcBox.className =
       "bg-red-50 border border-red-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
-  } else {
-    calcText.innerHTML = `<span class="text-indigo-600 font-bold text-sm">일치완료 (총 ${diffDays}일)</span>`;
-    calcBox.className =
-      "bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
   }
 }
 
@@ -789,6 +940,47 @@ async function submitRequest() {
   if (totalAllocated !== diffDays)
     return alert("선택한 휴가와 일정이 일치하지 않습니다.");
 
+  const start = new Date(payload.startDate);
+  const end = new Date(payload.endDate);
+  const holidays = leavesCache
+    .filter((l) => l.isHoliday)
+    .map((l) => l.startDate.split("T")[0]);
+  let hasWeekday = false;
+  let hasWeekendOrHoliday = false;
+
+  let iter = new Date(start);
+  while (iter <= end) {
+    const dStr = formatDate(
+      iter.getFullYear(),
+      iter.getMonth(),
+      iter.getDate()
+    );
+    const isWeekend = iter.getDay() === 0 || iter.getDay() === 6;
+    if (isWeekend || holidays.includes(dStr)) hasWeekendOrHoliday = true;
+    else hasWeekday = true;
+    iter.setDate(iter.getDate() + 1);
+  }
+
+  for (const us of currentUsedSlots) {
+    const slot = myAvailableSlots.find((s) => s._id === us.slotId);
+    if (!slot) continue;
+    const isWeekendOnly =
+      slot.reason.includes("주말") ||
+      slot.type === "외박" ||
+      slot.reason.includes("특별외박") ||
+      slot.reason.includes("정기외박");
+    const isWeekdayOnly = slot.reason.includes("평일");
+
+    if (isWeekendOnly && hasWeekday)
+      return alert(
+        `[${slot.type}] ${slot.reason} 은(는) 주말 및 공휴일에만 사용할 수 있습니다. (평일 포함 불가)`
+      );
+    if (isWeekdayOnly && hasWeekendOrHoliday)
+      return alert(
+        `[${slot.type}] ${slot.reason} 은(는) 평일에만 사용할 수 있습니다. (주말/공휴일 포함 불가)`
+      );
+  }
+
   try {
     const res = await fetch("/leaves", {
       method: "POST",
@@ -798,8 +990,8 @@ async function submitRequest() {
       },
       body: JSON.stringify(payload),
     });
-    if ((await res.json()).error) return alert("오류 발생");
-    triggerSuccessEffect();
+    const result = await res.json();
+    if (result.error) return alert(result.error);
     closeModal("requestModal");
     await refreshCalendarData();
   } catch (err) {
@@ -811,7 +1003,7 @@ async function fetchLeavesFromDB() {
   const endpoint =
     currentCalendarMode === "personal" ? "/leaves/my" : "/leaves/all";
   const res = await fetch(endpoint, {
-    headers: { Authorization: "Bearer " + currentToken },
+    headers: { Authorization: `Bearer ${currentToken}` },
   });
   dbLeavesCache = (await res.json()).leaves || [];
 }
@@ -859,17 +1051,25 @@ function goToCurrentMonth() {
   currentMonth = now.getMonth();
   scrollToMonth(currentYear, currentMonth, true);
 }
+
 async function cancelLeave(id) {
-  if (
-    (
-      await fetch(`/leave/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: "Bearer " + currentToken },
-      })
-    ).ok
-  )
-    await refreshCalendarData();
+  try {
+    const res = await fetch(`/leaves/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + currentToken },
+    });
+    const data = await res.json();
+    if (data.success) {
+      alert(data.message);
+      await refreshCalendarData();
+    } else {
+      alert(data.error || "오류가 발생했습니다.");
+    }
+  } catch (err) {
+    console.error(err);
+  }
 }
+
 function formatDate(y, m, d) {
   const date = new Date(y, m, d, 12, 0, 0);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
@@ -877,26 +1077,120 @@ function formatDate(y, m, d) {
     "0"
   )}-${String(date.getDate()).padStart(2, "0")}`;
 }
-function getLeaveColor(id) {
-  const colors = ["#3b82f6", "#ef4444", "#10b981", "#f59e0b", "#8b5cf6"];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++)
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+
+function getLeaveColor(reason, type) {
+  const palette = {
+    연가: "#3b82f6",
+    포상: "#1d4ed8",
+    위로: "#0ea5e9",
+    보상: "#0284c7",
+    기타: "#64748b",
+    정기외박: "#8b5cf6",
+    특별외박: "#6d28d9",
+    외박: "#7c3aed",
+    평일정기외출: "#10b981",
+    주말정기외출: "#059669",
+    평일특별외출: "#14b8a6",
+    주말특별외출: "#0f766e",
+    외출: "#10b981",
+  };
+
+  if (reason) {
+    for (const key in palette) {
+      if (reason.includes(key)) return palette[key];
+    }
+  }
+
+  if (type) {
+    if (type.includes("외박")) return palette["외박"];
+    if (type.includes("외출")) return palette["외출"];
+  }
+
+  return palette["연가"];
 }
+
 function highlightLeave(id) {
   document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => {
     el.style.filter = "brightness(1.15)";
     el.style.zIndex = "50";
   });
 }
+
 function unhighlightLeave(id) {
   document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => {
     el.style.filter = "none";
     el.style.zIndex = "10";
   });
 }
+
 function logout() {
   localStorage.removeItem("token");
   window.location.href = "/login.html";
+}
+
+/**
+ * 🔥 [UX 神技] 生成實體 HTML 碎片碎裂動畫 (速度適中、純灰版)
+ * @param {HTMLElement} barEl - 被點擊的 Eventbar 元素
+ */
+function createShatterAnimation(barEl) {
+  const rect = barEl.getBoundingClientRect();
+  const fragmentCount = 30;
+  const shardsContainer = [];
+
+  // 1. 本體立刻隱藏
+  barEl.classList.add("bar-is-shattering");
+
+  // 2. 生成碎片
+  for (let i = 0; i < fragmentCount; i++) {
+    const shard = document.createElement("div");
+    shard.className = "shatter-fragment";
+
+    const sW = 6 + Math.random() * 20;
+    const sH = 6 + Math.random() * 20;
+    shard.style.width = `${sW}px`;
+    shard.style.height = `${sH}px`;
+
+    // 🔥 強制設定為灰色，傳達休假已被取消/作廢的冷酷感
+    shard.style.setProperty("--fragment-bg", "#6b7280");
+
+    const points = [
+      `${Math.random() * 10}% ${Math.random() * 10}%`,
+      `${90 + Math.random() * 10}% ${Math.random() * 10}%`,
+      `${90 + Math.random() * 10}% ${90 + Math.random() * 10}%`,
+      `${Math.random() * 10}% ${90 + Math.random() * 10}%`,
+    ];
+    shard.style.clipPath = `polygon(${points.join(",")})`;
+
+    shard.style.left = `${rect.left + Math.random() * (rect.width - sW)}px`;
+    shard.style.top = `${rect.top + Math.random() * (rect.height - sH)}px`;
+
+    const direction = Math.random() < 0.5 ? -1 : 1;
+
+    const txMid = ((Math.random() * rect.width) / 4) * direction;
+    const tyMid = -(10 + Math.random() * 15);
+    const rotMid = direction * (30 + Math.random() * 60);
+
+    const txEnd = Math.random() * rect.width * direction * 1.2;
+    const tyEnd = 50 + Math.random() * 80; // 掉落高度
+    const rotEnd = direction * (180 + Math.random() * 360);
+
+    shard.style.setProperty("--tx-mid", `${txMid}px`);
+    shard.style.setProperty("--ty-mid", `${tyMid}px`);
+    shard.style.setProperty("--rot-mid", `${rotMid}deg`);
+    shard.style.setProperty("--tx-end", `${txEnd}px`);
+    shard.style.setProperty("--ty-end", `${tyEnd}px`);
+    shard.style.setProperty("--rot-end", `${rotEnd}deg`);
+
+    // 🔥 動畫時間設定在 0.7s ~ 1.1s 之間，是最舒服的視覺停留時間
+    const duration = 0.7 + Math.random() * 0.4;
+    const delay = Math.random() * 0.05;
+    shard.style.animation = `fragmentShatter ${duration}s cubic-bezier(0.25, 1, 0.5, 1) ${delay}s forwards`;
+
+    document.body.appendChild(shard);
+    shardsContainer.push(shard);
+  }
+
+  setTimeout(() => {
+    shardsContainer.forEach((s) => s.remove());
+  }, 1500);
 }

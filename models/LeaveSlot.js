@@ -1,4 +1,3 @@
-// models/LeaveSlot_.js
 const mongoose = require("mongoose");
 
 const leaveSlotSchema = new mongoose.Schema(
@@ -21,42 +20,30 @@ const leaveSlotSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    // 🎟 출타 종류 (수정됨)
+    // 🔥 擴充 enum，讓 연가(휴가), 기타, 특별 都能順利存入資料庫
     type: {
       type: String,
       required: true,
-      enum: ["포상", "위로", "보상", "외박", "외출"],
+      enum: [
+        "포상",
+        "위로",
+        "보상",
+        "외박",
+        "외출",
+        "휴가",
+        "기타",
+        "특별",
+        "평일특별",
+        "주말특별",
+      ],
       index: true,
     },
-    reason: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    // 📊 수량 관리
-    totalCount: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    remains: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    // 📁 증빙 서류 파일 경로 (새로 추가됨)
-    evidenceFile: {
-      type: String,
-      default: null,
-    },
-    acquiredAt: {
-      type: Date,
-      default: Date.now,
-    },
-    expiresAt: {
-      type: Date,
-      index: true,
-    },
+    reason: { type: String, required: true, trim: true },
+    totalCount: { type: Number, required: true, min: 0 },
+    remains: { type: Number, required: true, min: 0 },
+    evidenceFile: { type: String, default: null },
+    acquiredAt: { type: Date, default: Date.now },
+    expiresAt: { type: Date, index: true },
     status: {
       type: String,
       enum: ["active", "expired", "revoked"],
@@ -64,14 +51,9 @@ const leaveSlotSchema = new mongoose.Schema(
       index: true,
     },
     description: String,
-    grantedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+    grantedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 leaveSlotSchema.index({

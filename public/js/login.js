@@ -5,8 +5,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // 1. 요소 초기화
   const loginBtn = document.getElementById("loginBtn");
   const passwordInput = document.getElementById("password");
+  const serviceNumberInput = document.getElementById("serviceNumber");
   const registerBtn = document.getElementById("registerBtn");
-  const forgotBtn = document.getElementById("forgotBtn");
+  const errorBox = document.getElementById("errorBox");
 
   // 2. 이벤트 바인딩
   loginBtn?.addEventListener("click", handleLogin);
@@ -15,13 +16,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") handleLogin();
   });
 
+  // 🔥 사용자가 다시 입력하기 시작하면 에러 박스 숨기기
+  const hideError = () => {
+    if (errorBox) errorBox.classList.add("hidden");
+  };
+  passwordInput?.addEventListener("input", hideError);
+  serviceNumberInput?.addEventListener("input", hideError);
+
   registerBtn?.addEventListener("click", () => {
     window.location.href = "/register.html";
   });
 
-  forgotBtn?.addEventListener("click", () => {
-    window.location.href = "/forgot-password.html";
-  });
+  // (비밀번호 재설정은 HTML의 onclick="openForgotModal()"로 처리됨)
 
   // 3. 페이지 로드 시 자동 로그인 확인
   checkAutoLogin();
@@ -33,12 +39,14 @@ document.addEventListener("DOMContentLoaded", () => {
 async function handleLogin() {
   const serviceNumber = document.getElementById("serviceNumber").value.trim();
   const password = document.getElementById("password").value.trim();
+  const errorBox = document.getElementById("errorBox");
+  const errorText = document.getElementById("errorText");
 
   // 유효성 검사 (프론트엔드 1차 방어)
   if (!serviceNumber || !password)
-    return alert("군번과 비밀번호를 모두 입력해 주세요.");
+    return showError("군번과 비밀번호를 모두 입력해 주세요.");
   if (!/^\d{2}-\d{8}$/.test(serviceNumber))
-    return alert("군번 형식(XX-XXXXXXXX)이 올바르지 않습니다.");
+    return showError("군번 형식(XX-XXXXXXXX)이 올바르지 않습니다.");
 
   try {
     toggleLoading(true);
@@ -51,51 +59,55 @@ async function handleLogin() {
 
     const data = await res.json();
 
-    if (!res.ok) {
-      // 1. 서버가 보내준 구체적인 에러 메시지 추출
+    if (!res.ok || !data.success) {
+      // 🔥 서버가 보내준 똑똑한 에러 메시지(남은 횟수 등)를 그대로 출력!
       const errorMessage =
-        data.message ||
-        data.error ||
-        (data.errors ? Object.values(data.errors).join(", ") : null);
-
-      // 2. HTTP 상태 코드별 기본 메시지 설정 (Fallback)
-      let finalMessage = errorMessage;
-      if (!finalMessage) {
-        if (res.status === 401)
-          finalMessage = "군번 또는 비밀번호가 일치하지 않습니다.";
-        else if (res.status === 403)
-          finalMessage = "접근 권한이 없거나 계정이 잠겨 있습니다.";
-        else if (res.status === 429)
-          finalMessage =
-            "너무 많은 요청이 발생했습니다. 잠시 후 다시 시도해주세요.";
-        else if (res.status === 500)
-          finalMessage =
-            "서버 내부 오류가 발생했습니다. 관리자에게 문의하세요.";
-        else finalMessage = "알 수 없는 오류가 발생했습니다.";
-      }
-
-      // 3. 사용자에게 알림
-      console.error(`[Login Error ${res.status}]:`, data);
-      alert(`❌ 로그인 실패\n\n이유: ${finalMessage}`);
-
+        data.message || data.error || "로그인에 실패했습니다.";
+      showError(errorMessage);
       toggleLoading(false);
       return;
     }
 
-    // 로그인 성공: 토큰과 역할을 로컬 스토리지에 저장
+    // 로그인 성공: 에러 박스 숨김 및 토큰 저장
+    if (errorBox) errorBox.classList.add("hidden");
     localStorage.setItem("token", data.token);
 
-    // 🔥 백엔드 응답에 user 정보와 role이 있다면 바로 저장
     if (data.user && data.user.role) {
       localStorage.setItem("role", data.user.role);
     }
 
-    // 유저 정보 한 번 더 확인 후 리다이렉트
+    // 🔥 [강제 변경 방어막 1] 간부가 비밀번호를 초기화해줬다면 무조건 설정 페이지로 납치!
+    if (data.user && data.user.forceChangePassword) {
+      alert("보안을 위해 비밀번호를 반드시 변경해야 합니다.");
+      window.location.href = "settings.html";
+      return; // 여기서 함수 종료 (아래로 넘어가지 못함)
+    }
+
+    // 일반적인 경우: 유저 정보 한 번 더 확인 후 달력 페이지 리다이렉트
     await fetchProfileAndRedirect(data.token);
   } catch (err) {
     console.error("Login Error:", err);
-    alert("서버와 통신 중 오류가 발생했습니다.");
+    showError("서버와 통신 중 오류가 발생했습니다.");
     toggleLoading(false);
+  }
+}
+
+/**
+ * 🔥 에러 메시지를 화면에 예쁘게 띄워주는 헬퍼 함수
+ */
+function showError(message) {
+  const errorBox = document.getElementById("errorBox");
+  const errorText = document.getElementById("errorText");
+
+  if (errorBox && errorText) {
+    errorText.innerText = message;
+    errorBox.classList.remove("hidden");
+    // 흔들림 애니메이션 효과 (UX 향상)
+    errorBox.classList.remove("shake-anim");
+    void errorBox.offsetWidth; // 리플로우 강제 발생 (애니메이션 재시작 트릭)
+    errorBox.classList.add("shake-anim");
+  } else {
+    alert(message); // 만약 HTML에 에러박스가 없다면 기본 alert로 폴백
   }
 }
 
@@ -110,18 +122,22 @@ async function fetchProfileAndRedirect(token) {
     const data = await res.json();
 
     if (data.user) {
-      // 🔥 index.html에서 권한 제어(applyRolePermissions)를 할 수 있도록 role 저장
       localStorage.setItem("role", data.user.role);
 
-      // 🔥 모든 신분(용사, 간부, 검토자, 승인자)은 통합된 index.html로 이동
-      window.location.href = "/index.html";
+      // 🔥 [강제 변경 방어막 2] 우회 접근을 막기 위한 이중 체크
+      if (data.user.forceChangePassword) {
+        alert("보안을 위해 비밀번호를 반드시 변경해야 합니다.");
+        window.location.href = "settings.html";
+      } else {
+        window.location.href = "index.html";
+      }
     } else {
       throw new Error("Invalid User Data");
     }
   } catch (err) {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
-    alert(`사용자 정보를 가져오는 데 실패했습니다: ${err.message}`);
+    showError(`사용자 정보를 가져오는 데 실패했습니다: ${err.message}`);
     toggleLoading(false);
   }
 }
@@ -140,9 +156,14 @@ async function checkAutoLogin() {
     const data = await res.json();
 
     if (data.user) {
-      // 🔥 자동 로그인 시에도 role 업데이트 및 index.html로 이동
       localStorage.setItem("role", data.user.role);
-      window.location.href = "/index.html";
+
+      // 🔥 [강제 변경 방어막 3] 자동 로그인 시에도 변경이 필요하면 설정 창으로!
+      if (data.user.forceChangePassword) {
+        window.location.href = "settings.html";
+      } else {
+        window.location.href = "index.html";
+      }
     }
   } catch (err) {
     localStorage.removeItem("token");

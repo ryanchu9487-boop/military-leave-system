@@ -9,9 +9,34 @@
       href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.css"
       rel="stylesheet"
     />
+    <style>
+      @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+      body {
+        font-family: "Pretendard", sans-serif;
+      }
+
+      /* 에러 박스 등장 애니메이션 */
+      @keyframes shake {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-4px);
+        }
+        75% {
+          transform: translateX(4px);
+        }
+      }
+      .shake-anim {
+        animation: shake 0.3s ease-in-out;
+      }
+    </style>
   </head>
-  <body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
-    <div class="card w-full max-w-md bg-base-100 shadow-xl">
+  <body
+    class="bg-base-200 min-h-screen flex items-center justify-center p-4 relative"
+  >
+    <div class="card w-full max-w-md bg-base-100 shadow-xl z-10">
       <div class="card-body gap-6">
         <div class="text-center">
           <h1 class="text-4xl font-black text-primary italic tracking-tighter">
@@ -48,7 +73,15 @@
           </div>
         </div>
 
-        <div class="flex flex-col gap-3 mt-4">
+        <div
+          id="errorBox"
+          class="hidden px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-600 text-sm font-bold shadow-sm"
+        >
+          <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+          <span id="errorText">비밀번호가 일치하지 않습니다.</span>
+        </div>
+
+        <div class="flex flex-col gap-3 mt-2">
           <button id="loginBtn" class="btn btn-primary text-white text-lg">
             로그인
           </button>
@@ -60,12 +93,16 @@
           </div>
 
           <div class="flex justify-between items-center px-1">
-            <button id="forgotBtn" class="text-xs link link-hover opacity-70">
+            <button
+              type="button"
+              onclick="openForgotModal()"
+              class="text-xs link link-hover opacity-70 focus:outline-none"
+            >
               비밀번호 재설정
             </button>
             <button
               id="registerBtn"
-              class="text-xs font-bold text-primary link link-hover"
+              class="text-xs font-bold text-primary link link-hover focus:outline-none"
             >
               부대 등록하기
             </button>
@@ -74,6 +111,129 @@
       </div>
     </div>
 
+    <dialog id="forgotPasswordModal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box">
+        <h3 class="font-black text-lg text-primary flex items-center gap-2">
+          <i class="fa-solid fa-unlock-keyhole"></i> 비밀번호 초기화 요청
+        </h3>
+        <p class="py-4 text-sm text-gray-600 font-medium">
+          소속 부대 간부에게 비밀번호 초기화를 요청합니다.<br />
+          간부가 승인하면
+          <span class="text-primary font-bold">본인의 군번</span>으로
+          로그인하여<br />비밀번호를 새롭게 변경할 수 있습니다.
+        </p>
+
+        <div class="space-y-3">
+          <div class="form-control w-full">
+            <label class="label"
+              ><span class="label-text font-bold">군번</span></label
+            >
+            <input
+              type="text"
+              id="resetServiceNumber"
+              placeholder="XX-XXXXXXXX"
+              class="input input-bordered w-full focus:input-primary"
+            />
+          </div>
+          <div class="form-control w-full">
+            <label class="label"
+              ><span class="label-text font-bold">이름</span></label
+            >
+            <input
+              type="text"
+              id="resetName"
+              placeholder="예: 홍길동"
+              class="input input-bordered w-full focus:input-primary"
+            />
+          </div>
+        </div>
+
+        <div
+          id="resetErrorBox"
+          class="hidden mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 text-red-600 text-xs font-bold transition-all"
+        >
+          <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+          <span id="resetErrorText">오류 메시지</span>
+        </div>
+
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn focus:outline-none">취소</button>
+          </form>
+          <button
+            id="requestResetBtn"
+            onclick="submitResetRequest()"
+            class="btn btn-primary text-white focus:outline-none"
+          >
+            요청하기
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
+
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
     <script src="/js/login.js"></script>
+
+    <script>
+      function openForgotModal() {
+        document.getElementById("resetServiceNumber").value = "";
+        document.getElementById("resetName").value = "";
+        document.getElementById("resetErrorBox").classList.add("hidden");
+        document.getElementById("forgotPasswordModal").showModal();
+      }
+
+      async function submitResetRequest() {
+        const serviceNumber = document
+          .getElementById("resetServiceNumber")
+          .value.trim();
+        const name = document.getElementById("resetName").value.trim();
+        const errorBox = document.getElementById("resetErrorBox");
+        const errorText = document.getElementById("resetErrorText");
+        const btn = document.getElementById("requestResetBtn");
+
+        if (!serviceNumber || !name) {
+          errorText.innerText = "군번과 이름을 모두 입력해주세요.";
+          errorBox.classList.remove("hidden");
+          errorBox.classList.add("shake-anim");
+          setTimeout(() => errorBox.classList.remove("shake-anim"), 300);
+          return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML =
+          '<span class="loading loading-spinner loading-sm"></span> 요청 중...';
+        errorBox.classList.add("hidden");
+
+        try {
+          const response = await fetch("/auth/request-reset", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ serviceNumber, name }),
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            alert(data.message); // 성공 알림 (소속 부대 간부에게 전송됨)
+            document.getElementById("forgotPasswordModal").close();
+          } else {
+            errorText.innerText = data.message || "요청에 실패했습니다.";
+            errorBox.classList.remove("hidden");
+          }
+        } catch (error) {
+          errorText.innerText = "서버 통신 중 오류가 발생했습니다.";
+          errorBox.classList.remove("hidden");
+        } finally {
+          btn.disabled = false;
+          btn.innerText = "요청하기";
+        }
+      }
+    </script>
   </body>
 </html>

@@ -3,75 +3,120 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>UNIT PATH - 부대 등록</title>
+    <title>UNIT PATH - 통합 부대 등록</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://cdn.jsdelivr.net/npm/daisyui@latest/dist/full.css"
       rel="stylesheet"
     />
     <style>
-      /* 폰트 설정 */
       @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
       body {
         font-family: "Pretendard", sans-serif;
       }
-
-      /* 부드러운 전환을 위한 커스텀 스타일 */
       .input-transition {
         transition: all 0.3s ease;
       }
+      .fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(15px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
     </style>
   </head>
-  <body class="bg-base-200 min-h-screen flex items-center justify-center p-4">
+  <body
+    class="bg-slate-50 min-h-screen flex items-center justify-center p-4 selection:bg-primary selection:text-white"
+  >
     <div
-      class="card w-full max-w-lg bg-base-100 shadow-2xl overflow-hidden fade-in"
+      class="card w-full max-w-lg bg-base-100 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.1)] overflow-hidden fade-in border border-gray-100"
     >
-      <div class="h-2 bg-primary w-full"></div>
+      <div class="h-2 bg-gradient-to-r from-primary to-secondary w-full"></div>
 
-      <div class="card-body gap-6 py-10">
-        <div class="text-center">
-          <h2 class="text-3xl font-black text-primary italic tracking-tighter">
+      <div class="card-body gap-5 py-8">
+        <div class="text-center mb-2">
+          <h2
+            class="text-3xl font-black text-primary italic tracking-tighter drop-shadow-sm"
+          >
             UNIT PATH
           </h2>
-          <p class="text-sm opacity-60 mt-1 font-bold">부대 관리자 계정 생성</p>
+          <p class="text-sm text-gray-500 mt-1 font-bold">
+            스마트 통합 부대 등록 시스템
+          </p>
         </div>
 
         <div
-          class="divider text-[10px] opacity-40 uppercase tracking-widest font-bold text-primary"
+          class="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex justify-between items-center transition-colors hover:bg-indigo-50 cursor-pointer"
+          onclick="document.getElementById('isCadre').click()"
+        >
+          <div>
+            <span
+              class="label-text font-black text-indigo-900 text-base flex items-center gap-2"
+            >
+              <i class="fa-solid fa-user-shield text-indigo-500"></i>
+              간부(검토자/승인자) 이신가요?
+            </span>
+            <p class="text-[11px] text-indigo-600/70 mt-1 font-medium">
+              체크 시 간부 권한으로 가입되며 진급 대상에서 제외됩니다.
+            </p>
+          </div>
+          <input
+            type="checkbox"
+            id="isCadre"
+            class="toggle toggle-primary shadow-sm"
+            onclick="event.stopPropagation()"
+          />
+        </div>
+
+        <div
+          class="divider text-[10px] opacity-40 uppercase tracking-widest font-bold text-primary my-0"
         >
           Registration Form
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
           <div class="form-control md:col-span-2">
             <label class="label"
-              ><span class="label-text font-bold">부대 명칭</span></label
+              ><span class="label-text font-bold text-gray-700"
+                >부대 명칭</span
+              ></label
             >
             <input
               type="text"
               id="unitName"
               placeholder="예: 제1보병사단"
-              class="input input-bordered focus:input-primary input-transition"
+              class="input input-bordered focus:input-primary input-transition h-11 bg-gray-50 focus:bg-white"
               required
             />
           </div>
 
           <div class="form-control">
             <label class="label"
-              ><span class="label-text font-bold">이름</span></label
+              ><span class="label-text font-bold text-gray-700"
+                >이름</span
+              ></label
             >
             <input
               type="text"
               id="name"
               placeholder="홍길동"
-              class="input input-bordered focus:input-primary input-transition"
+              class="input input-bordered focus:input-primary input-transition h-11 bg-gray-50 focus:bg-white"
               required
             />
           </div>
 
           <div class="form-control">
             <label class="label"
-              ><span class="label-text font-bold">군번</span></label
+              ><span class="label-text font-bold text-gray-700"
+                >군번</span
+              ></label
             >
             <div class="relative">
               <input
@@ -80,19 +125,53 @@
                 placeholder="24-12345678"
                 pattern="\d{2}-\d{8}"
                 required
-                class="peer input input-bordered w-full input-transition invalid:[&:not(:placeholder-shown)]:border-error valid:[&:not(:placeholder-shown)]:border-success"
+                class="peer input input-bordered w-full input-transition invalid:[&:not(:placeholder-shown)]:border-error valid:[&:not(:placeholder-shown)]:border-success h-11 bg-gray-50 focus:bg-white"
               />
               <p
-                class="mt-1 text-xs text-error opacity-0 scale-95 origin-left transition-all duration-300 peer-invalid:[&:not(:placeholder-shown)]:opacity-100 peer-invalid:[&:not(:placeholder-shown)]:scale-100"
+                class="mt-1 text-[10px] text-error opacity-0 scale-95 origin-left transition-all duration-300 peer-invalid:[&:not(:placeholder-shown)]:opacity-100 peer-invalid:[&:not(:placeholder-shown)]:scale-100 absolute"
               >
                 형식(XX-XXXXXXXX)을 확인하세요.
               </p>
             </div>
           </div>
 
-          <div class="form-control md:col-span-2">
+          <div class="form-control">
             <label class="label"
-              ><span class="label-text font-bold">전화번호</span></label
+              ><span
+                class="label-text font-bold text-primary"
+                id="enlistmentLabel"
+                >입대일 (필수)</span
+              ></label
+            >
+            <input
+              type="date"
+              id="enlistmentDate"
+              class="input input-bordered border-primary/30 focus:border-primary focus:ring-1 focus:ring-primary input-transition h-11 text-sm font-mono text-gray-800"
+              required
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label"
+              ><span
+                class="label-text font-bold text-gray-600 transition-colors"
+                id="dischargeLabel"
+                >예정 전역일 (자동계산/수정가능)</span
+              ></label
+            >
+            <input
+              type="date"
+              id="dischargeDate"
+              class="input input-bordered border-gray-300 focus:border-primary focus:ring-1 focus:ring-primary input-transition h-11 text-sm font-mono text-gray-800"
+              required
+              title="자동 계산된 날짜입니다. 실제와 다를 경우 직접 수정해주세요."
+            />
+          </div>
+          <div class="form-control md:col-span-2 mt-2">
+            <label class="label"
+              ><span class="label-text font-bold text-gray-700"
+                >전화번호</span
+              ></label
             >
             <div class="relative">
               <input
@@ -101,45 +180,49 @@
                 placeholder="010-1234-5678"
                 pattern="\d{3}-\d{3,4}-\d{4}"
                 required
-                class="peer input input-bordered w-full input-transition invalid:[&:not(:placeholder-shown)]:border-error valid:[&:not(:placeholder-shown)]:border-success"
+                class="peer input input-bordered w-full input-transition invalid:[&:not(:placeholder-shown)]:border-error valid:[&:not(:placeholder-shown)]:border-success h-11 bg-gray-50 focus:bg-white"
               />
               <p
-                class="mt-1 text-xs text-error opacity-0 scale-95 origin-left transition-all duration-300 peer-invalid:[&:not(:placeholder-shown)]:opacity-100 peer-invalid:[&:not(:placeholder-shown)]:scale-100"
+                class="mt-1 text-[10px] text-error opacity-0 scale-95 origin-left transition-all duration-300 peer-invalid:[&:not(:placeholder-shown)]:opacity-100 peer-invalid:[&:not(:placeholder-shown)]:scale-100 absolute"
               >
                 형식(010-0000-0000)을 확인하세요.
               </p>
             </div>
           </div>
 
-          <div class="form-control">
+          <div class="form-control mt-2">
             <label class="label"
-              ><span class="label-text font-bold">비밀번호</span></label
+              ><span class="label-text font-bold text-gray-700"
+                >비밀번호</span
+              ></label
             >
             <input
               type="password"
               id="password"
               placeholder="••••••••"
-              class="input input-bordered focus:input-primary input-transition"
+              class="input input-bordered focus:input-primary input-transition h-11 bg-gray-50 focus:bg-white"
               required
               minlength="6"
             />
           </div>
 
-          <div class="form-control">
+          <div class="form-control mt-2">
             <label class="label"
-              ><span class="label-text font-bold">비밀번호 확인</span></label
+              ><span class="label-text font-bold text-gray-700"
+                >비밀번호 확인</span
+              ></label
             >
             <div class="relative">
               <input
                 type="password"
                 id="confirmPassword"
                 placeholder="••••••••"
-                class="input input-bordered w-full input-transition"
+                class="input input-bordered w-full input-transition h-11 bg-gray-50 focus:bg-white"
                 required
               />
               <p
                 id="pwError"
-                class="mt-1 text-xs text-error opacity-0 scale-95 origin-left transition-all duration-300"
+                class="mt-1 text-[10px] text-error opacity-0 scale-95 origin-left transition-all duration-300 absolute"
               >
                 비밀번호가 일치하지 않습니다.
               </p>
@@ -150,18 +233,16 @@
         <div class="mt-6 space-y-3">
           <button
             id="registerBtn"
-            class="btn btn-primary w-full text-white shadow-md btn-disabled"
+            class="btn btn-primary w-full text-white shadow-lg shadow-primary/30 btn-disabled text-base tracking-wide h-12"
           >
             계정 생성하기
           </button>
-
           <div id="loading" class="hidden flex justify-center py-2">
             <span class="loading loading-dots loading-md text-primary"></span>
           </div>
-
           <button
             id="goLoginBtn"
-            class="btn btn-ghost btn-sm w-full opacity-60 font-normal"
+            class="btn btn-ghost btn-sm w-full text-gray-500 hover:text-primary transition-colors font-semibold"
           >
             이미 계정이 있으신가요? 로그인하기
           </button>
@@ -169,6 +250,11 @@
       </div>
     </div>
 
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
     <script src="/js/register.js"></script>
+  </body>
+</html>
   </body>
 </html>

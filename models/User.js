@@ -59,7 +59,14 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       // 增加 officer (간부), 保留 reviewer (검토자), approver (승인자)
-      enum: ["soldier", "officer", "reviewer", "approver"],
+      enum: [
+        "soldier",
+        "officer",
+        "reviewer",
+        "approver",
+        "admin",
+        "superadmin",
+      ],
       default: "soldier",
       index: true,
     },
@@ -71,13 +78,22 @@ const userSchema = new mongoose.Schema(
       default: "pending",
       index: true,
     },
-    // --- 보안 ---
-    mustChangePassword: { type: Boolean, default: false }, // 관리자가 초기화 시 true
+
+    // --- 🔥 [보안 및 비밀번호 초기화 메커니즘] ---
+    resetRequested: { type: Boolean, default: false }, // 용사가 비밀번호 초기화를 요청했을 때 true
+    forceChangePassword: { type: Boolean, default: false }, // 간부가 초기화 승인 후, 다음 로그인 시 강제 변경을 요구할 때 true
 
     isActive: { type: Boolean, default: true, index: true },
     loginAttempts: { type: Number, default: 0 },
     lockUntil: { type: Date },
     lastLoginAt: { type: Date },
+
+    // --- 🔥 [군 생활 및 진급 관련 날짜] ---
+    enlistmentDate: { type: Date }, // 입대일 (入伍日)
+    dischargeDate: { type: Date }, // 예정 전역일 (預計退伍日: 入伍+18個月)
+    promoToIlbyung: { type: Date }, // 일병 진급일 (一兵: 入伍+3個月的1號)
+    promoToSangbyung: { type: Date }, // 상병 진급일 (上兵: 入伍+9個月的1號)
+    promoToByungjang: { type: Date }, // 병장 진급일 (兵長: 入伍+15個月的1號)
   },
   {
     timestamps: true,
@@ -99,22 +115,6 @@ userSchema.index(
     partialFilterExpression: { organizationId: { $exists: true, $ne: null } },
   }
 );
-
-//
-// 비밀번호 암호화
-//
-userSchema.pre("save", async function (next) {
-  // 비밀번호가 변경되거나 새로 생성될 때만 해싱
-  if (!this.isModified("password")) return next();
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    this.password = await bcrypt.hash(this.password, salt);
-    next();
-  } catch (err) {
-    next(err);
-  }
-});
 
 userSchema.methods.comparePassword = async function (candidatePassword) {
   return bcrypt.compare(candidatePassword, this.password);

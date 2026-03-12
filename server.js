@@ -10,6 +10,7 @@ const { globalLimiter } = require("./src/middlewares/rateLimiter");
 const { authMiddleware } = require("./src/middlewares/authMiddleware");
 const Organization = require("./models/Organization");
 const User = require("./models/User");
+const Leave = require("./models/Leave");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -162,7 +163,9 @@ app.get("/users", authMiddleware, async (req, res) => {
     let users;
     if (req.user.role === "superadmin") {
       // ✅ 補上了 status
-      users = await User.find().select("_id name serviceNumber role unitId status");
+      users = await User.find().select(
+        "_id name serviceNumber role unitId status"
+      );
     } else {
       // unitId나 orgId를 기준으로 같은 소속 인원 검색
       const targetId = req.user.unitId || req.user.orgId;
@@ -173,6 +176,113 @@ app.get("/users", authMiddleware, async (req, res) => {
     res.json({ users });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get("/leaves/notifications", authMiddleware, async (req, res) => {
+  try {
+    // 從 authMiddleware 解析出來的 user 資料中取得 userId 與 role
+    const userId = req.user.userId || req.user._id;
+    const orgId = req.user.orgId;
+    const role = req.user.role;
+
+    // 1. 抓取當前使用者資訊 (為了顯示右上角的姓名與階級)
+    const currentUser = await User.findById(userId).populate("organizationId");
+    if (!currentUser) {
+      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
+    }
+
+    let notifications = [];
+
+    // ==========================================
+    // 🟢 2. 休假申請 & 取消審核通知 (原本的)
+    // ==========================================
+    if (role === "reviewer") {
+      const leaves = await Leave.find({
+        organizationId: orgId,
+        status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
+      })
+        .populate("userId", "name")
+        .lean();
+      notifications.push(...leaves);
+    } else if (role === "approver" || role === "superadmin") {
+      const leaves = await Leave.find({
+        organizationId: orgId,
+        status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
+      })
+        .populate("userId", "name")
+        .lean();
+      notifications.push(...leaves);
+    } else if (role === "soldier") {
+      const leaves = await Leave.find({
+        userId: userId,
+        status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL"] },
+      })
+        .populate("userId", "name")
+        .lean();
+      notifications.push(...leaves);
+    }
+
+    // ==========================================
+    // 🟡 3. 新兵審核 & 退伍老兵 通知 (新功能)
+    // ==========================================
+    if (["reviewer", "approver", "admin", "superadmin"].includes(role)) {
+      // A. 新兵待審核
+      const pendingUsers = await User.find({
+        organizationId: orgId,
+        status: "pending",
+      }).lean();
+      pendingUsers.forEach((pu) => {
+        notifications.push({
+          _id: pu._id,
+          status: "NEW_MEMBER_PENDING",
+          reason: "신규 부대원 가입 승인 대기",
+          userId: { name: pu.name },
+          createdAt: pu.createdAt,
+        });
+      });
+
+      // B. 今日退伍
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const dischargingUsers = await User.find({
+        organizationId: orgId,
+        status: "approved",
+        dischargeDate: { $gte: today, $lt: tomorrow },
+      }).lean();
+
+      dischargingUsers.forEach((du) => {
+        notifications.push({
+          _id: du._id,
+          status: "DISCHARGE_TODAY",
+          reason: "오늘 전역 예정입니다. 전역 처리를 진행해주세요.",
+          userId: { name: du.name },
+          createdAt: new Date(), // 給定一個當下時間來排序
+        });
+      });
+    }
+
+    // 4. 將所有通知依照時間排序 (最新的在最上面)
+    notifications.sort(
+      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+    );
+
+    // 5. 完美回傳給前端
+    res.json({
+      success: true,
+      userInfo: {
+        name: currentUser.name,
+        role: currentUser.role,
+        unitName: currentUser.organizationId?.name,
+      },
+      notifications,
+    });
+  } catch (error) {
+    console.error("🔔 알림 API 오류:", error);
+    res.status(500).json({ error: "알림 정보를 불러오는데 실패했습니다." });
   }
 });
 
@@ -189,3 +299,4 @@ app.use("/", require("./src/routes/memberRoutes"));
 app.listen(3000, "0.0.0.0", () => {
   console.log("🚀 Server running on port 3000 - server.js");
 });
+///
