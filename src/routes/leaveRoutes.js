@@ -302,24 +302,34 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         });
       });
 
-      // 🔥 C. 密碼重置申請 (剛剛加的這段)
+      // 🔥 C. 密碼重置申請 (帶有超級掃描器)
+      console.log(`\n=========================================`);
+      console.log(`🔔 [小鈴鐺偵測] 登入的幹部 (${currentUser.name}) 的部隊 ID: ${orgId}`);
+      
+      // 1. 先不限部隊，把「全宇宙」有申請重置的人都抓出來看看
+      const allResetUsers = await User.find({ resetRequested: true }).lean();
+      console.log(`🕵️ [掃描結果] DB 全宇宙有申請重置的人數: ${allResetUsers.length} 人`);
+      
+      allResetUsers.forEach(u => {
+        console.log(`   👉 勇士姓名: ${u.name}, 他的部隊 ID: ${u.organizationId}`);
+      });
+
+      // 2. 再執行原本的「同部隊過濾」
       const resetUsers = await User.find({
         organizationId: orgId,
         resetRequested: true,
       }).lean();
 
-      // 👉 請在這裡補上這行監視器：
-      console.log(
-        `🔔 [小鈴鐺偵測] 幹部所屬部隊(${orgId}) 目前有 ${resetUsers.length} 人申請重置密碼！`
-      );
+      console.log(`🎯 [最終配對] 跟幹部同部隊，且申請重置的人數: ${resetUsers.length} 人`);
+      console.log(`=========================================\n`);
 
       resetUsers.forEach((ru) => {
         notifications.push({
-          _id: ru._id,
+          _id: ru._id, 
           status: "PASSWORD_RESET_REQ",
-          reason: "비밀번호 초기화 요청",
+          reason: "비밀번호 초기화 요청", 
           userId: { name: ru.name },
-          createdAt: ru.updatedAt || new Date(),
+          createdAt: ru.updatedAt || new Date(), 
         });
       });
     }

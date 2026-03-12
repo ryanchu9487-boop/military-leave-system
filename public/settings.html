@@ -620,9 +620,8 @@
         }
 
         try {
-          const res = await fetch("/leaves/notifications", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+         // ✅ 正確的新代碼：
+          const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
           if (!res.ok) return;
           const data = await res.json();
 

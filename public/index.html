@@ -612,11 +612,10 @@
             sidebarManageBtn.style.setProperty("display", "none", "important");
         }
 
+        // 【修改後】無論什麼角色，都強制顯示「등록」按鈕
         if (fabGrantBtn) {
-          if (userRole === "soldier")
-            fabGrantBtn.style.setProperty("display", "none", "important");
-          else fabGrantBtn.style.setProperty("display", "flex", "important");
-        }
+        fabGrantBtn.style.setProperty("display", "flex", "important");
+}
 
         if (notifWrapper) notifWrapper.style.display = "flex";
 
@@ -659,9 +658,8 @@
         }
 
         try {
-          const res = await fetch("/leaves/notifications", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          // ✅ 正確的新代碼：
+          const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
           if (!res.ok) return;
           const data = await res.json();
 
