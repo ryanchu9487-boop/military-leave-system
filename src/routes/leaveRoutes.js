@@ -240,24 +240,27 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         organizationId: orgId,
         status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
       })
-        .populate("userId", "name")
-        .lean();
+      .populate("userId", "name")
+      .populate("usedSlots.slotId", "evidenceFile") // 🔥 新增這行：挖出證明文件
+      .lean();
       notifications.push(...leaves);
     } else if (role === "approver" || role === "superadmin") {
       const leaves = await Leave.find({
         organizationId: orgId,
         status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
       })
-        .populate("userId", "name")
-        .lean();
+      .populate("userId", "name")
+      .populate("usedSlots.slotId", "evidenceFile") // 🔥 新增這行：挖出證明文件
+      .lean();
       notifications.push(...leaves);
     } else if (role === "soldier") {
       const leaves = await Leave.find({
         userId: userId,
         status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL"] },
       })
-        .populate("userId", "name")
-        .lean();
+      .populate("userId", "name")
+      .populate("usedSlots.slotId", "evidenceFile") // 🔥 新增這行：挖出證明文件
+      .lean();
       notifications.push(...leaves);
     }
 
@@ -556,6 +559,69 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
     res
       .status(500)
       .json({ error: "일괄 승인 처리 중 서버 오류가 발생했습니다." });
+  }
+});
+
+// =========================================================================
+// 🔥 [全新] 取得特定勇士的歷史出外紀錄 (動態時間切片 + 分類打包)
+// GET /leaves/user-history/:userId?beforeDate=YYYY-MM-DD
+// =========================================================================
+router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { beforeDate } = req.query;
+
+    if (!beforeDate) {
+      return res.status(400).json({ error: "기준 날짜가 필요합니다. (beforeDate)" });
+    }
+
+    const targetDate = new Date(beforeDate);
+
+    // 1. 抓取在該日期「之前」且已經被核准(或已放完)的假單
+    const pastLeaves = await Leave.find({
+      userId: userId,
+      // 只抓取已經通過核准的單子（包含申請取消但還維持在核准狀態的）
+      status: { $in: ["APPROVED", "CANCEL_REQ_REVIEW", "CANCEL_REQ_APPROVAL", "CANCEL_APPROVED"] },
+      startDate: { $lt: targetDate } // 🚨 核心防護：出發日必須「嚴格小於」申請單的出發日
+    })
+      .sort({ startDate: -1 }) // 依照日期遞減排序（越近的在越前面）
+      .lean();
+
+    // 2. 準備三個空陣列來分類打包
+    const history = {
+      "휴가": [],
+      "외박": [],
+      "외출": []
+    };
+
+    const today = new Date();
+
+    // 3. 進行分類，並計算距今日數 (讓前端可以直接顯示)
+    pastLeaves.forEach(leave => {
+      // 安全機制：萬一資料庫有髒資料 type 是空的，預設歸類到 휴가
+      const type = leave.type || "휴가"; 
+      
+      // 每種類別我們只取「最近的 3 筆」給長官看就夠了，避免畫面爆炸
+      if (history[type] && history[type].length < 3) {
+        
+        // 計算這筆假單距離「現在」過了幾天（選用功能，幫助長官判斷）
+        const endDate = new Date(leave.endDate);
+        const daysAgo = Math.floor((today - endDate) / (1000 * 60 * 60 * 24));
+        
+        history[type].push({
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          reason: leave.reason,
+          daysAgo: daysAgo > 0 ? daysAgo : 0 // 如果是未來的假，顯示 0
+        });
+      }
+    });
+
+    res.json({ success: true, history });
+
+  } catch (error) {
+    console.error("🔥 역사 기록 조회 오류:", error);
+    res.status(500).json({ error: "기록 조회 중 서버 오류가 발생했습니다." });
   }
 });
 

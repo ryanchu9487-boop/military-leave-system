@@ -5,257 +5,150 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartMil - 출타 심의 (검토)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <style>
       @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
-      body {
-        font-family: "Pretendard", sans-serif;
-      }
+      body { font-family: "Pretendard", sans-serif; }
       .mesh-bg {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        z-index: -1;
-        overflow: hidden;
-        background-color: #f8fafc;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        z-index: -1; overflow: hidden; background-color: #f8fafc;
         transition: background-color 0.5s ease;
       }
       .blob {
-        position: absolute;
-        filter: blur(80px);
-        opacity: 0.6;
-        animation: float 10s infinite alternate ease-in-out;
-        transition: background 0.5s ease;
+        position: absolute; filter: blur(80px); opacity: 0.6;
+        animation: float 10s infinite alternate ease-in-out; transition: background 0.5s ease;
       }
-      /* 預設藍色 Blob */
       .blob-1 {
-        top: -10%;
-        left: -10%;
-        width: 50vw;
-        height: 50vw;
-        background: radial-gradient(
-          circle,
-          rgba(99, 102, 241, 0.3) 0%,
-          rgba(99, 102, 241, 0) 70%
-        );
+        top: -10%; left: -10%; width: 50vw; height: 50vw;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%);
       }
       .blob-2 {
-        bottom: -20%;
-        right: -10%;
-        width: 60vw;
-        height: 60vw;
-        background: radial-gradient(
-          circle,
-          rgba(59, 130, 246, 0.25) 0%,
-          rgba(59, 130, 246, 0) 70%
-        );
+        bottom: -20%; right: -10%; width: 60vw; height: 60vw;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0) 70%);
         animation-delay: -5s;
       }
-      /* 取消狀態的橘色 Blob */
-      .cancel-mode .mesh-bg {
-        background-color: #fffaf5;
-      }
-      .cancel-mode .blob-1 {
-        background: radial-gradient(
-          circle,
-          rgba(249, 115, 22, 0.3) 0%,
-          rgba(249, 115, 22, 0) 70%
-        );
-      }
-      .cancel-mode .blob-2 {
-        background: radial-gradient(
-          circle,
-          rgba(239, 68, 68, 0.25) 0%,
-          rgba(239, 68, 68, 0) 70%
-        );
-      }
+      .cancel-mode .mesh-bg { background-color: #fffaf5; }
+      .cancel-mode .blob-1 { background: radial-gradient(circle, rgba(249, 115, 22, 0.3) 0%, rgba(249, 115, 22, 0) 70%); }
+      .cancel-mode .blob-2 { background: radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0) 70%); }
 
       @keyframes float {
-        0% {
-          transform: translate(0, 0) scale(1);
-        }
-        100% {
-          transform: translate(30px, 50px) scale(1.1);
-        }
+        0% { transform: translate(0, 0) scale(1); }
+        100% { transform: translate(30px, 50px) scale(1.1); }
       }
-      .hide-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .hide-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      .glass-card {
-        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      }
+      .hide-scrollbar::-webkit-scrollbar { display: none; }
+      .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      .glass-card { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
       @keyframes slideUpFade {
-        0% {
-          opacity: 0;
-          transform: translateY(20px) scale(0.98);
-        }
-        100% {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
+        0% { opacity: 0; transform: translateY(20px) scale(0.98); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
       }
     </style>
   </head>
-  <body
-    class="text-slate-800 min-h-screen flex items-center justify-center p-4 sm:p-8 relative selection:bg-indigo-500 selection:text-white"
-    id="mainBody"
-  >
+  <body class="text-slate-800 min-h-screen flex items-center justify-center p-4 sm:p-8 relative selection:bg-indigo-500 selection:text-white" id="mainBody">
     <div class="mesh-bg">
       <div class="blob blob-1"></div>
       <div class="blob blob-2"></div>
     </div>
 
-    <div
-      class="glass-card max-w-2xl w-full bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden"
-    >
-      <button
-        onclick="window.location.href='index.html'"
-        class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 hover:bg-gray-200 text-gray-400 transition-all z-20"
-      >
+    <div class="glass-card max-w-2xl w-full bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] p-8 sm:p-10 relative overflow-hidden">
+      <button onclick="window.location.href='index.html'" class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 hover:bg-gray-200 text-gray-400 transition-all z-20">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
 
       <div class="mb-8">
-        <div
-          id="statusBadge"
-          class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200 text-indigo-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors"
-        >
-          <i class="fa-solid fa-file-signature"></i>
-          <span id="unitNameDisplay">소속부대</span>
+        <div id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200 text-indigo-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors">
+          <i class="fa-solid fa-file-signature"></i> <span id="unitNameDisplay">소속부대</span>
         </div>
-        <h1
-          class="text-3xl font-black tracking-tight text-gray-900"
-          id="mainTitle"
-        >
-          출타 심의
-          <span class="text-indigo-600 font-light" id="subTitle">검토</span>
+        <h1 class="text-3xl font-black tracking-tight text-gray-900" id="mainTitle">
+          출타 심의 <span class="text-indigo-600 font-light" id="subTitle">검토</span>
         </h1>
       </div>
 
       <div id="loading" class="text-center py-20">
-        <div
-          class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"
-          id="loadingSpinner"
-        ></div>
+        <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" id="loadingSpinner"></div>
       </div>
 
       <div id="leave-content" class="hidden space-y-8">
-        <div
-          class="flex items-center gap-5 p-5 rounded-3xl bg-white/50 border border-white shadow-sm"
-        >
-          <div
-            id="userAvatar"
-            class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors"
-          >
+        <div class="flex items-center gap-5 p-5 rounded-3xl bg-white/50 border border-white shadow-sm">
+          <div id="userAvatar" class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors">
             <span id="userInitial">U</span>
           </div>
           <div>
-            <p
-              class="text-sm font-bold text-indigo-600 mb-0.5 transition-colors"
-              id="userRank"
-            >
-              계급
-            </p>
-            <h2
-              class="text-2xl font-black text-gray-800 tracking-tight leading-none"
-              id="userName"
-            >
-              이름
-            </h2>
-            <p class="text-sm text-gray-500 font-mono mt-1" id="serviceNumber">
-              군번
-            </p>
+            <p class="text-sm font-bold text-indigo-600 mb-0.5 transition-colors" id="userRank">계급</p>
+            <h2 class="text-2xl font-black text-gray-800 tracking-tight leading-none" id="userName">이름</h2>
+            <p class="text-sm text-gray-500 font-mono mt-1" id="serviceNumber">군번</p>
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <div
-            class="p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm flex flex-col justify-center"
-          >
-            <span
-              class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider"
-              >출타 기간</span
-            >
-            <strong
-              id="leaveDates"
-              class="text-lg font-bold text-gray-800"
-            ></strong>
+          <div id="evidenceSection" class="col-span-2 p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm hidden transition-colors">
+            <span class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-paperclip"></i> 첨부된 증빙 서류
+            </span>
+            <div id="evidenceFilesContainer" class="flex flex-wrap gap-2">
+              </div>
           </div>
-          <div
-            id="daysBox"
-            class="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 flex flex-col justify-center items-end text-right transition-colors"
-          >
-            <span
-              id="daysLabel"
-              class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider transition-colors"
-              >사용/취소 일수</span
-            >
+          <div class="p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm flex flex-col justify-center">
+            <span class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">출타 기간</span>
+            <strong id="leaveDates" class="text-lg font-bold text-gray-800"></strong>
+          </div>
+          <div id="daysBox" class="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 flex flex-col justify-center items-end text-right transition-colors">
+            <span id="daysLabel" class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider transition-colors">사용/취소 일수</span>
             <div class="flex items-baseline gap-1">
-              <strong
-                id="totalDays"
-                class="text-3xl font-black text-indigo-600 transition-colors"
-              ></strong
-              ><span
-                id="daysUnit"
-                class="text-sm font-bold text-indigo-400 transition-colors"
-                >일</span
-              >
+              <strong id="totalDays" class="text-3xl font-black text-indigo-600 transition-colors"></strong>
+              <span id="daysUnit" class="text-sm font-bold text-indigo-400 transition-colors">일</span>
             </div>
           </div>
-          <div
-            class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm"
-          >
-            <span
-              class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block"
-              >상세 사유 / 행선지</span
-            >
-            <p
-              id="leaveReason"
-              class="text-gray-700 font-medium leading-relaxed"
-            ></p>
+          <div class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm">
+            <span class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block">상세 사유 / 행선지</span>
+            <p id="leaveReason" class="text-gray-700 font-medium leading-relaxed"></p>
           </div>
         </div>
 
-        <div>
-          <h3
-            class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2"
-          >
-            <i class="fa-solid fa-clock-rotate-left"></i> 해당 인원 출타 이력
-            (승인됨)
-          </h3>
-          <div id="historyDashboard" class="flex gap-4 mb-4 hidden"></div>
-          <div
-            class="bg-white/30 rounded-3xl p-4 border border-white/50 hide-scrollbar max-h-40 overflow-y-auto"
-          >
-            <ul
-              id="historyList"
-              class="space-y-3 relative before:absolute before:inset-y-0 before:left-2.5 before:w-px before:bg-gray-200"
-            ></ul>
+        <div class="mt-6 border-t border-gray-100 pt-5">
+          <h4 class="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> 신청일 기준 최근 출타 기록
+            <span class="text-[10px] font-medium text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded" id="historyBaseDateBadge"></span>
+          </h4>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="historyCardsContainer">
+            <div class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3">
+              <div class="flex items-center gap-1.5 mb-2 border-b border-emerald-100 pb-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="text-xs font-bold text-emerald-800">외출 (최근 3건)</span>
+              </div>
+              <div id="historyOuting" class="space-y-2 text-xs text-gray-600">
+                <div class="flex items-center justify-center py-2"><span class="loading loading-spinner loading-xs text-emerald-300"></span></div>
+              </div>
+            </div>
+
+            <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
+              <div class="flex items-center gap-1.5 mb-2 border-b border-blue-100 pb-2">
+                <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                <span class="text-xs font-bold text-blue-800">외박 (최근 3건)</span>
+              </div>
+              <div id="historyOvernight" class="space-y-2 text-xs text-gray-600">
+                <div class="flex items-center justify-center py-2"><span class="loading loading-spinner loading-xs text-blue-300"></span></div>
+              </div>
+            </div>
+
+            <div class="bg-purple-50/50 border border-purple-100 rounded-xl p-3">
+              <div class="flex items-center gap-1.5 mb-2 border-b border-purple-100 pb-2">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span class="text-xs font-bold text-purple-800">휴가 (최근 3건)</span>
+              </div>
+              <div id="historyVacation" class="space-y-2 text-xs text-gray-600">
+                <div class="flex items-center justify-center py-2"><span class="loading loading-spinner loading-xs text-purple-300"></span></div>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="flex gap-3 pt-4 border-t border-gray-100/50">
-          <button
-            id="rejectBtn"
-            onclick="rejectLeave()"
-            class="flex-1 py-4 rounded-2xl bg-white text-red-500 font-bold text-base border border-gray-100 shadow-sm hover:bg-red-50 transition-all"
-          >
+          <button id="rejectBtn" onclick="rejectLeave()" class="flex-1 py-4 rounded-2xl bg-white text-red-500 font-bold text-base border border-gray-100 shadow-sm hover:bg-red-50 transition-all">
             거절
           </button>
-          <button
-            id="approveBtn"
-            onclick="submitReview()"
-            class="flex-[2] py-4 rounded-2xl bg-gray-900 text-white font-bold text-base shadow-xl shadow-gray-900/20 hover:bg-indigo-600 transition-all flex justify-center items-center gap-2"
-          >
+          <button id="approveBtn" onclick="submitReview()" class="flex-[2] py-4 rounded-2xl bg-gray-900 text-white font-bold text-base shadow-xl shadow-gray-900/20 hover:bg-indigo-600 transition-all flex justify-center items-center gap-2">
             <i class="fa-solid fa-check" id="approveIcon"></i>
             <span id="approveText">검토 완료</span>
           </button>
@@ -276,57 +169,39 @@
       }
 
       function applyCancelModeUI() {
-        document
-          .getElementById("mainBody")
-          .classList.add("cancel-mode", "selection:bg-orange-500");
-        document
-          .getElementById("mainBody")
-          .classList.remove("selection:bg-indigo-500");
+        document.getElementById("evidenceSection").classList.replace("bg-slate-50", "bg-orange-50/50");
+        document.getElementById("evidenceSection").classList.replace("border-slate-100", "border-orange-100/50");
 
-        document.getElementById("statusBadge").className =
-          "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200 text-orange-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
-        document.getElementById(
-          "mainTitle"
-        ).innerHTML = `휴가 취소 <span class="text-orange-600 font-light">검토 결재</span>`;
+        document.getElementById("mainBody").classList.add("cancel-mode", "selection:bg-orange-500");
+        document.getElementById("mainBody").classList.remove("selection:bg-indigo-500");
 
-        document.getElementById("userAvatar").className =
-          "w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-red-400 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
-        document.getElementById("userRank").className =
-          "text-sm font-bold text-orange-600 mb-0.5 transition-colors";
+        document.getElementById("statusBadge").className = "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200 text-orange-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
+        document.getElementById("mainTitle").innerHTML = `휴가 취소 <span class="text-orange-600 font-light">검토 결재</span>`;
 
-        document.getElementById("daysBox").className =
-          "p-5 rounded-3xl bg-orange-50/50 border border-orange-100/50 flex flex-col justify-center items-end text-right transition-colors";
-        document.getElementById("daysLabel").className =
-          "text-xs font-bold text-orange-500 mb-1 uppercase tracking-wider transition-colors";
-        document.getElementById("totalDays").className =
-          "text-3xl font-black text-orange-600 transition-colors";
-        document.getElementById("daysUnit").className =
-          "text-sm font-bold text-orange-500 transition-colors";
+        document.getElementById("userAvatar").className = "w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-red-400 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
+        document.getElementById("userRank").className = "text-sm font-bold text-orange-600 mb-0.5 transition-colors";
+
+        document.getElementById("daysBox").className = "p-5 rounded-3xl bg-orange-50/50 border border-orange-100/50 flex flex-col justify-center items-end text-right transition-colors";
+        document.getElementById("daysLabel").className = "text-xs font-bold text-orange-500 mb-1 uppercase tracking-wider transition-colors";
+        document.getElementById("totalDays").className = "text-3xl font-black text-orange-600 transition-colors";
+        document.getElementById("daysUnit").className = "text-sm font-bold text-orange-500 transition-colors";
 
         document.getElementById("rejectBtn").innerHTML = "취소 거절 (휴가유지)";
-        document.getElementById("rejectBtn").className =
-          "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
+        document.getElementById("rejectBtn").className = "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
 
-        document.getElementById("approveBtn").className =
-          "flex-[2] py-4 rounded-2xl bg-orange-600 text-white font-bold text-base shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all flex justify-center items-center gap-2";
-        document.getElementById("approveText").innerText =
-          "취소 결재 완료 (승인자로 전달)";
-        document.getElementById("approveIcon").className =
-          "fa-solid fa-file-excel";
+        document.getElementById("approveBtn").className = "flex-[2] py-4 rounded-2xl bg-orange-600 text-white font-bold text-base shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all flex justify-center items-center gap-2";
+        document.getElementById("approveText").innerText = "취소 결재 완료 (승인자로 전달)";
+        document.getElementById("approveIcon").className = "fa-solid fa-file-excel";
       }
 
       async function fetchLeaveDetails() {
         try {
-          document.getElementById("unitNameDisplay").innerText =
-            localStorage.getItem("unitName") || "소속부대";
-          const res = await fetch("/leaves/notifications", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          document.getElementById("unitNameDisplay").innerText = localStorage.getItem("unitName") || "소속부대";
+          const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
           const data = await res.json();
           const leave = data.notifications.find((l) => l._id === leaveId);
           if (!leave) return (window.location.href = "index.html");
 
-          // 🔥 偵測是否為取消申請
           if (leave.status === "CANCEL_REQ_REVIEW") {
             isCancelRequest = true;
             applyCancelModeUI();
@@ -334,95 +209,102 @@
 
           const name = leave.userId.name || "알수없음";
           document.getElementById("userInitial").innerText = name.charAt(0);
-          document.getElementById("userRank").innerText =
-            leave.userId.rank || "계급 미상";
+          document.getElementById("userRank").innerText = leave.userId.rank || "계급 미상";
           document.getElementById("userName").innerText = name;
-          document.getElementById("serviceNumber").innerText =
-            leave.userId.serviceNumber;
+          document.getElementById("serviceNumber").innerText = leave.userId.serviceNumber;
 
-          document.getElementById("leaveDates").innerText = `${leave.startDate
-            .split("T")[0]
-            .replace(/-/g, ".")} ~ ${leave.endDate
-            .split("T")[0]
-            .replace(/-/g, ".")}`;
+          const startDateOnly = leave.startDate.split("T")[0];
+          const endDateOnly = leave.endDate.split("T")[0];
+          document.getElementById("leaveDates").innerText = `${startDateOnly.replace(/-/g, ".")} ~ ${endDateOnly.replace(/-/g, ".")}`;
           document.getElementById("totalDays").innerText = leave.totalDaysUsed;
           document.getElementById("leaveReason").innerText = leave.reason;
+          // 🔥 新增：處理 증빙 서류 (證明文件)
+          const evidenceSection = document.getElementById("evidenceSection");
+          const evidenceContainer = document.getElementById("evidenceFilesContainer");
+          evidenceContainer.innerHTML = "";
+          let hasFiles = false;
+
+          if (leave.usedSlots && leave.usedSlots.length > 0) {
+            leave.usedSlots.forEach((slotItem, index) => {
+              // 檢查這個額度裡面有沒有 evidenceFile
+              if (slotItem.slotId && slotItem.slotId.evidenceFile) {
+                hasFiles = true;
+                const fileUrl = slotItem.slotId.evidenceFile;
+                // 產生一個乾淨的檔名 (例如：證明文件 1)
+                const fileName = `증빙 서류 #${index + 1}`;
+                
+                evidenceContainer.innerHTML += `
+                  <a href="${fileUrl}" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all text-sm font-bold text-gray-700">
+                    <i class="fa-solid fa-file-arrow-down text-indigo-500"></i> ${fileName} 보기
+                  </a>
+                `;
+              }
+            });
+          }
+
+          // 如果有檔案，就把隱藏的區塊顯示出來
+          if (hasFiles) {
+            evidenceSection.classList.remove("hidden");
+          }
 
           document.getElementById("loading").classList.add("hidden");
           document.getElementById("leave-content").classList.remove("hidden");
 
-          loadUserHistory(leave.userId._id);
+          // 🔥 신규 API 호출
+          loadLeaveHistory(leave.userId._id, startDateOnly);
         } catch (err) {}
       }
 
-      async function loadUserHistory(userId) {
+      // 🔥 [신규] 시간 절단 API 연동 함수
+      async function loadLeaveHistory(userId, requestedStartDate) {
+        const badge = document.getElementById("historyBaseDateBadge");
+        if(badge) badge.innerText = `기준: ${requestedStartDate} 이전`;
+
         try {
-          const res = await fetch("/leaves/all", {
-            headers: { Authorization: `Bearer ${token}` },
+          const res = await fetch(`/leaves/user-history/${userId}?beforeDate=${requestedStartDate}`, {
+            headers: { Authorization: `Bearer ${token}` }
           });
           const data = await res.json();
-          const userLeaves = (data.leaves || [])
-            .filter((l) => {
-              const targetId = l.userId ? l.userId._id || l.userId : "";
-              return (
-                String(targetId) === String(userId) && l.status === "APPROVED"
-              );
-            })
-            .sort((a, b) => new Date(b.startDate) - new Date(a.startDate));
+          
+          if (data.success) {
+            const renderList = (elementId, records, colorClass) => {
+              const el = document.getElementById(elementId);
+              if (!el) return;
+              if (records.length === 0) {
+                el.innerHTML = `<div class="text-center text-gray-400 py-1 font-medium">기록 없음</div>`;
+                return;
+              }
+              el.innerHTML = records.map(record => {
+                const sDate = new Date(record.startDate);
+                const eDate = new Date(record.endDate);
+                const dateStr = `${sDate.getMonth()+1}/${sDate.getDate()} - ${eDate.getMonth()+1}/${eDate.getDate()}`;
+                
+                let daysAgoBadge = "";
+                if (record.daysAgo > 30) {
+                  daysAgoBadge = `<span class="text-[9px] font-bold text-red-500 ml-1 bg-red-50 px-1 rounded">${record.daysAgo}일 전</span>`;
+                }
 
-          const dash = document.getElementById("historyDashboard");
-          if (userLeaves.length > 0) {
-            const totalColor = isCancelRequest
-              ? "text-orange-600"
-              : "text-indigo-600";
-            const totalUsedDays = userLeaves.reduce(
-              (sum, l) => sum + (l.totalDaysUsed || 0),
-              0
-            );
-            dash.classList.remove("hidden");
-            dash.innerHTML = `
-              <div class="flex-1 bg-white/60 p-3 rounded-2xl border border-white text-center shadow-sm">
-                <p class="text-xs text-gray-500 font-bold mb-1">총 승인 횟수</p>
-                <p class="text-lg font-black ${totalColor}">${userLeaves.length}<span class="text-sm font-medium text-gray-600">회</span></p>
-              </div>
-              <div class="flex-1 bg-white/60 p-3 rounded-2xl border border-white text-center shadow-sm">
-                <p class="text-xs text-gray-500 font-bold mb-1">총 사용 일수</p>
-                <p class="text-lg font-black ${totalColor}">${totalUsedDays}<span class="text-sm font-medium text-gray-600">일</span></p>
-              </div>
-            `;
+                return `
+                  <div class="flex flex-col bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
+                    <div class="flex justify-between items-center mb-0.5">
+                      <span class="font-bold text-gray-800 font-mono">${dateStr}</span>
+                      ${daysAgoBadge}
+                    </div>
+                    <span class="truncate text-gray-500 opacity-80" title="${record.reason}">${record.reason}</span>
+                  </div>
+                `;
+              }).join("");
+            };
+
+            renderList("historyOuting", data.history["외출"], "emerald");
+            renderList("historyOvernight", data.history["외박"], "blue");
+            renderList("historyVacation", data.history["휴가"], "purple");
           }
-
-          const historyList = document.getElementById("historyList");
-          if (userLeaves.length === 0) {
-            historyList.innerHTML = `<li class="text-gray-500 text-sm pl-8 py-2">승인된 이전 출타 기록이 없습니다. (최초 신청)</li>`;
-            return;
-          }
-
-          userLeaves.slice(0, 5).forEach((l) => {
-            const startStr = l.startDate.split("T")[0].replace(/-/g, ".");
-            const endStr = l.endDate.split("T")[0].replace(/-/g, ".");
-            const dateStr = `${startStr} ~ ${endStr}`;
-            const dotColor = isCancelRequest
-              ? "bg-orange-400"
-              : "bg-indigo-400";
-            const textColor = isCancelRequest
-              ? "text-orange-500"
-              : "text-indigo-500";
-
-            historyList.innerHTML += `
-            <li class="relative pl-8">
-              <div class="absolute left-[5px] top-1.5 w-2 h-2 rounded-full ${dotColor} ring-4 ring-white shadow-sm"></div>
-              <div class="flex flex-col">
-                <span class="text-[11px] font-bold ${textColor} mb-0.5">${dateStr} (${
-              l.totalDaysUsed || 0
-            }일)</span>
-                <span class="text-sm text-gray-700 font-medium truncate">${
-                  l.reason
-                }</span>
-              </div>
-            </li>`;
-          });
-        } catch (err) {}
+        } catch (error) {
+          document.getElementById("historyOuting").innerHTML = `<span class="text-red-400">오류 발생</span>`;
+          document.getElementById("historyOvernight").innerHTML = `<span class="text-red-400">오류 발생</span>`;
+          document.getElementById("historyVacation").innerHTML = `<span class="text-red-400">오류 발생</span>`;
+        }
       }
 
       async function rejectLeave() {
@@ -432,8 +314,7 @@
         if (!confirm(msg)) return;
         try {
           const res = await fetch(`/leaves/${leaveId}/reject`, {
-            method: "PUT",
-            headers: { Authorization: `Bearer ${token}` },
+            method: "PUT", headers: { Authorization: `Bearer ${token}` },
           });
           if ((await res.json()).success) window.location.href = "index.html";
         } catch (err) {}
@@ -447,14 +328,12 @@
         try {
           const res = await fetch(`/leaves/${leaveId}/review`, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
           });
           if ((await res.json()).success) window.location.href = "index.html";
         } catch (err) {}
       }
+      
       fetchLeaveDetails();
     </script>
   </body>
