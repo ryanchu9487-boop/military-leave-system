@@ -78,7 +78,6 @@ function injectFloatingUI() {
     @keyframes dynamicDrop { 0% { transform: translate(-50%, -20px) scale(0.85); opacity: 0; filter: blur(4px); } 100% { transform: translate(-50%, 0) scale(1); opacity: 1; filter: blur(0px); } }
     .dynamic-island { animation: dynamicDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
     
-    /* 🔥 實體碎片通用動畫：速度適中 (約0.8s)，有爽快感又不會太快消失 */
     @keyframes fragmentShatter {
       0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
       20% { opacity: 0.9; transform: translate(var(--tx-mid), var(--ty-mid)) rotate(var(--rot-mid)) scale(1.05); }
@@ -89,7 +88,7 @@ function injectFloatingUI() {
       position: fixed;
       pointer-events: none;
       z-index: 9999;
-      background-color: var(--fragment-bg); /* 將由 JS 強制指定為灰色 */
+      background-color: var(--fragment-bg);
       will-change: transform, opacity;
       border: 1px solid rgba(255, 255, 255, 0.4);
       box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -491,10 +490,8 @@ function renderEvents() {
             e.stopPropagation();
             hideProTooltip();
 
-            // 🔥 呼叫碎裂動畫 (不再傳入顏色，內部已寫死純灰色)
             createShatterAnimation(bar);
 
-            // 🔥 在 0.8 秒後(動畫差不多碎裂消失時)，重新整理月曆資料
             setTimeout(async () => {
               try {
                 await fetch(`/leaves/${leave._id}/confirm-reject`, {
@@ -678,29 +675,34 @@ function closeModal(id) {
   if (modal) modal.classList.add("hidden");
 }
 
+// 🔥 修改 1：幹部登錄 (Grant) 拔除檔案上傳功能，改為傳送純 JSON
 async function submitGrant() {
   const mainCat = document.getElementById("grantMainCategory").value;
-  const type =
-    mainCat === "휴가"
-      ? document.getElementById("grantSubType").value
-      : mainCat;
+  const type = mainCat === "휴가" ? document.getElementById("grantSubType").value : mainCat;
   const totalCount = document.getElementById("grantDays").value;
   const reason = document.getElementById("grantReason").value;
   if (!reason) return alert("심의 사유를 입력해 주세요.");
 
-  const formData = new FormData();
-  formData.append("type", type);
-  formData.append("totalCount", Number(totalCount));
-  formData.append("reason", reason);
+  const payload = {
+    type: type,
+    totalCount: Number(totalCount),
+    reason: reason
+  };
+
   try {
     const res = await fetch("/leave-slots", {
       method: "POST",
-      headers: { Authorization: "Bearer " + currentToken },
-      body: formData,
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + currentToken 
+      },
+      body: JSON.stringify(payload),
     });
-    if ((await res.json()).error) return alert("오류 발생");
+    const result = await res.json();
+    if (result.error) return alert("오류 발생: " + result.error);
     alert("부여 검토가 등록되었습니다.");
     closeModal("grantModal");
+    await loadMySlots(); 
   } catch (err) {
     alert("실패");
   }
@@ -911,50 +913,29 @@ function calculateReqDays() {
   }
 }
 
+// 🔥 修改 2：勇士申請 (Request) 升級為 FormData 多檔案上傳模式
 async function submitRequest() {
-  const payload = {
-    startDate: document.getElementById("reqStartDate").value,
-    endDate: document.getElementById("reqEndDate").value,
-    destination: document.getElementById("reqDestination").value,
-    emergencyContact: document.getElementById("reqContact").value,
-    reason: document.getElementById("reqReason").value,
-    usedSlots: currentUsedSlots,
-  };
-  if (
-    !payload.startDate ||
-    !payload.endDate ||
-    !payload.destination ||
-    !payload.emergencyContact
-  )
-    return alert("필수 항목 누락");
+  const startDate = document.getElementById("reqStartDate").value;
+  const endDate = document.getElementById("reqEndDate").value;
+  const destination = document.getElementById("reqDestination").value;
+  const contact = document.getElementById("reqContact").value;
+  const reason = document.getElementById("reqReason").value;
 
-  const diffDays =
-    Math.ceil(
-      (new Date(payload.endDate) - new Date(payload.startDate)) /
-        (1000 * 60 * 60 * 24)
-    ) + 1;
-  const totalAllocated = currentUsedSlots.reduce(
-    (sum, slot) => sum + slot.qty,
-    0
-  );
-  if (totalAllocated !== diffDays)
-    return alert("선택한 휴가와 일정이 일치하지 않습니다.");
+  if (!startDate || !endDate || !destination || !contact) return alert("필수 항목 누락");
 
-  const start = new Date(payload.startDate);
-  const end = new Date(payload.endDate);
-  const holidays = leavesCache
-    .filter((l) => l.isHoliday)
-    .map((l) => l.startDate.split("T")[0]);
+  const diffDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+  const totalAllocated = currentUsedSlots.reduce((sum, slot) => sum + slot.qty, 0);
+  if (totalAllocated !== diffDays) return alert("선택한 휴가와 일정이 일치하지 않습니다.");
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const holidays = leavesCache.filter((l) => l.isHoliday).map((l) => l.startDate.split("T")[0]);
   let hasWeekday = false;
   let hasWeekendOrHoliday = false;
 
   let iter = new Date(start);
   while (iter <= end) {
-    const dStr = formatDate(
-      iter.getFullYear(),
-      iter.getMonth(),
-      iter.getDate()
-    );
+    const dStr = formatDate(iter.getFullYear(), iter.getMonth(), iter.getDate());
     const isWeekend = iter.getDay() === 0 || iter.getDay() === 6;
     if (isWeekend || holidays.includes(dStr)) hasWeekendOrHoliday = true;
     else hasWeekday = true;
@@ -964,38 +945,43 @@ async function submitRequest() {
   for (const us of currentUsedSlots) {
     const slot = myAvailableSlots.find((s) => s._id === us.slotId);
     if (!slot) continue;
-    const isWeekendOnly =
-      slot.reason.includes("주말") ||
-      slot.type === "외박" ||
-      slot.reason.includes("특별외박") ||
-      slot.reason.includes("정기외박");
+    const isWeekendOnly = slot.reason.includes("주말") || slot.type === "외박" || slot.reason.includes("특별외박") || slot.reason.includes("정기외박");
     const isWeekdayOnly = slot.reason.includes("평일");
 
-    if (isWeekendOnly && hasWeekday)
-      return alert(
-        `[${slot.type}] ${slot.reason} 은(는) 주말 및 공휴일에만 사용할 수 있습니다. (평일 포함 불가)`
-      );
-    if (isWeekdayOnly && hasWeekendOrHoliday)
-      return alert(
-        `[${slot.type}] ${slot.reason} 은(는) 평일에만 사용할 수 있습니다. (주말/공휴일 포함 불가)`
-      );
+    if (isWeekendOnly && hasWeekday) return alert(`[${slot.type}] ${slot.reason} 은(는) 주말 및 공휴일에만 사용할 수 있습니다. (평일 포함 불가)`);
+    if (isWeekdayOnly && hasWeekendOrHoliday) return alert(`[${slot.type}] ${slot.reason} 은(는) 평일에만 사용할 수 있습니다. (주말/공휴일 포함 불가)`);
+  }
+
+  // 使用 FormData 來處理檔案上傳
+  const formData = new FormData();
+  formData.append("startDate", startDate);
+  formData.append("endDate", endDate);
+  formData.append("destination", destination);
+  formData.append("emergencyContact", contact);
+  formData.append("reason", reason);
+  formData.append("usedSlots", JSON.stringify(currentUsedSlots)); // 陣列轉字串
+
+  const fileInput = document.getElementById("reqFile");
+  if (fileInput && fileInput.files && fileInput.files.length > 0) {
+    if (fileInput.files.length > 5) return alert("증빙 서류는 최대 5개까지만 업로드 가능합니다.");
+    for (let i = 0; i < fileInput.files.length; i++) {
+      formData.append("evidenceFiles", fileInput.files[i]);
+    }
   }
 
   try {
     const res = await fetch("/leaves", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + currentToken,
-      },
-      body: JSON.stringify(payload),
+      headers: { Authorization: "Bearer " + currentToken }, // FormData 不需要 Content-Type
+      body: formData,
     });
     const result = await res.json();
     if (result.error) return alert(result.error);
     closeModal("requestModal");
     await refreshCalendarData();
+    alert("출타 신청서가 성공적으로 제출되었습니다.");
   } catch (err) {
-    alert("오류");
+    alert("서버와 통신 중 오류가 발생했습니다.");
   }
 }
 
@@ -1128,19 +1114,13 @@ function logout() {
   window.location.href = "/login.html";
 }
 
-/**
- * 🔥 [UX 神技] 生成實體 HTML 碎片碎裂動畫 (速度適中、純灰版)
- * @param {HTMLElement} barEl - 被點擊的 Eventbar 元素
- */
 function createShatterAnimation(barEl) {
   const rect = barEl.getBoundingClientRect();
   const fragmentCount = 30;
   const shardsContainer = [];
 
-  // 1. 本體立刻隱藏
   barEl.classList.add("bar-is-shattering");
 
-  // 2. 生成碎片
   for (let i = 0; i < fragmentCount; i++) {
     const shard = document.createElement("div");
     shard.className = "shatter-fragment";
@@ -1150,7 +1130,6 @@ function createShatterAnimation(barEl) {
     shard.style.width = `${sW}px`;
     shard.style.height = `${sH}px`;
 
-    // 🔥 強制設定為灰色，傳達休假已被取消/作廢的冷酷感
     shard.style.setProperty("--fragment-bg", "#6b7280");
 
     const points = [
@@ -1171,7 +1150,7 @@ function createShatterAnimation(barEl) {
     const rotMid = direction * (30 + Math.random() * 60);
 
     const txEnd = Math.random() * rect.width * direction * 1.2;
-    const tyEnd = 50 + Math.random() * 80; // 掉落高度
+    const tyEnd = 50 + Math.random() * 80;
     const rotEnd = direction * (180 + Math.random() * 360);
 
     shard.style.setProperty("--tx-mid", `${txMid}px`);
@@ -1181,7 +1160,6 @@ function createShatterAnimation(barEl) {
     shard.style.setProperty("--ty-end", `${tyEnd}px`);
     shard.style.setProperty("--rot-end", `${rotEnd}deg`);
 
-    // 🔥 動畫時間設定在 0.7s ~ 1.1s 之間，是最舒服的視覺停留時間
     const duration = 0.7 + Math.random() * 0.4;
     const delay = Math.random() * 0.05;
     shard.style.animation = `fragmentShatter ${duration}s cubic-bezier(0.25, 1, 0.5, 1) ${delay}s forwards`;

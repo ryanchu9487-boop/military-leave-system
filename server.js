@@ -30,6 +30,9 @@ app.use(express.json({ limit: "10kb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
+// 🔥 [這裡加上了！] 明確開放 uploads 資料夾的讀取權限，解決 Cannot GET 錯誤
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 // 🔐 전역 요청 제한
 app.use(globalLimiter);
 
@@ -197,12 +200,12 @@ app.get("/leaves/notifications", authMiddleware, async (req, res) => {
     // ==========================================
     // 🟢 2. 休假申請 & 取消審核通知 (原本的)
     // ==========================================
-    if (role === "reviewer") {
+   if (role === "reviewer") {
       const leaves = await Leave.find({
         organizationId: orgId,
         status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
       })
-        .populate("userId", "name")
+        .populate("userId", "name rank serviceNumber") // ✅ 加上 rank 和 serviceNumber
         .lean();
       notifications.push(...leaves);
     } else if (role === "approver" || role === "superadmin") {
@@ -210,7 +213,7 @@ app.get("/leaves/notifications", authMiddleware, async (req, res) => {
         organizationId: orgId,
         status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
       })
-        .populate("userId", "name")
+        .populate("userId", "name rank serviceNumber") // ✅ 加上 rank 和 serviceNumber
         .lean();
       notifications.push(...leaves);
     } else if (role === "soldier") {
@@ -218,7 +221,7 @@ app.get("/leaves/notifications", authMiddleware, async (req, res) => {
         userId: userId,
         status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL"] },
       })
-        .populate("userId", "name")
+        .populate("userId", "name rank serviceNumber") // ✅ 加上 rank 和 serviceNumber
         .lean();
       notifications.push(...leaves);
     }
@@ -299,4 +302,3 @@ app.use("/", require("./src/routes/memberRoutes"));
 app.listen(3000, "0.0.0.0", () => {
   console.log("🚀 Server running on port 3000 - server.js");
 });
-///

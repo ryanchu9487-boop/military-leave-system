@@ -9,9 +9,11 @@ const LeaveSlot = require("../../models/LeaveSlot");
 const User = require("../../models/User");
 const Organization = require("../../models/Organization");
 
+// 📁 Multer 檔案上傳設定
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(__dirname, "../../../public/uploads/");
+    // 🔥 改成退兩層，準確存入專案的 public/uploads 裡面 ✅
+    const dir = path.join(__dirname, "../../public/uploads/");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },
@@ -22,50 +24,47 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-router.post(
-  "/leave-slots",
-  authMiddleware,
-  upload.single("evidenceFile"),
-  async (req, res) => {
-    try {
-      const userId = req.user.userId;
-      let { type, totalCount, reason, expiresAt } = req.body;
-      const evidenceFile = req.file ? `/uploads/${req.file.filename}` : null;
+// ==========================================
+// 🔥 1. 幹部發放額度 (已拔除檔案功能，恢復純文字)
+// ==========================================
+router.post("/leave-slots", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    let { type, totalCount, reason, expiresAt } = req.body;
 
-      if (type === "외박" && reason === "특별") {
-        totalCount = 2;
-        expiresAt = null;
-      } else if (
-        type === "외출" &&
-        (reason === "평일특별" || reason === "주말특별")
-      ) {
-        expiresAt = null;
-      } else if (type === "휴가" && reason === "기타휴가") {
-        expiresAt = null;
-      }
-
-      const newSlot = await LeaveSlot.create({
-        organizationId: req.user.orgId,
-        userId: userId,
-        unitId: req.user.unitId || req.user.orgId,
-        type,
-        reason,
-        totalCount: Number(totalCount),
-        remains: Number(totalCount),
-        grantedBy: req.user.userId,
-        evidenceFile: evidenceFile,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-      });
-      res.json({
-        success: true,
-        message: "출타 심의가 완료되어 휴가가 부여되었습니다.",
-        slot: newSlot,
-      });
-    } catch (error) {
-      res.status(500).json({ error: "서버 오류가 발생했습니다." });
+    if (type === "외박" && reason === "특별") {
+      totalCount = 2;
+      expiresAt = null;
+    } else if (
+      type === "외출" &&
+      (reason === "평일특별" || reason === "주말특별")
+    ) {
+      expiresAt = null;
+    } else if (type === "휴가" && reason === "기타휴가") {
+      expiresAt = null;
     }
+
+    const newSlot = await LeaveSlot.create({
+      organizationId: req.user.orgId,
+      userId: userId,
+      unitId: req.user.unitId || req.user.orgId,
+      type,
+      reason,
+      totalCount: Number(totalCount),
+      remains: Number(totalCount),
+      grantedBy: req.user.userId,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+    });
+    
+    res.json({
+      success: true,
+      message: "출타 심의가 완료되어 휴가가 부여되었습니다.",
+      slot: newSlot,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "서버 오류가 발생했습니다." });
   }
-);
+});
 
 router.get("/leave-slots/me", authMiddleware, async (req, res) => {
   try {
@@ -80,18 +79,20 @@ router.get("/leave-slots/me", authMiddleware, async (req, res) => {
   }
 });
 
-router.post("/leaves", authMiddleware, async (req, res) => {
+// ==========================================
+// 🔥 2. 勇士申請假單 (新增：支援多檔案上傳)
+// ==========================================
+router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (req, res) => {
   try {
-    const {
-      startDate,
-      endDate,
-      destination,
-      emergencyContact,
-      reason,
-      usedSlots,
-    } = req.body;
+    const { startDate, endDate, destination, emergencyContact, reason } = req.body;
     const userId = req.user.userId;
     const userRole = req.user.role;
+
+    // 前端 FormData 傳來的 usedSlots 是字串，必須轉回 JSON 陣列
+    let usedSlots = [];
+    if (req.body.usedSlots) {
+        usedSlots = typeof req.body.usedSlots === 'string' ? JSON.parse(req.body.usedSlots) : req.body.usedSlots;
+    }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -103,21 +104,15 @@ router.post("/leaves", authMiddleware, async (req, res) => {
     });
 
     if (overlapping)
-      return res
-        .status(400)
-        .json({ error: "해당 기간에 이미 신청된 휴가가 있습니다." });
+      return res.status(400).json({ error: "해당 기간에 이미 신청된 휴가가 있습니다." });
 
     const daysUsed = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
     if (!usedSlots || usedSlots.length === 0)
-      return res
-        .status(400)
-        .json({ error: "사용할 휴가가 할당되지 않았습니다." });
+      return res.status(400).json({ error: "사용할 휴가가 할당되지 않았습니다." });
 
     const totalSlotQty = usedSlots.reduce((sum, slot) => sum + slot.qty, 0);
     if (totalSlotQty !== daysUsed)
-      return res
-        .status(400)
-        .json({ error: "신청 일수와 할당된 휴가 일수가 일치하지 않습니다." });
+      return res.status(400).json({ error: "신청 일수와 할당된 휴가 일수가 일치하지 않습니다." });
 
     let mainType = "휴가";
     for (const us of usedSlots) {
@@ -136,6 +131,12 @@ router.post("/leaves", authMiddleware, async (req, res) => {
     if (userRole === "officer" || userRole === "reviewer")
       initialStatus = "PENDING_APPROVAL";
 
+    // 📁 處理勇士上傳的檔案路徑
+    let evidenceFilesPaths = [];
+    if (req.files && req.files.length > 0) {
+      evidenceFilesPaths = req.files.map(file => `/uploads/${file.filename}`);
+    }
+
     const newLeave = new Leave({
       organizationId: req.user.orgId,
       userId,
@@ -147,6 +148,7 @@ router.post("/leaves", authMiddleware, async (req, res) => {
       usedSlots: usedSlots,
       reason: `${reason} (행선지: ${destination}, 연락처: ${emergencyContact})`,
       status: initialStatus,
+      evidenceFiles: evidenceFilesPaths, // 把檔案路徑存進這張假單
     });
 
     await newLeave.save();
@@ -156,6 +158,7 @@ router.post("/leaves", authMiddleware, async (req, res) => {
       leave: newLeave,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: "출타 신청 중 오류가 발생했습니다." });
   }
 });
@@ -187,28 +190,18 @@ router.get("/leaves/my", authMiddleware, async (req, res) => {
 router.get("/leaves/all", authMiddleware, async (req, res) => {
   try {
     const { role, orgId } = req.user;
-
     let query = { organizationId: orgId };
 
     if (role === "soldier") {
-      query.status = {
-        $in: [
-          "APPROVED",
-          "CANCEL_REQ_REVIEW",
-          "CANCEL_REQ_APPROVAL",
-          "CANCEL_APPROVED",
-        ],
-      };
+      query.status = { $in: ["APPROVED", "CANCEL_REQ_REVIEW", "CANCEL_REQ_APPROVAL", "CANCEL_APPROVED"] };
     } else {
-      query.status = {
-        $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"],
-      };
+      query.status = { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] };
     }
 
     const leaves = await Leave.find(query)
       .populate("userId", "name rank serviceNumber")
       .lean();
-
+      
     const mappedLeaves = leaves.map((l) => ({
       _id: l._id,
       startDate: l.startDate,
@@ -219,14 +212,16 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
       reason: l.reason,
       totalDaysUsed: l.totalDaysUsed,
     }));
-
+    
     res.json({ leaves: mappedLeaves });
   } catch (error) {
     res.status(500).json({ error: "전체 휴가 조회 실패" });
   }
 });
 
-// 🔥 [核心修復] 小鈴鐺通知 API (已加入 officer 權限與密碼重置通知)
+// ==========================================
+// 🔥 3. 小鈴鐺通知 (已補上 rank 和 serviceNumber)
+// ==========================================
 router.get("/notifications", authMiddleware, async (req, res) => {
   try {
     const { userId, orgId, role } = req.user;
@@ -234,41 +229,34 @@ router.get("/notifications", authMiddleware, async (req, res) => {
 
     let notifications = [];
 
-    // 1. 休假審核相關
+    // 🔥 這裡的 populate 已經全面升級為抓取 "name rank serviceNumber"
     if (role === "reviewer" || role === "officer") {
       const leaves = await Leave.find({
         organizationId: orgId,
         status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
       })
-      .populate("userId", "name")
-      .populate("usedSlots.slotId", "evidenceFile") // 🔥 新增這行：挖出證明文件
-      .lean();
+        .populate("userId", "name rank serviceNumber")
+        .lean();
       notifications.push(...leaves);
     } else if (role === "approver" || role === "superadmin") {
       const leaves = await Leave.find({
         organizationId: orgId,
         status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
       })
-      .populate("userId", "name")
-      .populate("usedSlots.slotId", "evidenceFile") // 🔥 新增這行：挖出證明文件
-      .lean();
+        .populate("userId", "name rank serviceNumber")
+        .lean();
       notifications.push(...leaves);
     } else if (role === "soldier") {
       const leaves = await Leave.find({
         userId: userId,
         status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL"] },
       })
-      .populate("userId", "name")
-      .populate("usedSlots.slotId", "evidenceFile") // 🔥 新增這行：挖出證明文件
-      .lean();
+        .populate("userId", "name rank serviceNumber")
+        .lean();
       notifications.push(...leaves);
     }
 
-    // 2. 幹部專屬通知 (包含 officer!)
-    if (
-      ["reviewer", "approver", "admin", "superadmin", "officer"].includes(role)
-    ) {
-      // A. 新成員待審核
+    if (["reviewer", "approver", "admin", "superadmin", "officer"].includes(role)) {
       const pendingUsers = await User.find({
         organizationId: orgId,
         status: "pending",
@@ -283,7 +271,6 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         });
       });
 
-      // B. 今日退伍
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -305,26 +292,10 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         });
       });
 
-      // 🔥 C. 密碼重置申請 (帶有超級掃描器)
-      console.log(`\n=========================================`);
-      console.log(`🔔 [小鈴鐺偵測] 登入的幹部 (${currentUser.name}) 的部隊 ID: ${orgId}`);
-      
-      // 1. 先不限部隊，把「全宇宙」有申請重置的人都抓出來看看
-      const allResetUsers = await User.find({ resetRequested: true }).lean();
-      console.log(`🕵️ [掃描結果] DB 全宇宙有申請重置的人數: ${allResetUsers.length} 人`);
-      
-      allResetUsers.forEach(u => {
-        console.log(`   👉 勇士姓名: ${u.name}, 他的部隊 ID: ${u.organizationId}`);
-      });
-
-      // 2. 再執行原本的「同部隊過濾」
       const resetUsers = await User.find({
         organizationId: orgId,
         resetRequested: true,
       }).lean();
-
-      console.log(`🎯 [最終配對] 跟幹部同部隊，且申請重置的人數: ${resetUsers.length} 人`);
-      console.log(`=========================================\n`);
 
       resetUsers.forEach((ru) => {
         notifications.push({
@@ -337,7 +308,6 @@ router.get("/notifications", authMiddleware, async (req, res) => {
       });
     }
 
-    // 根據時間排序 (最新的在上面)
     notifications.sort(
       (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
     );
@@ -376,9 +346,7 @@ router.put("/leaves/:id/reject", authMiddleware, async (req, res) => {
     }
 
     leave.status =
-      role === "reviewer" || role === "officer"
-        ? "REJECTED_REVIEW"
-        : "REJECTED_APPROVAL";
+      (role === "reviewer" || role === "officer") ? "REJECTED_REVIEW" : "REJECTED_APPROVAL";
     for (const us of leave.usedSlots) {
       const slot = await LeaveSlot.findById(us.slotId);
       if (slot) {
@@ -414,7 +382,7 @@ router.put("/leaves/:id/review", authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== "reviewer" && req.user.role !== "officer")
       return res.status(403).json({ error: "권한이 없습니다." });
-
+      
     const leave = await Leave.findById(req.params.id);
     if (!leave)
       return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
@@ -512,60 +480,56 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
 
 router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
   try {
-    const { orgId, role } = req.user;
+      const { orgId, role } = req.user;
+      
+      if (!["reviewer", "approver", "superadmin", "officer"].includes(role)) {
+          return res.status(403).json({ error: "일괄 승인 권한이 없습니다." });
+      }
 
-    if (!["reviewer", "approver", "superadmin", "officer"].includes(role)) {
-      return res.status(403).json({ error: "일괄 승인 권한이 없습니다." });
-    }
+      let targetStatus = "";
+      let newStatus = "";
+      let targetCancelStatus = "";
+      let newCancelStatus = "";
 
-    let targetStatus = "";
-    let newStatus = "";
-    let targetCancelStatus = "";
-    let newCancelStatus = "";
+      if (role === "reviewer" || role === "officer") {
+          targetStatus = "PENDING_REVIEW";
+          newStatus = "PENDING_APPROVAL"; 
+          targetCancelStatus = "CANCEL_REQ_REVIEW";
+          newCancelStatus = "CANCEL_REQ_APPROVAL";
+      } else if (role === "approver" || role === "superadmin") {
+          targetStatus = "PENDING_APPROVAL";
+          newStatus = "APPROVED"; 
+          targetCancelStatus = "CANCEL_REQ_APPROVAL";
+          newCancelStatus = "CANCEL_APPROVED";
+      }
 
-    if (role === "reviewer" || role === "officer") {
-      targetStatus = "PENDING_REVIEW";
-      newStatus = "PENDING_APPROVAL";
-      targetCancelStatus = "CANCEL_REQ_REVIEW";
-      newCancelStatus = "CANCEL_REQ_APPROVAL";
-    } else if (role === "approver" || role === "superadmin") {
-      targetStatus = "PENDING_APPROVAL";
-      newStatus = "APPROVED";
-      targetCancelStatus = "CANCEL_REQ_APPROVAL";
-      newCancelStatus = "CANCELED";
-    }
+      const leaveUpdate = await Leave.updateMany(
+          { organizationId: orgId, status: targetStatus },
+          { $set: { status: newStatus } }
+      );
 
-    const leaveUpdate = await Leave.updateMany(
-      { organizationId: orgId, status: targetStatus },
-      { $set: { status: newStatus } }
-    );
+      const cancelUpdate = await Leave.updateMany(
+          { organizationId: orgId, status: targetCancelStatus },
+          { $set: { status: newCancelStatus } }
+      );
 
-    const cancelUpdate = await Leave.updateMany(
-      { organizationId: orgId, status: targetCancelStatus },
-      { $set: { status: newCancelStatus } }
-    );
+      const totalUpdated = leaveUpdate.modifiedCount + cancelUpdate.modifiedCount;
 
-    const totalUpdated = leaveUpdate.modifiedCount + cancelUpdate.modifiedCount;
+      if (totalUpdated === 0) {
+          return res.json({ success: true, message: "승인할 대기 건이 없습니다." });
+      }
 
-    if (totalUpdated === 0) {
-      return res.json({ success: true, message: "승인할 대기 건이 없습니다." });
-    }
+      res.json({ 
+          success: true, 
+          message: `총 ${totalUpdated}건의 휴가 및 취소 요청이 일괄 승인되었습니다.` 
+      });
 
-    res.json({
-      success: true,
-      message: `총 ${totalUpdated}건의 휴가 및 취소 요청이 일괄 승인되었습니다.`,
-    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ error: "일괄 승인 처리 중 서버 오류가 발생했습니다." });
+      res.status(500).json({ error: "일괄 승인 처리 중 서버 오류가 발생했습니다." });
   }
 });
 
-// =========================================================================
-// 🔥 [全新] 取得特定勇士的歷史出外紀錄 (動態時間切片 + 分類打包)
-// GET /leaves/user-history/:userId?beforeDate=YYYY-MM-DD
-// =========================================================================
+// 🔥 시간 절단(Time-slice) 이력 조회 API
 router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params;
@@ -577,17 +541,14 @@ router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
 
     const targetDate = new Date(beforeDate);
 
-    // 1. 抓取在該日期「之前」且已經被核准(或已放完)的假單
     const pastLeaves = await Leave.find({
       userId: userId,
-      // 只抓取已經通過核准的單子（包含申請取消但還維持在核准狀態的）
       status: { $in: ["APPROVED", "CANCEL_REQ_REVIEW", "CANCEL_REQ_APPROVAL", "CANCEL_APPROVED"] },
-      startDate: { $lt: targetDate } // 🚨 核心防護：出發日必須「嚴格小於」申請單的出發日
+      startDate: { $lt: targetDate } 
     })
-      .sort({ startDate: -1 }) // 依照日期遞減排序（越近的在越前面）
+      .sort({ startDate: -1 }) 
       .lean();
 
-    // 2. 準備三個空陣列來分類打包
     const history = {
       "휴가": [],
       "외박": [],
@@ -596,15 +557,10 @@ router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
 
     const today = new Date();
 
-    // 3. 進行分類，並計算距今日數 (讓前端可以直接顯示)
     pastLeaves.forEach(leave => {
-      // 安全機制：萬一資料庫有髒資料 type 是空的，預設歸類到 휴가
       const type = leave.type || "휴가"; 
       
-      // 每種類別我們只取「最近的 3 筆」給長官看就夠了，避免畫面爆炸
       if (history[type] && history[type].length < 3) {
-        
-        // 計算這筆假單距離「現在」過了幾天（選用功能，幫助長官判斷）
         const endDate = new Date(leave.endDate);
         const daysAgo = Math.floor((today - endDate) / (1000 * 60 * 60 * 24));
         
@@ -612,7 +568,7 @@ router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
           startDate: leave.startDate,
           endDate: leave.endDate,
           reason: leave.reason,
-          daysAgo: daysAgo > 0 ? daysAgo : 0 // 如果是未來的假，顯示 0
+          daysAgo: daysAgo > 0 ? daysAgo : 0 
         });
       }
     });

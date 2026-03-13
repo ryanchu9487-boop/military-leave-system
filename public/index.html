@@ -369,27 +369,6 @@
               class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
-          <div>
-            <label class="block font-bold text-gray-700 mb-1.5"
-              >증빙 서류 (선택)</label
-            >
-            <input
-              type="file"
-              id="grantFile"
-              class="hidden"
-              onchange="updateFileName(this)"
-            />
-            <div
-              id="fileUploadBox"
-              onclick="document.getElementById('grantFile').click()"
-              class="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer transition flex flex-col items-center"
-            >
-              <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i
-              ><span id="fileNameDisplay" class="truncate max-w-[200px]"
-                >클릭하여 파일 첨부</span
-              >
-            </div>
-          </div>
         </div>
         <div class="p-4 bg-gray-50 border-t border-gray-100">
           <button
@@ -507,6 +486,30 @@
               class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
+
+          <div class="mt-2">
+            <label class="block font-bold text-gray-700 mb-1.5"
+              >증빙 서류 (선택, 최대 5개)</label
+            >
+            <input
+              type="file"
+              id="reqFile"
+              class="hidden"
+              multiple
+              accept="image/*,.pdf"
+              onchange="updateFileName(this)"
+            />
+            <div
+              onclick="document.getElementById('reqFile').click()"
+              class="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer transition flex flex-col items-center"
+            >
+              <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i
+              ><span id="fileNameDisplay" class="truncate max-w-[200px]"
+                >클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)</span
+              >
+            </div>
+          </div>
+
         </div>
         <div class="p-5 bg-gray-50 border-t border-gray-100 shrink-0">
           <button
@@ -612,10 +615,9 @@
             sidebarManageBtn.style.setProperty("display", "none", "important");
         }
 
-        // 【修改後】無論什麼角色，都強制顯示「등록」按鈕
         if (fabGrantBtn) {
-        fabGrantBtn.style.setProperty("display", "flex", "important");
-}
+          fabGrantBtn.style.setProperty("display", "flex", "important");
+        }
 
         if (notifWrapper) notifWrapper.style.display = "flex";
 
@@ -658,7 +660,6 @@
         }
 
         try {
-          // ✅ 正確的新代碼：
           const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
           if (!res.ok) return;
           const data = await res.json();
@@ -709,11 +710,10 @@
                 onClickAction = "";
                 isDefaultCursor = true;
               } else if (noti.status === "PASSWORD_RESET_REQ") {
-                // 🔥 處理密碼重置通知
                 title = "비밀번호 초기화 요청";
                 color = "text-red-600";
                 actionHtml = `<button onclick="approvePasswordReset('${noti._id}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold shadow-sm hover:bg-red-500 hover:text-white transition-colors">초기화 승인</button>`;
-                onClickAction = ""; // 點擊不跳轉
+                onClickAction = "";
                 isDefaultCursor = true;
               } else {
                 title = noti.status.includes("CANCEL")
@@ -833,7 +833,6 @@
         }
       }
 
-      // 🔥 新增：核准密碼重置 API 呼叫
       async function approvePasswordReset(userId, event) {
         event.stopPropagation();
         if (!confirm("이 용사의 비밀번호를 군번으로 초기화하시겠습니까?"))
@@ -847,7 +846,7 @@
           });
           const data = await res.json();
           alert(data.message || data.error);
-          if (data.success) checkPendingLeaves(); // 重整小鈴鐺
+          if (data.success) checkPendingLeaves();
         } catch (e) {
           alert("오류가 발생했습니다.");
         }
@@ -933,11 +932,24 @@
         if (modal) modal.classList.add("hidden");
       }
 
+      // 🔥 수정됨: 파일 개수 제한 및 이름 표시 (다중 선택 대응)
       function updateFileName(input) {
         const display = document.getElementById("fileNameDisplay");
-        if (input.files && input.files[0])
+        
+        if (input.files && input.files.length > 5) {
+          alert("증빙 서류는 최대 5개까지만 업로드 가능합니다.");
+          input.value = ""; // 초기화
+          display.innerText = "클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)";
+          return;
+        }
+
+        if (input.files && input.files.length > 1) {
+          display.innerText = `${input.files[0].name} 외 ${input.files.length - 1}건`;
+        } else if (input.files && input.files.length === 1) {
           display.innerText = input.files[0].name;
-        else display.innerText = "클릭하여 파일 첨부";
+        } else {
+          display.innerText = "클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)";
+        }
       }
 
       function logout() {
