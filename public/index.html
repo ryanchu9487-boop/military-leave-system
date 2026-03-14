@@ -40,7 +40,7 @@
         border-radius: 4px;
       }
 
-     /* 📱 手機版專屬魔法：自動轉換為小日曆模式 (Mobile Mini Calendar) */
+     /* 📱 手機版專屬魔法：自動轉換為小日曆模式 + 修復跑版問題 */
       @media (max-width: 639px) {
         /* 1. 縮小表頭的星期 (日~六) */
         .calendar-grid.bg-gray-50 > div {
@@ -48,42 +48,60 @@
           padding: 0.3rem 0 !important;
         }
         
-        /* 2. 縮小每一天格子的最小高度與留白，讓畫面更緊湊 */
         .week-row {
           min-height: 80px !important;
         }
         .day-cell {
           padding: 0.25rem !important;
         }
+        
+        /* 🛠️ 修復 1：每月 1 號不破版！把正圓形變成會自動伸縮的「膠囊藥丸狀」 */
         .date-text {
-          font-size: 0.75rem !important;
-          width: 20px;
-          height: 20px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          font-size: 0.7rem !important;
+          min-width: 20px !important; /* 從死板的 width 變成 min-width */
+          width: auto !important;     /* 寬度自動根據字數延展 */
+          padding: 0 4px !important;  /* 左右加一點內距 */
+          height: 20px !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          border-radius: 10px !important; /* 圓角設定為高度的一半，變成完美膠囊 */
+          white-space: nowrap !important; /* 強制文字不准換行 */
+          letter-spacing: -0.5px !important; /* 字距稍微縮緊，看起來更精緻 */
         }
+        
         .holiday-name {
           font-size: 0.55rem !important;
           margin-top: 1px !important;
         }
 
-        /* 3. 🔥 核心視覺：將原本寬大的假單條，變成精緻的「彩色絲帶 (Ribbon)」 */
         .event-layer {
-          top: 24px !important; /* 讓絲帶往上貼一點 */
+          top: 24px !important; 
         }
         .event-layer > div {
-          height: 14px !important; /* 軌道變窄 */
+          height: 14px !important; 
           margin-bottom: 2px !important;
         }
         [class*="leave-bar-"] {
           height: 14px !important;
-          font-size: 8px !important; /* 文字縮小以適應手機 */
+          font-size: 8px !important; 
           line-height: 14px !important;
           padding: 0 4px !important;
           border-radius: 3px !important;
         }
-      } 
+
+        /* 🛠️ 修復 2：小鈴鐺通知欄完美置中，不超出螢幕 */
+        #notificationDropdown {
+          position: fixed !important; /* 脫離原本的位置限制 */
+          top: 60px !important;       /* 貼在頭部導航欄下方 */
+          right: auto !important;     /* 取消靠右對齊 */
+          left: 50% !important;       /* 移到畫面正中間 */
+          transform: translateX(-50%) !important; /* 完美水平置中校正 */
+          width: 92vw !important;     /* 寬度佔滿手機螢幕的 92%，留下一點美觀的邊距 */
+          max-height: 75vh !important; /* 高度最多佔螢幕 75%，太長可以滑動 */
+          z-index: 9999 !important;   /* 確保它浮在最上層 */
+        }
+      }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 overflow-hidden h-screen flex flex-col">
