@@ -70,9 +70,18 @@
           letter-spacing: -0.5px !important; /* 字距稍微縮緊，看起來更精緻 */
         }
         
+        /* 🛠️ 修復：讓直式手機的節日文字「允許換行」顯示，不再變成 ... */
         .holiday-name {
-          font-size: 0.55rem !important;
+          font-size: 0.55rem !important;      
           margin-top: 1px !important;
+          width: 100% !important;            
+          display: block !important;         
+          white-space: normal !important;    /* 🔥 解除不准換行的封印 */
+          word-break: keep-all !important;   /* 讓韓文單字盡量不被切斷 */
+          line-height: 1.1 !important;       /* 行距縮緊 */
+          max-height: 16px !important;       /* 最多容納兩行，超出才隱藏 */
+          overflow: hidden !important;       
+          text-align: center !important;
         }
 
         .event-layer {
@@ -100,6 +109,52 @@
           width: 92vw !important;     /* 寬度佔滿手機螢幕的 92%，留下一點美觀的邊距 */
           max-height: 75vh !important; /* 高度最多佔螢幕 75%，太長可以滑動 */
           z-index: 9999 !important;   /* 確保它浮在最上層 */
+        }
+
+        /* 🛠️ 修復 3：精準鎖定「動態島月份膠囊 (#floatingPill)」 */
+        #floatingPill {
+          top: 10px !important; /* 在手機上稍微往上靠，節省日曆空間 */
+          transform: translateX(-50%) scale(0.85) !important; /* 🔥 絕招：整體等比例縮小 85% */
+          padding: 4px 10px !important;
+          white-space: nowrap !important;
+        }
+        
+        /* 讓膠囊裡的字體微調，避免擠壓 */
+        #floatingYearMonth {
+          font-size: 0.85rem !important; 
+          letter-spacing: -0.5px !important;
+        }
+
+        /* 縮小點擊月份時跳出來的選單框 */
+        #miniPickerBox {
+          width: 200px !important;
+          transform: translateX(-50%) scale(0.9) !important; 
+        }
+      }
+
+      /* 📱 手機「橫屏模式 (Landscape)」終極優化 */
+      @media (max-width: 932px) and (orientation: landscape) {
+        /* 1. 隱藏側邊選單：橫向時螢幕很寶貴，強制隱藏左側選單，把版面全留給日曆 */
+        #sidebar, #sidebarOverlay { 
+          display: none !important; 
+        }
+        
+        /* 2. 減少滑動：橫向時螢幕高度很扁，我們把日曆格子稍微縮矮 */
+        .week-row { 
+          min-height: 80px !important; 
+        }
+        
+        /* 3. 文字大解放：橫向時格子非常寬，可以直接單行顯示大字體的節日名稱！ */
+        .holiday-name {
+          font-size: 0.65rem !important;
+          white-space: nowrap !important;
+          overflow: visible !important;
+        }
+        
+        /* 4. 動態島微調：讓月份膠囊往上貼緊，不擋住日曆 */
+        #floatingPill {
+          top: 2px !important;
+          transform: translateX(-50%) scale(0.7) !important;
         }
       }
     </style>

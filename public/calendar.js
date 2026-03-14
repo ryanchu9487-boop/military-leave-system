@@ -401,6 +401,17 @@ function renderEvents() {
         const nameEl = cell.querySelector(".holiday-name");
         if (nameEl) nameEl.innerText = leave.title;
         cell.classList.add("bg-red-50/20");
+
+        // 🔥 這裡新增：把國定假日的日期數字變成紅色！
+        const dateNum = cell.querySelector(".date-text");
+        if (dateNum) {
+          // 移除原本的灰色或藍色
+          dateNum.classList.remove("text-gray-700", "text-blue-500");
+          // 確保如果那天剛好是「今天(藍底白字)」，就不要蓋掉它
+          if (!dateNum.classList.contains("bg-indigo-600")) {
+            dateNum.classList.add("text-red-500");
+          }
+        }
       }
       return;
     }
