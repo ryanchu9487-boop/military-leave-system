@@ -169,7 +169,7 @@ router.get("/leaves/my", authMiddleware, async (req, res) => {
       userId: req.user.userId,
       status: { $ne: "CANCELLED" },
     })
-      .populate("userId", "name rank serviceNumber")
+      .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
       .lean();
     const mappedLeaves = leaves.map((l) => ({
       _id: l._id,
@@ -199,7 +199,7 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
     }
 
     const leaves = await Leave.find(query)
-      .populate("userId", "name rank serviceNumber")
+      .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
       .lean();
       
     const mappedLeaves = leaves.map((l) => ({
@@ -235,7 +235,7 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         organizationId: orgId,
         status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
       })
-        .populate("userId", "name rank serviceNumber")
+        .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
         .lean();
       notifications.push(...leaves);
     } else if (role === "approver" || role === "superadmin") {
@@ -243,7 +243,7 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         organizationId: orgId,
         status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
       })
-        .populate("userId", "name rank serviceNumber")
+        .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
         .lean();
       notifications.push(...leaves);
     } else if (role === "soldier") {
@@ -251,7 +251,7 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         userId: userId,
         status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL"] },
       })
-        .populate("userId", "name rank serviceNumber")
+        .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
         .lean();
       notifications.push(...leaves);
     }

@@ -164,6 +164,23 @@
         window.location.href = "index.html";
       }
 
+
+      function getCurrentRank(user) {
+        if (!user) return "계급 미상";
+        // 如果是幹部或沒有入伍日期的帳號，直接回傳原始 rank
+        if (user.role !== "soldier" || !user.promoToIlbyung) return user.rank || "계급 미상";
+
+        const today = new Date();
+        const toIlbyung = new Date(user.promoToIlbyung);
+        const toSangbyung = new Date(user.promoToSangbyung);
+        const toByungjang = new Date(user.promoToByungjang);
+
+        if (today >= toByungjang) return "병장";
+        if (today >= toSangbyung) return "상병";
+        if (today >= toIlbyung) return "일병";
+        return "이병";
+      }
+
       function applyCancelModeUI() {
         document.getElementById("mainBody").classList.add("cancel-mode", "selection:bg-orange-500");
         document.getElementById("mainBody").classList.remove("selection:bg-purple-500");
@@ -205,7 +222,7 @@
 
           const name = leave.userId.name || "알수없음";
           document.getElementById("userInitial").innerText = name.charAt(0);
-          document.getElementById("userRank").innerText = leave.userId.rank || "계급 미상";
+          document.getElementById("userRank").innerText = getCurrentRank(leave.userId);
           document.getElementById("userName").innerText = name;
           document.getElementById("serviceNumber").innerText = leave.userId.serviceNumber;
 
