@@ -74,18 +74,33 @@ function renderPending(users) {
   });
 }
 
-// 🔹 3. 승인/거절 처리 (기존 유지)
+// 🔹 3. 승인/거절 처리 (修正 Method 對齊後端)
 async function approveUser(userId) {
   if (!confirm("해당 인원의 가입을 승인하시겠습니까?")) return;
   try {
     const res = await fetch(`/approve-user/${userId}`, {
-      method: "POST",
+      method: "PUT", // 🔥 這裡從 POST 改成了 PUT
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
     if (data.error) return alert(data.error);
     loadPendingUsers();
     loadUsers();
+  } catch (err) {
+    alert("서버 오류가 발생했습니다.");
+  }
+}
+
+async function rejectUser(userId) {
+  if (!confirm("해당 인원의 가입을 거절하시겠습니까?")) return;
+  try {
+    const res = await fetch(`/reject-user/${userId}`, {
+      method: "DELETE", // 🔥 這裡從 POST 改成了 DELETE
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    if (data.error) return alert(data.error);
+    loadPendingUsers();
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
   }

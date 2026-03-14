@@ -1,208 +1,133 @@
-/**
- * register.js - 부대 및 관리자 등록 로직 (진급/전역일 자동계산 포함)
- */
 document.addEventListener("DOMContentLoaded", () => {
   const registerBtn = document.getElementById("registerBtn");
   const goLoginBtn = document.getElementById("goLoginBtn");
-
-  // 기본 입력 요소들
-  const password = document.getElementById("password");
-  const confirmPassword = document.getElementById("confirmPassword");
-  const pwError = document.getElementById("pwError");
-
-  // 🔥 [신규] 인사 관련 DOM 요소
   const isCadreToggle = document.getElementById("isCadre");
-  const enlistmentInput = document.getElementById("enlistmentDate");
-  const dischargeInput = document.getElementById("dischargeDate");
-  const enlistmentLabel = document.getElementById("enlistmentLabel");
-  const dischargeLabel = document.getElementById("dischargeLabel");
+  const enlistmentDateInput = document.getElementById("enlistmentDate");
+  const dischargeDateInput = document.getElementById("dischargeDate");
 
-  /**
-   * 1. 간부/용사 스위치 토글 이벤트 (UI 및 필수값 제어)
-   */
-  if (isCadreToggle) {
-    isCadreToggle.addEventListener("change", function () {
-      if (this.checked) {
-        // 간부 모드
-        enlistmentLabel.innerText = "임관일 (선택)";
-        dischargeLabel.innerText = "예정 전역일 (선택)";
-        dischargeLabel.classList.replace("text-gray-600", "text-primary");
-        dischargeInput.value = "";
-      } else {
-        // 용사 모드
-        enlistmentLabel.innerText = "입대일 (필수)";
-        dischargeLabel.innerText = "예정 전역일 (자동계산/수정가능)";
-        dischargeLabel.classList.replace("text-primary", "text-gray-600");
-        calculateDischargeDate();
-      }
-      validateForm(); // 상태 변경 후 유효성 재검사
+  // ==========================================
+  // 1. 跳轉到登入畫面
+  // ==========================================
+  if (goLoginBtn) {
+    goLoginBtn.addEventListener("click", () => {
+      window.location.href = "login.html";
     });
   }
 
-  /**
-   * 2. 용사 예정 전역일 자동 계산 (+18개월 -1일)
-   */
-  function calculateDischargeDate() {
-    if (!isCadreToggle || isCadreToggle.checked || !enlistmentInput.value)
-      return;
-
-    const eDate = new Date(enlistmentInput.value);
-    eDate.setMonth(eDate.getMonth() + 18);
-    eDate.setDate(eDate.getDate() - 1);
-
-    const yyyy = eDate.getFullYear();
-    const mm = String(eDate.getMonth() + 1).padStart(2, "0");
-    const dd = String(eDate.getDate()).padStart(2, "0");
-
-    dischargeInput.value = `${yyyy}-${mm}-${dd}`;
-
-    // 시각적 피드백
-    dischargeInput.classList.add(
-      "ring-2",
-      "ring-indigo-400",
-      "text-indigo-600",
-      "bg-indigo-50"
-    );
-    setTimeout(
-      () =>
-        dischargeInput.classList.remove(
-          "ring-2",
-          "ring-indigo-400",
-          "text-indigo-600",
-          "bg-indigo-50"
-        ),
-      800
-    );
-
-    validateForm();
-  }
-
-  if (enlistmentInput) {
-    enlistmentInput.addEventListener("change", calculateDischargeDate);
-  }
-
-  /**
-   * 3. 실시간 비밀번호 일치 및 폼 전체 유효성 검사
-   */
-  function validateForm() {
-    const isPwMatch =
-      password.value === confirmPassword.value && password.value !== "";
-
-    // required 속성이 있는 모든 input을 동적으로 가져와 검사
-    const requiredInputs = document.querySelectorAll("input[required]");
-    const isAllFilled = Array.from(requiredInputs).every((input) =>
-      input.checkValidity()
-    );
-
-    // 비밀번호 확인 칸 스타일 및 에러 메시지 제어
-    if (confirmPassword.value.length > 0) {
-      if (!isPwMatch) {
-        confirmPassword.classList.add("border-error");
-        confirmPassword.classList.remove("border-success");
-        pwError.classList.replace("opacity-0", "opacity-100");
-        pwError.classList.replace("scale-95", "scale-100");
-      } else {
-        confirmPassword.classList.remove("border-error");
-        confirmPassword.classList.add("border-success");
-        pwError.classList.replace("opacity-100", "opacity-0");
-        pwError.classList.replace("scale-100", "scale-95");
+  // ==========================================
+  // 2. 表單防呆：解除註冊按鈕的 disabled 狀態
+  // ==========================================
+  // 監聽所有 input，只要密碼有輸入，就解開按鈕封印
+  const inputs = document.querySelectorAll("input");
+  inputs.forEach((input) => {
+    input.addEventListener("input", () => {
+      if (registerBtn.classList.contains("btn-disabled")) {
+        registerBtn.classList.remove("btn-disabled");
       }
-    }
-
-    // 날짜 데이터가 필요한지 검사 (간부는 필수가 아님)
-    let isDateValid = true;
-    if (isCadreToggle && !isCadreToggle.checked) {
-      if (!enlistmentInput.value || !dischargeInput.value) isDateValid = false;
-    }
-
-    // 모든 조건 충족 시 버튼 활성화
-    if (isPwMatch && isAllFilled && isDateValid) {
-      registerBtn.classList.remove("btn-disabled");
-    } else {
-      registerBtn.classList.add("btn-disabled");
-    }
-  }
-
-  // 모든 입력창에 실시간 검증 이벤트 연결
-  document.querySelectorAll("input").forEach((input) => {
-    input.addEventListener("input", validateForm);
+    });
   });
 
-  /**
-   * 4. 회원가입 버튼 클릭 이벤트
-   */
-  registerBtn?.addEventListener("click", async () => {
-    // 버튼이 비활성화 상태면 중단
-    if (registerBtn.classList.contains("btn-disabled")) return;
+  // ==========================================
+  // 3. 自動計算退伍日 (入伍日 + 18個月 - 1天)
+  // ==========================================
+  if (enlistmentDateInput && dischargeDateInput) {
+    enlistmentDateInput.addEventListener("change", (e) => {
+      if (!e.target.value) return;
+      const enlistDate = new Date(e.target.value);
+      
+      // 韓國陸軍標準役期約 18 個月
+      enlistDate.setMonth(enlistDate.getMonth() + 18);
+      enlistDate.setDate(enlistDate.getDate() - 1);
+      
+      const yyyy = enlistDate.getFullYear();
+      const mm = String(enlistDate.getMonth() + 1).padStart(2, "0");
+      const dd = String(enlistDate.getDate()).padStart(2, "0");
+      
+      // 自動填入退伍日欄位 (使用者依然可以手動修改)
+      dischargeDateInput.value = `${yyyy}-${mm}-${dd}`;
+    });
+  }
 
-    const unitName = document.getElementById("unitName").value.trim();
-    const name = document.getElementById("name").value.trim();
-    const serviceNumber = document.getElementById("serviceNumber").value.trim();
-    const phoneNumber = document.getElementById("phoneNumber").value.trim();
-    const pwValue = password.value.trim();
+  // ==========================================
+  // 4. 點擊註冊按鈕的完整邏輯
+  // ==========================================
+  if (registerBtn) {
+    registerBtn.addEventListener("click", async () => {
+      // 如果按鈕是 disabled 狀態，不執行
+      if (registerBtn.classList.contains("btn-disabled")) return;
 
-    // 🔥 [신규] 인사 정보 추출
-    const enlistmentVal = enlistmentInput ? enlistmentInput.value : null;
-    const dischargeVal = dischargeInput ? dischargeInput.value : null;
-    const isCadreVal = isCadreToggle ? isCadreToggle.checked : false;
+      // 取得所有輸入框的值
+      const unitName = document.getElementById("unitName").value.trim();
+      const name = document.getElementById("name").value.trim();
+      const serviceNumber = document.getElementById("serviceNumber").value.trim();
+      const enlistmentDate = document.getElementById("enlistmentDate").value;
+      const dischargeDate = document.getElementById("dischargeDate").value;
+      const phoneNumber = document.getElementById("phoneNumber").value.trim();
+      const password = document.getElementById("password").value;
+      const confirmPassword = document.getElementById("confirmPassword").value;
+      const isCadre = document.getElementById("isCadre").checked;
 
-    try {
-      toggleLoading(true);
-
-      // 🔥 정확한 API 엔드포인트: /register-unit
-      const res = await fetch("/register-unit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unitName,
-          name,
-          serviceNumber,
-          phoneNumber,
-          password: pwValue,
-          enlistmentDate: enlistmentVal,
-          dischargeDate: dischargeVal,
-          isCadre: isCadreVal, // 백엔드에 간부 여부 전달
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.error || "등록에 실패했습니다.");
-        toggleLoading(false);
-        return;
+      // (A) 基本防呆檢查
+      if (!unitName || !name || !serviceNumber || !phoneNumber || !password) {
+        return alert("필수 정보를 모두 입력해주세요. (必填資訊請勿留白)");
+      }
+      if (!isCadre && (!enlistmentDate || !dischargeDate)) {
+        return alert("용사인 경우 입대일과 전역일을 반드시 입력해야 합니다. (勇士必須填寫入伍與退伍日)");
+      }
+      if (password !== confirmPassword) {
+        document.getElementById("pwError").classList.add("peer-invalid:[&:not(:placeholder-shown)]:opacity-100");
+        return alert("비밀번호가 일치하지 않습니다. (密碼不一致)");
       }
 
-      // 성공 시 백엔드에서 보내준 맞춤형 메시지 출력 (예: "간부로 가입되었습니다.")
-      alert(data.message || "부대 등록이 완료되었습니다. 로그인 해주세요.");
-      window.location.href = "/login.html";
-    } catch (err) {
-      console.error("Registration Error:", err);
-      alert("서버 연결에 실패했습니다.");
-      toggleLoading(false);
-    }
-  });
+      // (B) 🔥 決定要呼叫的正確 API 網址 (對齊 authRoutes.js)
+      const endpoint = isCadre ? "/register/organization" : "/register/soldier";
 
-  /**
-   * 5. 기타 이동 버튼
-   */
-  goLoginBtn?.addEventListener("click", () => {
-    window.location.href = "/login.html";
-  });
+      // (C) 準備送給後端的資料包 (統一乾淨版)
+      const payload = {
+        unitName: unitName,               // 後端現在兩邊都會檢查 unitName！
+        name: name,
+        rank: isCadre ? "간부" : "용사",   // 給勇士註冊用的階級防呆
+        serviceNumber: serviceNumber,
+        phoneNumber: phoneNumber,
+        password: password,
+        enlistmentDate: enlistmentDate || null,
+        dischargeDate: dischargeDate || null,
+        isCadre: isCadre,                 
+        role: isCadre ? "officer" : "soldier"
+      };
+
+      try {
+        // UI 變化：隱藏按鈕，顯示 Loading 動畫
+        document.getElementById("loading").classList.remove("hidden");
+        registerBtn.classList.add("hidden");
+
+        // (D) 正式發送 API 請求
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+
+        // (E) 處理後端回傳結果
+        if (res.ok && data.success) {
+          alert(data.message || "회원가입이 완료되었습니다! 관리자의 승인을 기다려주세요.");
+          window.location.href = "login.html"; // 註冊成功，自動跳轉到登入頁
+        } else {
+          alert(data.error || "회원가입에 실패했습니다.");
+        }
+
+      } catch (error) {
+        console.error("Registration Error:", error);
+        alert("서버 연결에 실패했습니다. (伺服器連線失敗，請確認後端是否運行中)");
+      } finally {
+        // 不管成功或失敗，最後都要把按鈕恢復原狀
+        document.getElementById("loading").classList.add("hidden");
+        registerBtn.classList.remove("hidden");
+      }
+    });
+  }
 });
-
-/**
- * UI 로딩 상태 토글 함수
- */
-function toggleLoading(isLoading) {
-  const btn = document.getElementById("registerBtn");
-  const loader = document.getElementById("loading");
-
-  if (isLoading) {
-    btn.classList.add("hidden");
-    loader?.classList.remove("hidden");
-  } else {
-    btn.classList.remove("hidden");
-    loader?.classList.add("hidden");
-  }
-}

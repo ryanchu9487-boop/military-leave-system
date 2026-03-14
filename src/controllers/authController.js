@@ -353,23 +353,16 @@ exports.forgotPassword = async (req, res) => {
 
 exports.registerSoldier = async (req, res) => {
   try {
-    const { orgCode, name, rank, serviceNumber, phoneNumber, password } =
-      req.body;
+    // 🔥 1. 這裡補上了 enlistmentDate 和 dischargeDate，才能接住前端送來的時間
+    const { unitName, name, rank, serviceNumber, phoneNumber, password, enlistmentDate, dischargeDate } = req.body;
 
-    if (
-      !orgCode ||
-      !name ||
-      !rank ||
-      !serviceNumber ||
-      !phoneNumber ||
-      !password
-    ) {
+    if (!unitName || !name || !rank || !serviceNumber || !phoneNumber || !password) {
       return res.status(400).json({ error: "모든 항목을 입력해 주세요." });
     }
 
-    const org = await Organization.findOne({ orgCode: orgCode });
+    const org = await Organization.findOne({ name: unitName });
     if (!org) {
-      return res.status(404).json({ error: "유효하지 않은 부대 코드입니다." });
+      return res.status(404).json({ error: `'${unitName}'은(는) 등록되지 않은 부대입니다.` });
     }
 
     const existingUser = await User.findOne({
@@ -377,13 +370,15 @@ exports.registerSoldier = async (req, res) => {
       serviceNumber,
     });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ error: "해당 부대에 이미 등록된 군번입니다." });
+      return res.status(400).json({ error: "해당 부대에 이미 등록된 군번입니다." });
     }
+
+    // 🔥 2. 呼叫檔案最上面的函數，自動幫這名勇士算出退伍日與各階級的晉升日！
+    const militaryDates = calculateMilitaryDates(enlistmentDate, dischargeDate, "soldier");
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // 🔥 3. 存入資料庫時，把算好的日期 (...militaryDates) 一起存進去
     await User.create({
       organizationId: org._id,
       name,
@@ -392,18 +387,17 @@ exports.registerSoldier = async (req, res) => {
       phoneNumber,
       password: hashedPassword,
       role: "soldier",
-      status: "approved",
+      status: "pending", // 💡 強烈建議這裡用 "pending"！如果是 "approved"，長官的審核畫面就不會出現這個人了！
+      ...militaryDates, 
     });
 
     res.status(201).json({
       success: true,
-      message: `${org.name}에 가입이 완료되었습니다. 바로 로그인 가능합니다.`,
+      message: `${org.name}에 가입 신청이 완료되었습니다. 관리자 승인 후 로그인 가능합니다.`,
     });
   } catch (error) {
     console.error("일반 가입 에러:", error);
-    res
-      .status(500)
-      .json({ error: `서버 오류가 발생했습니다. (전화번호 형식 확인)` });
+    res.status(500).json({ error: `서버 오류가 발생했습니다. (전화번호 형식 확인)` });
   }
 };
 
