@@ -39,6 +39,51 @@
         background: #cbd5e1;
         border-radius: 4px;
       }
+
+     /* 📱 手機版專屬魔法：自動轉換為小日曆模式 (Mobile Mini Calendar) */
+      @media (max-width: 639px) {
+        /* 1. 縮小表頭的星期 (日~六) */
+        .calendar-grid.bg-gray-50 > div {
+          font-size: 0.7rem !important;
+          padding: 0.3rem 0 !important;
+        }
+        
+        /* 2. 縮小每一天格子的最小高度與留白，讓畫面更緊湊 */
+        .week-row {
+          min-height: 80px !important;
+        }
+        .day-cell {
+          padding: 0.25rem !important;
+        }
+        .date-text {
+          font-size: 0.75rem !important;
+          width: 20px;
+          height: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .holiday-name {
+          font-size: 0.55rem !important;
+          margin-top: 1px !important;
+        }
+
+        /* 3. 🔥 核心視覺：將原本寬大的假單條，變成精緻的「彩色絲帶 (Ribbon)」 */
+        .event-layer {
+          top: 24px !important; /* 讓絲帶往上貼一點 */
+        }
+        .event-layer > div {
+          height: 14px !important; /* 軌道變窄 */
+          margin-bottom: 2px !important;
+        }
+        [class*="leave-bar-"] {
+          height: 14px !important;
+          font-size: 8px !important; /* 文字縮小以適應手機 */
+          line-height: 14px !important;
+          padding: 0 4px !important;
+          border-radius: 3px !important;
+        }
+      } 
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 overflow-hidden h-screen flex flex-col">
