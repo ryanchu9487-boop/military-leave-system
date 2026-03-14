@@ -113,7 +113,7 @@
 
         /* 🛠️ 修復 3：精準鎖定「動態島月份膠囊 (#floatingPill)」 */
         #floatingPill {
-          top: 10px !important; /* 在手機上稍微往上靠，節省日曆空間 */
+          top: 54px !important; /* 在手機上稍微往上靠，節省日曆空間 */
           transform: translateX(-50%) scale(0.85) !important; /* 🔥 絕招：整體等比例縮小 85% */
           padding: 4px 10px !important;
           white-space: nowrap !important;
@@ -134,27 +134,23 @@
 
       /* 📱 手機「橫屏模式 (Landscape)」終極優化 */
       @media (max-width: 932px) and (orientation: landscape) {
-        /* 1. 隱藏側邊選單：橫向時螢幕很寶貴，強制隱藏左側選單，把版面全留給日曆 */
-        #sidebar, #sidebarOverlay { 
-          display: none !important; 
-        }
         
-        /* 2. 減少滑動：橫向時螢幕高度很扁，我們把日曆格子稍微縮矮 */
+        /* 減少滑動：橫向時螢幕高度很扁，我們把日曆格子稍微縮矮 */
         .week-row { 
           min-height: 80px !important; 
         }
         
-        /* 3. 文字大解放：橫向時格子非常寬，可以直接單行顯示大字體的節日名稱！ */
+        /* 文字大解放：橫向時可以直接單行顯示大字體的節日名稱！ */
         .holiday-name {
           font-size: 0.65rem !important;
           white-space: nowrap !important;
           overflow: visible !important;
         }
         
-        /* 4. 動態島微調：讓月份膠囊往上貼緊，不擋住日曆 */
+        /* 動態島微調：讓月份膠囊往上貼緊，不擋住日曆 */
         #floatingPill {
-          top: 2px !important;
-          transform: translateX(-50%) scale(0.7) !important;
+          top: 28px !important;
+          transform: translateX(-50%) scale(0.8) !important;
         }
       }
     </style>
