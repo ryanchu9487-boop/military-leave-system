@@ -347,22 +347,43 @@
         </button>
       </div>
 
-      <div id="rateControlUI" class="hidden justify-center items-center gap-3 mt-1 mb-2 text-sm bg-indigo-50 border border-indigo-100 py-2 px-4 rounded-lg w-fit mx-auto shadow-sm">
-        <label class="font-bold text-indigo-800 flex items-center">
-          <i class="fa-solid fa-sliders mr-1.5"></i>휴가 출타율: 
-          <input type="number" id="rateLongInput" value="20" class="w-14 text-center border border-gray-300 rounded mx-1.5 p-1 font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400"> %
-        </label>
-        <label class="font-bold text-indigo-800 flex items-center border-l border-indigo-200 pl-3">
-          외출/외박 출타율: 
-          <input type="number" id="rateShortInput" value="15" class="w-14 text-center border border-gray-300 rounded mx-1.5 p-1 font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400"> %
-        </label>
-        <div class="flex items-center gap-2 border-l border-indigo-200 pl-3 ml-1">
-          <button onclick="alert('출타율 저장 API는 다음 단계에서 연결됩니다!')" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-indigo-700 transition shadow-sm">적용 (저장)</button>
-          
-          <button id="batchApproveBtn" onclick="batchApprovePhase1()" class="bg-orange-500 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-orange-600 transition shadow-sm flex items-center">
-            <i class="fa-solid fa-check-double mr-1"></i>정규편성 일괄결재
-          </button>
+      <div id="rateControlUI" class="hidden flex-col items-center gap-2 mt-1 mb-3 text-sm bg-indigo-50 border border-indigo-100 py-3 px-4 rounded-xl w-fit mx-auto shadow-sm">
+        
+        <div class="flex justify-center items-center gap-3">
+          <label class="font-bold text-indigo-800 flex items-center">
+            <i class="fa-solid fa-sliders mr-1.5"></i>기본 휴가: 
+            <input type="number" id="rateLongInput" value="20" class="w-12 text-center border border-gray-300 rounded mx-1.5 p-1 font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400">%
+          </label>
+          <label class="font-bold text-indigo-800 flex items-center border-l border-indigo-200 pl-3">
+            기본 외출/외박: 
+            <input type="number" id="rateShortInput" value="15" class="w-12 text-center border border-gray-300 rounded mx-1.5 p-1 font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400">%
+          </label>
+          <div class="flex items-center gap-2 border-l border-indigo-200 pl-3 ml-1">
+            <button onclick="updateLeaveRates()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition shadow-sm">기본값 저장</button>
+            <button id="batchApproveBtn" onclick="batchApprovePhase1()" class="bg-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-orange-600 transition shadow-sm flex items-center">
+              <i class="fa-solid fa-check-double mr-1"></i>정규편성 일괄결재
+            </button>
+          </div>
         </div>
+
+        <div class="flex justify-center items-center gap-2 text-xs border-t border-indigo-200 pt-2 mt-1 w-full">
+          <span class="font-bold text-indigo-600"><i class="fa-solid fa-calendar-day mr-1"></i>특별 기간 추가:</span>
+          <input type="date" id="specialStartDate" class="border border-gray-300 rounded px-1.5 py-1 text-gray-700 outline-none">
+          <span class="text-gray-400">~</span>
+          <input type="date" id="specialEndDate" class="border border-gray-300 rounded px-1.5 py-1 text-gray-700 outline-none">
+          <input type="text" id="specialReason" placeholder="사유 (예: 훈련)" class="border border-gray-300 rounded px-2 py-1 w-24 outline-none">
+          
+          <input type="number" id="specialRateLong" placeholder="휴가%" class="w-14 text-center border border-gray-300 rounded p-1 outline-none">
+          <input type="number" id="specialRateShort" placeholder="단기%" class="w-14 text-center border border-gray-300 rounded p-1 outline-none">
+          <button onclick="addSpecialRate()" class="bg-indigo-500 text-white px-2 py-1 rounded hover:bg-indigo-600 transition"><i class="fa-solid fa-plus"></i></button>
+        </div>
+        
+        <div id="activeSpecialRatesContainer" class="w-full mt-2 pt-2 border-t border-indigo-200 hidden">
+          <p class="text-xs font-black text-indigo-800 mb-1.5"><i class="fa-solid fa-list-check mr-1"></i>현재 적용된 특별 출타율</p>
+          <ul id="specialRatesList" class="space-y-1.5">
+            </ul>
+        </div>
+        
       </div>
 
       <div

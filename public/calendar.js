@@ -46,6 +46,7 @@ async function initApp() {
   currentYear = now.getFullYear();
   currentMonth = now.getMonth();
   await refreshCalendarData();
+  await fetchLeaveRates();
   setupScrollObserver();
   setupDragSelection();
   setTimeout(() => {
@@ -974,4 +975,122 @@ function closeBottomSheet() {
 
 async function toggleWaitlistStatus(leaveId) {
   alert("이 기능은 수동 개입(isManualOverride) API 연결이 필요합니다!\n(클릭된 ID: " + leaveId + ")");
+}
+
+// ==========================================
+// 🔥 出島率與長官特權 API 串接 (進階可視化版)
+// ==========================================
+async function fetchLeaveRates() {
+  if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
+  try {
+    const res = await fetch("/leaves/rates", { headers: { Authorization: `Bearer ${currentToken}` } });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById("rateLongInput").value = data.leaveRateLong;
+      document.getElementById("rateShortInput").value = data.leaveRateShort;
+      renderSpecialRates(data.specialRates); // 畫出特殊期間列表
+    }
+  } catch(e) {}
+}
+
+function renderSpecialRates(rates) {
+  const container = document.getElementById("activeSpecialRatesContainer");
+  const list = document.getElementById("specialRatesList");
+  if (!rates || rates.length === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  list.innerHTML = rates.map(r => `
+    <li class="flex justify-between items-center bg-white border border-indigo-100 px-3 py-1.5 rounded-lg text-xs shadow-sm">
+      <div class="flex items-center">
+        <span class="font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded mr-2">${r.startDate} ~ ${r.endDate}</span>
+        <span class="font-bold text-gray-700">${r.reason}</span>
+        <span class="text-gray-500 ml-2 border-l border-gray-300 pl-2">휴가 ${r.rateLong}% / 단기 ${r.rateShort}%</span>
+      </div>
+      <button onclick="deleteSpecialRate('${r._id}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded transition" title="삭제"><i class="fa-solid fa-trash-can"></i></button>
+    </li>
+  `).join("");
+}
+
+// 儲存基本出島率
+async function updateLeaveRates() {
+  const rateLong = document.getElementById("rateLongInput").value;
+  const rateShort = document.getElementById("rateShortInput").value;
+  if (!confirm(`기본 출타율을 변경하시겠습니까? (휴가 ${rateLong}%, 단기 ${rateShort}%)\n\n(변경 시 모든 인원의 정/후보 상태가 즉시 재계산됩니다!)`)) return;
+
+  try {
+    const res = await fetch("/leaves/rates", {
+      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
+      body: JSON.stringify({ leaveRateLong: rateLong, leaveRateShort: rateShort })
+    });
+    const data = await res.json();
+    alert(data.message || data.error);
+    if (data.success) await refreshCalendarData();
+  } catch(e) { alert("오류가 발생했습니다."); }
+}
+
+// 新增特殊期間出島率
+async function addSpecialRate() {
+  const sDate = document.getElementById("specialStartDate").value;
+  const eDate = document.getElementById("specialEndDate").value;
+  const sReason = document.getElementById("specialReason").value;
+  const rateLong = document.getElementById("specialRateLong").value || 20;
+  const rateShort = document.getElementById("specialRateShort").value || 15;
+
+  if (!sDate || !eDate || !sReason) return alert("날짜와 사유를 모두 입력해주세요.");
+  if (!confirm(`[특별 기간 적용]\n${sDate} ~ ${eDate} 기간 동안 출타율을 변경하시겠습니까?\n사유: ${sReason}`)) return;
+
+  try {
+    const res = await fetch("/leaves/rates", {
+      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
+      body: JSON.stringify({ specialStartDate: sDate, specialEndDate: eDate, specialReason: sReason, specialRateLong: rateLong, specialRateShort: rateShort })
+    });
+    const data = await res.json();
+    alert(data.message || data.error);
+    if (data.success) {
+      // 成功後清空輸入框
+      document.getElementById("specialStartDate").value = "";
+      document.getElementById("specialEndDate").value = "";
+      document.getElementById("specialReason").value = "";
+      document.getElementById("specialRateLong").value = "";
+      document.getElementById("specialRateShort").value = "";
+      
+      // 🔥 關鍵修正：立刻去後端抓最新的列表，讓 UI 瞬間顯示/隱藏！
+      await fetchLeaveRates(); 
+      await refreshCalendarData(); 
+    }
+  } catch(e) { alert("오류가 발생했습니다."); }
+}
+
+// 刪除特殊期間出島率
+async function deleteSpecialRate(rateId) {
+  if(!confirm("이 특별 출타율 설정을 삭제하시겠습니까?\n(삭제 시 해당 기간은 기본 출타율 기준으로 즉시 재계산됩니다.)")) return;
+  try {
+    const res = await fetch(`/leaves/rates/special/${rateId}`, {
+      method: "DELETE", headers: { Authorization: `Bearer ${currentToken}` }
+    });
+    const data = await res.json();
+    if(data.success) {
+      // 🔥 關鍵修正：立刻去後端抓最新的列表，讓 UI 瞬間顯示/隱藏！
+      await fetchLeaveRates(); 
+      await refreshCalendarData();
+    }
+  } catch(e) { alert("삭제 중 오류가 발생했습니다."); }
+}
+
+// 長官手動把候補拉上來 (不佔名額特例)
+async function toggleWaitlistStatus(leaveId) {
+  if (!confirm("이 인원의 정규/후보 상태를 수동으로 강제 변경(고정)하시겠습니까?\n(수동 고정된 인원은 T/O를 차지하지 않습니다.)")) return;
+  try {
+    const res = await fetch(`/leaves/${leaveId}/manual-override`, {
+      method: "PUT", headers: { Authorization: `Bearer ${currentToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      await refreshCalendarData(); 
+      closeBottomSheet(); 
+      alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
+    }
+  } catch(e) { alert("수동 개입 처리 중 오류가 발생했습니다."); }
 }
