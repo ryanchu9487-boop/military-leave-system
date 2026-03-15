@@ -120,7 +120,7 @@ function injectFloatingUI() {
   const pill = document.createElement("div");
   pill.id = "floatingPill";
  pill.className = "dynamic-island absolute left-1/2 -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md border border-gray-200/60 shadow-md rounded-full px-2 py-1.5 flex items-center gap-1 transition-all duration-300 hover:shadow-lg";
-  pill.style.top = "60px"; // 電腦版預設高度，手機版由 CSS 覆蓋
+  pill.style.top = "42px"; // 電腦版預設高度，手機版由 CSS 覆蓋
   pill.innerHTML = `
     <button onclick="prevMonth(); event.stopPropagation();" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
     <div class="relative">
