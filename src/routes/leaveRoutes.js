@@ -868,4 +868,47 @@ router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
   }
 });
 
+// ==========================================
+// 🔥 [新增] 드래그 앤 드롭: 두 휴가의 우선순위(점수) 맞바꾸기 (1:1 교환)
+// ==========================================
+router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
+  try {
+    if (!["reviewer", "officer", "approver", "superadmin"].includes(req.user.role)) {
+      return res.status(403).json({ error: "권한이 없습니다." });
+    }
+
+    const { leaveId1, leaveId2 } = req.body;
+    if (!leaveId1 || !leaveId2) return res.status(400).json({ error: "잘못된 요청입니다." });
+
+    const leave1 = await Leave.findById(leaveId1);
+    const leave2 = await Leave.findById(leaveId2);
+
+    if (!leave1 || !leave2) return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
+    if (leave1.organizationId.toString() !== req.user.orgId || leave2.organizationId.toString() !== req.user.orgId) {
+      return res.status(403).json({ error: "권한이 없습니다." });
+    }
+
+    // 🌟 魔法核心：將兩人的積分 (Priority Score) 完美對調！
+    const tempScore = leave1.priorityScore;
+    leave1.priorityScore = leave2.priorityScore;
+    leave2.priorityScore = tempScore;
+
+    // 為了公平競爭，如果他們身上原本有「特權鎖頭(🔒)」，互換時一併解除，交給 AI 重新審判
+    leave1.isManualOverride = false;
+    leave2.isManualOverride = false;
+
+    await leave1.save();
+    await leave2.save();
+
+    // 🌟 觸發核彈重算：找出這兩張假單涵蓋的最大日期範圍，叫 AI 引擎重新排隊！
+    const minDate = new Date(Math.min(new Date(leave1.startDate), new Date(leave2.startDate)));
+    const maxDate = new Date(Math.max(new Date(leave1.endDate), new Date(leave2.endDate)));
+    await recalculateWaitlist(req.user.orgId, minDate, maxDate);
+
+    res.json({ success: true, message: "두 인원의 휴가 순위가 성공적으로 맞바뀌었습니다." });
+  } catch (error) {
+    res.status(500).json({ error: "순위 교환 중 서버 오류가 발생했습니다." });
+  }
+});
+
 module.exports = router;

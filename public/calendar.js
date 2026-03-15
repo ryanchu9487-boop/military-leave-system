@@ -908,7 +908,7 @@ async function submitRequest() {
 }
 
 // ==========================================
-// 🔥 檢討者專用：底部抽屜選單互動邏輯
+// 🔥 檢討者專用：底部抽屜選單互動邏輯 (支援 Drag & Drop)
 // ==========================================
 function openBottomSheet(dateStr) {
   const targetDate = new Date(dateStr);
@@ -932,28 +932,38 @@ function openBottomSheet(dateStr) {
   
   const appContainer = document.getElementById("bsApprovedList");
   appContainer.innerHTML = approvedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">승인 대상이 없습니다.</div>` : "";
+  
   approvedLeaves.forEach(l => {
+    const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
     appContainer.innerHTML += `
-      <div class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-sm' : 'border-gray-200'} flex justify-between items-center">
-        <div>
-          <p class="text-[13px] font-bold text-gray-800">${l.isManualOverride ? '🔒 ' : ''}${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
-          <p class="text-[11px] text-gray-500 mt-0.5">${l.reason || ''}</p>
+      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center cursor-move hover:shadow-md transition">
+        <div class="flex items-center min-w-0 pr-2">
+          <i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>
+          <div class="truncate">
+            <p class="text-[13px] font-bold text-gray-800 truncate">${l.isManualOverride ? '🔒 ' : ''}${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
+            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${l.reason || ''}</p>
+          </div>
         </div>
-        <button onclick="toggleWaitlistStatus('${l._id}')" class="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition" title="후보로 내리기">⬇️ 내리기</button>
+        <button onclick="toggleWaitlistStatus('${l._id}')" class="shrink-0 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="보장 해제 (강제 내리기)">⬇️ 내리기</button>
       </div>
     `;
   });
 
   const waitContainer = document.getElementById("bsWaitlistList");
   waitContainer.innerHTML = waitlistedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">후보 인원이 없습니다.</div>` : "";
+  
   waitlistedLeaves.forEach(l => {
+    const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
     waitContainer.innerHTML += `
-      <div class="bg-white p-3 rounded-xl border border-dashed border-orange-300 flex justify-between items-center opacity-80">
-        <div>
-          <p class="text-[13px] font-bold text-orange-800">${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
-          <p class="text-[11px] text-orange-600 mt-0.5">${l.reason || ''} (포인트: ${l.priorityScore || 0})</p>
+      <div ${dragAttrs} class="bg-gray-50 p-3 rounded-xl border border-dashed border-orange-300 flex justify-between items-center opacity-90 cursor-move hover:opacity-100 hover:shadow-md transition">
+        <div class="flex items-center min-w-0 pr-2">
+          <i class="fa-solid fa-grip-lines text-orange-200 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>
+          <div class="truncate">
+            <p class="text-[13px] font-bold text-orange-800 truncate">${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
+            <p class="text-[11px] text-orange-600 mt-0.5 truncate">${l.reason || ''}</p>
+          </div>
         </div>
-        <button onclick="toggleWaitlistStatus('${l._id}')" class="text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition" title="정규 편성으로 강제 올리기">⬆️ 올리기</button>
+        <button onclick="toggleWaitlistStatus('${l._id}')" class="shrink-0 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="정규 편성으로 강제 올리기">⬆️ 올리기</button>
       </div>
     `;
   });
@@ -1093,4 +1103,52 @@ async function toggleWaitlistStatus(leaveId) {
       alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
     }
   } catch(e) { alert("수동 개입 처리 중 오류가 발생했습니다."); }
+}
+
+// ==========================================
+// 🔥 抽屜面板 Drag & Drop (1換1 積分對調) 邏輯
+// ==========================================
+let draggedLeaveId = null;
+let draggedLeaveName = null;
+
+function handleDragStart(e, id, name) {
+  if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
+  draggedLeaveId = id;
+  draggedLeaveName = name;
+  e.dataTransfer.effectAllowed = "move";
+  // 讓被拖起來的那塊變半透明，視覺上更直覺
+  setTimeout(() => { e.target.classList.add("opacity-50", "scale-95"); }, 0);
+}
+
+function handleDragEnd(e) {
+  e.target.classList.remove("opacity-50", "scale-95");
+}
+
+function handleDragOver(e) {
+  e.preventDefault(); // 允許 Drop 發生
+  e.dataTransfer.dropEffect = "move";
+}
+
+async function handleDrop(e, targetId, targetName) {
+  e.preventDefault();
+  if (!draggedLeaveId || draggedLeaveId === targetId) return;
+
+  if (confirm(`[순위 맞바꾸기]\n${draggedLeaveName} 인원과 ${targetName} 인원의 휴가 순위를 1:1로 맞바꾸시겠습니까?\n(점수가 서로 교환되어 즉시 재계산됩니다.)`)) {
+    try {
+      const res = await fetch("/leaves/swap-priority", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
+        body: JSON.stringify({ leaveId1: draggedLeaveId, leaveId2: targetId })
+      });
+      const data = await res.json();
+      alert(data.message || data.error);
+      
+      if (data.success) {
+        closeBottomSheet(); // 關閉抽屜
+        await refreshCalendarData(); // 重新整理月曆，長條顏色會瞬間交換！
+      }
+    } catch(err) {
+      alert("교환 중 오류가 발생했습니다.");
+    }
+  }
 }
