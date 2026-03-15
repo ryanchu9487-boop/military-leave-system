@@ -32,7 +32,6 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
   const targetDate = new Date(startDate);
 
   // 1. 判斷是否錯過申請死線 (Phase 1 vs Phase 2)
-  // 規則：申請下個月的假，必須在「這個月1號」之前。例如 4月的假，要在 3/1 00:00 前送出。
   const deadline = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 1);
   if (now > deadline) {
     // 遲交者 (Phase 2)：直接扣 10萬分，永遠墊底，只能撿漏
@@ -102,7 +101,7 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
   const start = new Date(startDate);
   const end = new Date(endDate);
   
-  // 找出這段期間內所有重疊的假單 (只要不是被拒絕或取消的都要算)
+  // 找出這段期間內所有重疊的假單
   const overlappingLeaves = await Leave.find({
     organizationId: orgId,
     status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] },
@@ -157,7 +156,7 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
 }
 
 // ==========================================
-// 1. 幹部發放額度
+// 1. 幹部發放/勇士登錄 額度
 // ==========================================
 router.post("/leave-slots", authMiddleware, async (req, res) => {
   try {
@@ -212,7 +211,7 @@ router.get("/leave-slots/me", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// 🔥 2. 勇士申請假單 (自動計分 + 排候補)
+// 🔥 2. 勇士申請假單
 // ==========================================
 router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (req, res) => {
   try {
@@ -267,7 +266,6 @@ router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (
       evidenceFilesPaths = req.files.map(file => `/uploads/${file.filename}`);
     }
 
-    // 🌟 核心：為這張假單打分數
     const currentUser = await User.findById(userId);
     const calculatedScore = await calculatePriorityScore(currentUser, mainType, reason, startDate);
 
@@ -283,13 +281,12 @@ router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (
       reason: `${reason} (행선지: ${destination}, 연락처: ${emergencyContact})`,
       status: initialStatus,
       evidenceFiles: evidenceFilesPaths,
-      priorityScore: calculatedScore, // 存入分數
-      isWaitlisted: false // 預設先給 false，交給引擎重算
+      priorityScore: calculatedScore, 
+      isWaitlisted: false 
     });
 
     await newLeave.save();
 
-    // 🌟 核心：觸發全自動連帶判定引擎，重算那幾天的正備取
     if (userRole === "soldier") {
       await recalculateWaitlist(req.user.orgId, startDate, endDate);
     }
@@ -322,7 +319,7 @@ router.get("/leaves/my", authMiddleware, async (req, res) => {
       status: l.status,
       reason: l.reason,
       totalDaysUsed: l.totalDaysUsed,
-      isWaitlisted: l.isWaitlisted // 讓前端知道是不是候補
+      isWaitlisted: l.isWaitlisted
     }));
     res.json({ leaves: mappedLeaves });
   } catch (error) {
@@ -501,7 +498,6 @@ router.put("/leaves/:id/reject", authMiddleware, async (req, res) => {
     }
     await leave.save();
     
-    // 🌟 拒絕了一張假單，名額釋出！重算一次那幾天的排隊狀況
     await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
 
     res.json({
@@ -573,7 +569,6 @@ router.put("/leaves/:id/approve", authMiddleware, async (req, res) => {
           await slot.save();
         }
       }
-      // 🌟 假單被正式取消了，釋出名額，趕快重算一下候補區！
       await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
     }
 
@@ -608,7 +603,6 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
       leave.status = "CANCELLED";
       await leave.save();
       
-      // 🌟 勇士自行取消了排隊中的假單，釋出名額！
       await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
       
       return res.json({
@@ -633,6 +627,49 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
   }
 });
 
+
+// ==========================================
+// 🔥 [新增] 月曆專屬：一鍵結算 (只處理正取，由檢討者發動)
+// ==========================================
+router.post("/leaves/approve-calendar-phase1", authMiddleware, async (req, res) => {
+  try {
+      const { orgId, role } = req.user;
+      
+      if (!["reviewer", "officer", "superadmin"].includes(role)) {
+          return res.status(403).json({ error: "일괄 검토 권한이 없습니다." });
+      }
+
+      // 1. 只針對 "PENDING_REVIEW" 且 "isWaitlisted: false" (正取) 的假單進行升級
+      const leaveUpdate = await Leave.updateMany(
+          { organizationId: orgId, status: "PENDING_REVIEW", isWaitlisted: false },
+          { $set: { status: "PENDING_APPROVAL", reviewerId: req.user.userId, reviewedAt: new Date() } }
+      );
+
+      // 2. 順便處理「取消申請」，取消通常沒有名額問題，一併放行
+      const cancelUpdate = await Leave.updateMany(
+          { organizationId: orgId, status: "CANCEL_REQ_REVIEW" },
+          { $set: { status: "CANCEL_REQ_APPROVAL", reviewerId: req.user.userId, reviewedAt: new Date() } }
+      );
+
+      const totalUpdated = leaveUpdate.modifiedCount + cancelUpdate.modifiedCount;
+
+      if (totalUpdated === 0) {
+          return res.json({ success: true, message: "승인할 정규 편성(정원 내) 대기 건이 없습니다." });
+      }
+
+      res.json({ 
+          success: true, 
+          message: `총 ${totalUpdated}건의 정규 편성 휴가 및 취소 요청이 검토 완료되었습니다.` 
+      });
+
+  } catch (error) {
+      res.status(500).json({ error: "일괄 검토 처리 중 서버 오류가 발생했습니다." });
+  }
+});
+
+// ==========================================
+// 🔥 [修改] 小鈴鐺專屬：霸王條款一鍵結算 (無視備取，全數放行)
+// ==========================================
 router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
   try {
       const { orgId, role } = req.user;
@@ -658,9 +695,9 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
           newCancelStatus = "CANCEL_APPROVED";
       }
 
-      // 🔥 注意：這裡的批次核准，未來我們可以依照您的需求，加強為「只核准正取 (isWaitlisted: false) 的單子」，候補的自動退回！
+      // 🔥 霸王條款：拿掉 isWaitlisted: false 的限制！只要是等待審核狀態，全數放行！
       const leaveUpdate = await Leave.updateMany(
-          { organizationId: orgId, status: targetStatus, isWaitlisted: false }, // 只核准正取
+          { organizationId: orgId, status: targetStatus },
           { $set: { status: newStatus } }
       );
 
@@ -672,12 +709,12 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
       const totalUpdated = leaveUpdate.modifiedCount + cancelUpdate.modifiedCount;
 
       if (totalUpdated === 0) {
-          return res.json({ success: true, message: "승인할 대기 건이 없습니다. (혹은 모두 후보 상태입니다)" });
+          return res.json({ success: true, message: "승인할 대기 건이 없습니다." });
       }
 
       res.json({ 
           success: true, 
-          message: `총 ${totalUpdated}건의 휴가 및 취소 요청이 일괄 승인되었습니다.` 
+          message: `총 ${totalUpdated}건의 휴가 및 취소 요청이 일괄 처리되었습니다.` 
       });
 
   } catch (error) {

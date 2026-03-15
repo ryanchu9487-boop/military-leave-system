@@ -78,6 +78,16 @@
         </div>
 
         <div class="grid grid-cols-2 gap-4">
+          <div id="aiAssistPanel" class="col-span-2 p-4 rounded-2xl border shadow-sm transition-colors hidden">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" id="aiAssistTitle">
+                <i class="fa-solid fa-robot"></i> AI 심의 보조
+              </span>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" id="aiScoreBadge"></span>
+            </div>
+            <p id="aiAssistMessage" class="font-medium text-sm text-gray-700"></p>
+          </div>
+
           <div class="p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm flex flex-col justify-center">
             <span class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">출타 기간</span>
             <strong id="leaveDates" class="text-lg font-bold text-gray-800"></strong>
@@ -98,8 +108,7 @@
             <span class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
               <i class="fa-solid fa-paperclip"></i> 첨부된 증빙 서류
             </span>
-            <div id="evidenceFilesContainer" class="flex flex-wrap gap-2">
-              </div>
+            <div id="evidenceFilesContainer" class="flex flex-wrap gap-2"></div>
           </div>
         </div>
 
@@ -156,7 +165,6 @@
       const token = localStorage.getItem("token");
       const urlParams = new URLSearchParams(window.location.search);
       const leaveId = urlParams.get("id");
-
       let isCancelRequest = false;
 
       if (!token || !leaveId) {
@@ -164,17 +172,13 @@
         window.location.href = "index.html";
       }
 
-
       function getCurrentRank(user) {
         if (!user) return "계급 미상";
-        // 如果是幹部或沒有入伍日期的帳號，直接回傳原始 rank
         if (user.role !== "soldier" || !user.promoToIlbyung) return user.rank || "계급 미상";
-
         const today = new Date();
         const toIlbyung = new Date(user.promoToIlbyung);
         const toSangbyung = new Date(user.promoToSangbyung);
         const toByungjang = new Date(user.promoToByungjang);
-
         if (today >= toByungjang) return "병장";
         if (today >= toSangbyung) return "상병";
         if (today >= toIlbyung) return "일병";
@@ -184,25 +188,19 @@
       function applyCancelModeUI() {
         document.getElementById("mainBody").classList.add("cancel-mode", "selection:bg-orange-500");
         document.getElementById("mainBody").classList.remove("selection:bg-purple-500");
-
         document.getElementById("statusBadge").className = "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200 text-orange-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
         document.getElementById("mainTitle").innerHTML = `휴가 취소 <span class="text-orange-600 font-light">최종 승인</span>`;
-
         document.getElementById("userAvatar").className = "w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-red-400 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
         document.getElementById("userRank").className = "text-sm font-bold text-orange-600 mb-0.5 transition-colors";
-
         document.getElementById("daysBox").className = "p-5 rounded-3xl bg-orange-50/50 border border-orange-100/50 flex flex-col justify-center items-end text-right transition-colors";
         document.getElementById("daysLabel").className = "text-xs font-bold text-orange-500 mb-1 uppercase tracking-wider transition-colors";
         document.getElementById("totalDays").className = "text-3xl font-black text-orange-600 transition-colors";
         document.getElementById("daysUnit").className = "text-sm font-bold text-orange-500 transition-colors";
-
         document.getElementById("rejectBtn").innerHTML = "취소 거절 (휴가유지)";
         document.getElementById("rejectBtn").className = "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
-
         document.getElementById("approveBtn").className = "flex-[2] py-4 rounded-2xl bg-orange-600 text-white font-bold text-base shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all flex justify-center items-center gap-2";
         document.getElementById("approveText").innerText = "취소 최종 승인 (일수 반환)";
         document.getElementById("approveIcon").className = "fa-solid fa-file-excel";
-          
         document.getElementById("evidenceSection").classList.replace("bg-slate-50", "bg-orange-50/50");
         document.getElementById("evidenceSection").classList.replace("border-slate-100", "border-orange-100/50");
       }
@@ -232,7 +230,38 @@
           document.getElementById("totalDays").innerText = leave.totalDaysUsed;
           document.getElementById("leaveReason").innerText = leave.reason;
 
-          // 🔥 [단순화됨] 용사가 직접 올린 증빙 서류 표시 (보라색 테마 반영)
+          // 🔥 AI 보조 시스템 렌더링
+          if (!isCancelRequest) {
+            const aiPanel = document.getElementById("aiAssistPanel");
+            const aiTitle = document.getElementById("aiAssistTitle");
+            const aiMsg = document.getElementById("aiAssistMessage");
+            const aiScore = document.getElementById("aiScoreBadge");
+            aiPanel.classList.remove("hidden");
+
+            if (leave.isWaitlisted) {
+              aiPanel.className = "col-span-2 p-5 rounded-2xl border shadow-sm transition-colors bg-orange-50 border-orange-200";
+              aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-orange-600";
+              aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-200 text-orange-800";
+              aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점`;
+              aiMsg.className = "font-medium text-sm mt-1 text-orange-800 leading-snug";
+              aiMsg.innerHTML = "⚠️ <strong>[출타율 초과 - 후보]</strong> 시스템 계산 결과, 해당 일자의 출타율 정원이 초과되었습니다. 부대 전투력 유지를 위해 <strong>반려를 권장</strong>합니다.";
+            } else if (leave.isManualOverride) {
+              aiPanel.className = "col-span-2 p-5 rounded-2xl border shadow-sm transition-colors bg-blue-50 border-blue-200";
+              aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-blue-600";
+              aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200 text-blue-800";
+              aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점 (수동 고정)`;
+              aiMsg.className = "font-medium text-sm mt-1 text-blue-800 leading-snug";
+              aiMsg.innerHTML = "🔒 <strong>[관리자 수동 고정]</strong> 달력에서 1차 검토자가 정규 편성에 강제로 고정한 인원입니다. <strong>최종 승인을 권장</strong>합니다.";
+            } else {
+              aiPanel.className = "col-span-2 p-5 rounded-2xl border shadow-sm transition-colors bg-emerald-50 border-emerald-200";
+              aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-emerald-600";
+              aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800";
+              aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점`;
+              aiMsg.className = "font-medium text-sm mt-1 text-emerald-800 leading-snug";
+              aiMsg.innerHTML = "✅ <strong>[정규 편성]</strong> 출타율 정원 내에 안전하게 편성 및 1차 검토가 완료되었습니다. <strong>최종 승인을 권장</strong>합니다.";
+            }
+          }
+
           const evidenceSection = document.getElementById("evidenceSection");
           const evidenceContainer = document.getElementById("evidenceFilesContainer");
           evidenceContainer.innerHTML = "";
@@ -252,7 +281,6 @@
           }
 
           if (hasFiles) evidenceSection.classList.remove("hidden");
-
           document.getElementById("loading").classList.add("hidden");
           document.getElementById("leave-content").classList.remove("hidden");
 
@@ -263,15 +291,11 @@
       async function loadLeaveHistory(userId, requestedStartDate) {
         const badge = document.getElementById("historyBaseDateBadge");
         if(badge) badge.innerText = `기준: ${requestedStartDate} 이전`;
-
         try {
-          const res = await fetch(`/leaves/user-history/${userId}?beforeDate=${requestedStartDate}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const res = await fetch(`/leaves/user-history/${userId}?beforeDate=${requestedStartDate}`, { headers: { Authorization: `Bearer ${token}` } });
           const data = await res.json();
-          
           if (data.success) {
-            const renderList = (elementId, records, colorClass) => {
+            const renderList = (elementId, records) => {
               const el = document.getElementById(elementId);
               if (!el) return;
               if (records.length === 0) {
@@ -282,12 +306,10 @@
                 const sDate = new Date(record.startDate);
                 const eDate = new Date(record.endDate);
                 const dateStr = `${sDate.getMonth()+1}/${sDate.getDate()} - ${eDate.getMonth()+1}/${eDate.getDate()}`;
-                
                 let daysAgoBadge = "";
                 if (record.daysAgo > 30) {
                   daysAgoBadge = `<span class="text-[9px] font-bold text-red-500 ml-1 bg-red-50 px-1 rounded">${record.daysAgo}일 전</span>`;
                 }
-
                 return `
                   <div class="flex flex-col bg-white p-2 rounded-lg border border-gray-100 shadow-sm">
                     <div class="flex justify-between items-center mb-0.5">
@@ -299,41 +321,27 @@
                 `;
               }).join("");
             };
-
-            renderList("historyOuting", data.history["외출"], "emerald");
-            renderList("historyOvernight", data.history["외박"], "blue");
-            renderList("historyVacation", data.history["휴가"], "purple");
+            renderList("historyOuting", data.history["외출"]);
+            renderList("historyOvernight", data.history["외박"]);
+            renderList("historyVacation", data.history["휴가"]);
           }
-        } catch (error) {
-          document.getElementById("historyOuting").innerHTML = `<span class="text-red-400">오류 발생</span>`;
-          document.getElementById("historyOvernight").innerHTML = `<span class="text-red-400">오류 발생</span>`;
-          document.getElementById("historyVacation").innerHTML = `<span class="text-red-400">오류 발생</span>`;
-        }
+        } catch (error) {}
       }
 
       async function rejectLeave() {
-        const msg = isCancelRequest
-          ? "취소 신청을 반려하시겠습니까?\n(기존 휴가가 그대로 유지됩니다.)"
-          : "이 신청을 거절하시겠습니까?\n(일수가 반환됩니다.)";
+        const msg = isCancelRequest ? "취소 신청을 반려하시겠습니까?\n(기존 휴가가 그대로 유지됩니다.)" : "이 신청을 거절하시겠습니까?\n(일수가 반환됩니다.)";
         if (!confirm(msg)) return;
         try {
-          const res = await fetch(`/leaves/${leaveId}/reject`, {
-            method: "PUT", headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await fetch(`/leaves/${leaveId}/reject`, { method: "PUT", headers: { Authorization: `Bearer ${token}` } });
           if ((await res.json()).success) window.location.href = "index.html";
         } catch (err) {}
       }
 
       async function submitApprove() {
-        const msg = isCancelRequest
-          ? "휴가 취소 결재를 완료하시겠습니까?\n(즉시 달력에서 삭제됩니다.)"
-          : "최종 승인하시겠습니까?\n(달력에 즉시 반영됩니다.)";
+        const msg = isCancelRequest ? "휴가 취소 결재를 완료하시겠습니까?\n(즉시 달력에서 삭제됩니다.)" : "최종 승인하시겠습니까?\n(달력에 즉시 반영됩니다.)";
         if (!confirm(msg)) return;
         try {
-          const res = await fetch(`/leaves/${leaveId}/approve`, {
-            method: "PUT",
-            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          });
+          const res = await fetch(`/leaves/${leaveId}/approve`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } });
           if ((await res.json()).success) window.location.href = "index.html";
         } catch (err) {}
       }
