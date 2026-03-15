@@ -58,6 +58,7 @@ async function refreshSoldierDefaultLeaves(user, orgId) {
   const userId = user._id;
   const unitId = user.unitId || orgId;
 
+  // 1. 給予基本年假 (24天)
   const hasAnnual = await LeaveSlot.findOne({
     userId,
     type: "휴가",
@@ -75,6 +76,28 @@ async function refreshSoldierDefaultLeaves(user, orgId) {
       status: "active",
     });
   }
+
+  // ========================================================
+  // 🔥 [新增] 2. 自動給予新兵慰勞休假 (4天)
+  // ========================================================
+  const hasNewRecruitLeave = await LeaveSlot.findOne({
+    userId,
+    type: "휴가",
+    reason: "신병위로휴가",
+  });
+  if (!hasNewRecruitLeave) {
+    await LeaveSlot.create({
+      organizationId: orgId,
+      unitId,
+      userId,
+      type: "휴가",          // 分類一樣是「休假」
+      reason: "신병위로휴가", // 名稱
+      totalCount: 4,         // 總共 4 天
+      remains: 4,            // 剩下 4 天
+      status: "active",      // 狀態設定為啟用
+    });
+  }
+  // ========================================================
 
   const quarterLabel = `${yearShort}년 ${quarter}분기 정기외박`;
   const existingQuarter = await LeaveSlot.findOne({
