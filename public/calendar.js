@@ -71,7 +71,8 @@ function updateModeUI() {
   const btnPersonal = document.getElementById("btnPersonal");
   const btnTeamLong = document.getElementById("btnTeamLong");
   const btnTeamShort = document.getElementById("btnTeamShort");
-  const rateControlUI = document.getElementById("rateControlUI");
+  const batchApproveBtn = document.getElementById("batchApproveBtn");
+  const settingsModalBtn = document.getElementById("settingsModalBtn");
 
   const activeClass = "px-5 py-2 bg-white shadow-sm rounded-md text-sm font-bold text-gray-800 transition";
   const inactiveClass = "px-5 py-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition";
@@ -80,14 +81,21 @@ function updateModeUI() {
   if (btnTeamLong) btnTeamLong.className = currentCalendarMode === "team-long" ? activeClass : inactiveClass;
   if (btnTeamShort) btnTeamShort.className = currentCalendarMode === "team-short" ? activeClass : inactiveClass;
 
-  // 控制出島率 UI (取代原本單獨的結算按鈕)
-  if (rateControlUI) {
-    if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) && currentCalendarMode !== "personal") {
-      rateControlUI.classList.remove("hidden");
-      rateControlUI.classList.add("flex");
+  // 🔥 判斷是否為長官
+  const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole);
+
+  // ⚙️ 齒輪按鈕 (出島率設定)：只要是長官就永遠顯示
+  if (settingsModalBtn) {
+    if (isManager) settingsModalBtn.classList.remove("hidden");
+    else settingsModalBtn.classList.add("hidden");
+  }
+
+  // 📝 一鍵結算按鈕：長官 + 必須在「全體月曆模式」才顯示
+  if (batchApproveBtn) {
+    if (isManager && currentCalendarMode !== "personal") {
+      batchApproveBtn.classList.remove("hidden");
     } else {
-      rateControlUI.classList.add("hidden");
-      rateControlUI.classList.remove("flex");
+      batchApproveBtn.classList.add("hidden");
     }
   }
 }
@@ -934,14 +942,19 @@ function openBottomSheet(dateStr) {
   appContainer.innerHTML = approvedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">승인 대상이 없습니다.</div>` : "";
   
   approvedLeaves.forEach(l => {
-    const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
+    // 🔥 [修復核心] 如果已經最終核准，就不給拖曳屬性，圖示換成鎖頭！
+    const isApproved = l.status === "APPROVED";
+    const dragAttrs = isApproved ? "" : `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
+    const gripIcon = isApproved ? `<i class="fa-solid fa-lock text-gray-200 mr-3 text-lg" title="최종 승인됨"></i>` : `<i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>`;
+    const cursorClass = isApproved ? "cursor-default" : "cursor-move hover:shadow-md";
+
     appContainer.innerHTML += `
-      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center cursor-move hover:shadow-md transition">
+      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center transition ${cursorClass}">
         <div class="flex items-center min-w-0 pr-2">
-          <i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>
+          ${gripIcon}
           <div class="truncate">
             <p class="text-[13px] font-bold text-gray-800 truncate">${l.isManualOverride ? '🔒 ' : ''}${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
-            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${l.reason || ''}</p>
+            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${l.reason || ''} ${isApproved ? '<span class="text-indigo-500 font-bold">(최종승인)</span>' : ''}</p>
           </div>
         </div>
         <button onclick="toggleWaitlistStatus('${l._id}')" class="shrink-0 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="보장 해제 (강제 내리기)">⬇️ 내리기</button>

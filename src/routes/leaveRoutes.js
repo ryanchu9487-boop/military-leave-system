@@ -88,7 +88,7 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
 }
 
 // ==========================================
-// 🧠 [核心大腦 2] 全自動連帶判定引擎 (選項B + 特殊出島率版)
+// 🧠 [核心大腦 2] 全自動連帶判定引擎 (加入強制降階防呆)
 // ==========================================
 async function recalculateWaitlist(orgId, startDate, endDate) {
   const org = await Organization.findById(orgId);
@@ -118,7 +118,6 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
     const dStr = iter.toISOString().split("T")[0];
     const currentDayLeaves = soldierLeaves.filter(l => new Date(l.startDate) <= iter && new Date(l.endDate) >= iter);
     
-    // 1. 判斷今天是否有「特殊出島率」
     let limitLong = defaultLimitLong;
     let limitShort = defaultLimitShort;
     
@@ -126,23 +125,19 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
       if (dStr >= sr.startDate && dStr <= sr.endDate) {
         limitLong = Math.floor(totalSoldiers * (sr.rateLong / 100));
         limitShort = Math.floor(totalSoldiers * (sr.rateShort / 100));
-        break; // 找到對應區間就套用
+        break;
       }
     }
 
-    // 2. 選項 B 邏輯：特例獨立於名額之外
     const normalLongLeaves = currentDayLeaves.filter(l => l.type === "휴가" && !l.isManualOverride);
     const normalShortLeaves = currentDayLeaves.filter(l => (l.type === "외출" || l.type === "외박") && !l.isManualOverride);
     const manualLeaves = currentDayLeaves.filter(l => l.isManualOverride);
 
-    // 長官特例：永遠保底 (Waitlist = false)
     manualLeaves.forEach(l => waitlistFlags[l._id.toString()] = false);
 
-    // 正常人：按積分廝殺
     normalLongLeaves.sort((a, b) => b.priorityScore - a.priorityScore);
     normalShortLeaves.sort((a, b) => b.priorityScore - a.priorityScore);
 
-    // 正常人超過常規名額 (limit) 的，打入候補
     normalLongLeaves.forEach((l, index) => {
       if (index >= limitLong) waitlistFlags[l._id.toString()] = true;
     });
@@ -153,10 +148,23 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
     iter.setDate(iter.getDate() + 1);
   }
 
+  // 🌟 [修復核心] 更新狀態與強制降階
   for (const leave of soldierLeaves) {
     const shouldBeWaitlisted = waitlistFlags[leave._id.toString()];
+    let needsSave = false;
+
     if (leave.isWaitlisted !== shouldBeWaitlisted && !leave.isManualOverride) {
       leave.isWaitlisted = shouldBeWaitlisted;
+      needsSave = true;
+    }
+
+    // 🔥 如果被判定為候補，但狀態卻是「已核准/等待核准」，強制打回「檢討待命」！
+    if (leave.isWaitlisted && ["PENDING_APPROVAL", "APPROVED"].includes(leave.status)) {
+      leave.status = "PENDING_REVIEW";
+      needsSave = true;
+    }
+
+    if (needsSave) {
       await leave.save();
     }
   }
@@ -869,7 +877,7 @@ router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// 🔥 [新增] 드래그 앤 드롭: 두 휴가의 우선순위(점수) 맞바꾸기 (1:1 교환)
+// 🔥 드래그 앤 드롭: 두 휴가의 우선순위(점수) 맞바꾸기
 // ==========================================
 router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
   try {
@@ -888,19 +896,21 @@ router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "권한이 없습니다." });
     }
 
-    // 🌟 魔法核心：將兩人的積分 (Priority Score) 完美對調！
+    // 🔥 [修復核心] 擋下已經被最終核准的假單！
+    if (leave1.status === "APPROVED" || leave2.status === "APPROVED") {
+      return res.status(400).json({ error: "이미 최종 승인된 휴가는 맞바꿀 수 없습니다." });
+    }
+
     const tempScore = leave1.priorityScore;
     leave1.priorityScore = leave2.priorityScore;
     leave2.priorityScore = tempScore;
 
-    // 為了公平競爭，如果他們身上原本有「特權鎖頭(🔒)」，互換時一併解除，交給 AI 重新審判
     leave1.isManualOverride = false;
     leave2.isManualOverride = false;
 
     await leave1.save();
     await leave2.save();
 
-    // 🌟 觸發核彈重算：找出這兩張假單涵蓋的最大日期範圍，叫 AI 引擎重新排隊！
     const minDate = new Date(Math.min(new Date(leave1.startDate), new Date(leave2.startDate)));
     const maxDate = new Date(Math.max(new Date(leave1.endDate), new Date(leave2.endDate)));
     await recalculateWaitlist(req.user.orgId, minDate, maxDate);
