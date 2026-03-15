@@ -36,7 +36,13 @@ const organizationSchema = new mongoose.Schema(
       allowReviewerRegistration: { type: Boolean, default: false },
       allowApproverRegistration: { type: Boolean, default: false },
 
-      maxLeavePerDay: { type: Number, default: 20 }, // 하루 최대 휴가 인원
+      // ==========================================
+      // 🔥 [本次升級新增] 出島率 (출타율) 計算基準
+      // ==========================================
+      totalSoldiers: { type: Number, default: 100 }, // 該部隊的勇士總人數 (分母)
+      leaveRateShort: { type: Number, default: 15 }, // 외출/외박 출타율 (%) - 預設 15%
+      leaveRateLong: { type: Number, default: 20 },  // 휴가 출타율 (%) - 預設 20%
+      // ==========================================
 
       timezone: { type: String, default: "Asia/Seoul" },
       workingDays: { type: [Number], default: [1, 2, 3, 4, 5] },

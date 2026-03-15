@@ -40,9 +40,8 @@
         border-radius: 4px;
       }
 
-     /* 📱 手機版專屬魔法：自動轉換為小日曆模式 + 修復跑版問題 */
+      /* 📱 手機版專屬魔法 */
       @media (max-width: 639px) {
-        /* 1. 縮小表頭的星期 (日~六) */
         .calendar-grid.bg-gray-50 > div {
           font-size: 0.7rem !important;
           padding: 0.3rem 0 !important;
@@ -55,31 +54,29 @@
           padding: 0.25rem !important;
         }
         
-        /* 🛠️ 修復 1：每月 1 號不破版！把正圓形變成會自動伸縮的「膠囊藥丸狀」 */
         .date-text {
           font-size: 0.7rem !important;
-          min-width: 20px !important; /* 從死板的 width 變成 min-width */
-          width: auto !important;     /* 寬度自動根據字數延展 */
-          padding: 0 4px !important;  /* 左右加一點內距 */
+          min-width: 20px !important;
+          width: auto !important;    
+          padding: 0 4px !important;  
           height: 20px !important;
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
-          border-radius: 10px !important; /* 圓角設定為高度的一半，變成完美膠囊 */
-          white-space: nowrap !important; /* 強制文字不准換行 */
-          letter-spacing: -0.5px !important; /* 字距稍微縮緊，看起來更精緻 */
+          border-radius: 10px !important; 
+          white-space: nowrap !important; 
+          letter-spacing: -0.5px !important; 
         }
         
-        /* 🛠️ 修復：讓直式手機的節日文字「允許換行」顯示，不再變成 ... */
         .holiday-name {
           font-size: 0.55rem !important;      
           margin-top: 1px !important;
           width: 100% !important;            
           display: block !important;         
-          white-space: normal !important;    /* 🔥 解除不准換行的封印 */
-          word-break: keep-all !important;   /* 讓韓文單字盡量不被切斷 */
-          line-height: 1.1 !important;       /* 行距縮緊 */
-          max-height: 16px !important;       /* 最多容納兩行，超出才隱藏 */
+          white-space: normal !important;    
+          word-break: keep-all !important;   
+          line-height: 1.1 !important;       
+          max-height: 16px !important;       
           overflow: hidden !important;       
           text-align: center !important;
         }
@@ -99,59 +96,74 @@
           border-radius: 3px !important;
         }
 
-        /* 🛠️ 修復 2：小鈴鐺通知欄完美置中，不超出螢幕 */
         #notificationDropdown {
-          position: fixed !important; /* 脫離原本的位置限制 */
-          top: 60px !important;       /* 貼在頭部導航欄下方 */
-          right: auto !important;     /* 取消靠右對齊 */
-          left: 50% !important;       /* 移到畫面正中間 */
-          transform: translateX(-50%) !important; /* 完美水平置中校正 */
-          width: 92vw !important;     /* 寬度佔滿手機螢幕的 92%，留下一點美觀的邊距 */
-          max-height: 75vh !important; /* 高度最多佔螢幕 75%，太長可以滑動 */
-          z-index: 9999 !important;   /* 確保它浮在最上層 */
+          position: fixed !important; 
+          top: 60px !important;       
+          right: auto !important;     
+          left: 50% !important;       
+          transform: translateX(-50%) !important; 
+          width: 92vw !important;     
+          max-height: 75vh !important; 
+          z-index: 9999 !important;   
         }
 
-        /* 🛠️ 修復 3：精準鎖定「動態島月份膠囊 (#floatingPill)」 */
         #floatingPill {
-          top: 54px !important; /* 在手機上稍微往上靠，節省日曆空間 */
-          transform: translateX(-50%) scale(0.85) !important; /* 🔥 絕招：整體等比例縮小 85% */
+          top: 54px !important; 
+          transform: translateX(-50%) scale(0.85) !important; 
           padding: 4px 10px !important;
           white-space: nowrap !important;
         }
         
-        /* 讓膠囊裡的字體微調，避免擠壓 */
         #floatingYearMonth {
           font-size: 0.85rem !important; 
           letter-spacing: -0.5px !important;
         }
 
-        /* 縮小點擊月份時跳出來的選單框 */
         #miniPickerBox {
           width: 200px !important;
           transform: translateX(-50%) scale(0.9) !important; 
         }
       }
 
-      /* 📱 手機「橫屏模式 (Landscape)」終極優化 */
+      /* 📱 手機橫向 */
       @media (max-width: 932px) and (orientation: landscape) {
-        
-        /* 減少滑動：橫向時螢幕高度很扁，我們把日曆格子稍微縮矮 */
-        .week-row { 
-          min-height: 80px !important; 
-        }
-        
-        /* 文字大解放：橫向時可以直接單行顯示大字體的節日名稱！ */
+        .week-row { min-height: 80px !important; }
         .holiday-name {
           font-size: 0.65rem !important;
           white-space: nowrap !important;
           overflow: visible !important;
         }
-        
-        /* 動態島微調：讓月份膠囊往上貼緊，不擋住日曆 */
         #floatingPill {
           top: 41px !important;
           transform: translateX(-50%) scale(0.8) !important;
         }
+      }
+      
+      /* 🔥 等待線的動畫效果 */
+      @keyframes pulseLine {
+        0% { opacity: 0.4; }
+        50% { opacity: 0.8; box-shadow: 0 0 8px rgba(249, 115, 22, 0.4); }
+        100% { opacity: 0.4; }
+      }
+      .waitlist-line {
+        position: absolute;
+        left: 0; right: 0;
+        height: 2px;
+        background-color: #f97316; /* 橘色 */
+        z-index: 5;
+        border-radius: 2px;
+        animation: pulseLine 2s infinite;
+      }
+      .waitlist-label {
+        position: absolute;
+        right: 2px;
+        top: -12px;
+        font-size: 9px;
+        font-weight: bold;
+        color: #f97316;
+        background: rgba(255,255,255,0.8);
+        padding: 0 2px;
+        border-radius: 2px;
       }
     </style>
   </head>
@@ -317,20 +329,28 @@
           id="btnPersonal"
           class="px-5 py-2 bg-white shadow-sm rounded-md text-sm font-bold text-gray-800 transition"
         >
-          내 휴가 (개인)
+          내 휴가
         </button>
         <button
-          onclick="switchCalendarMode('team')"
-          id="btnTeam"
+          onclick="switchCalendarMode('team-long')"
+          id="btnTeamLong"
           class="px-5 py-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition"
         >
-          부대원 전체 휴가 (전체)
+          전체 (휴가)
+        </button>
+        <button
+          onclick="switchCalendarMode('team-short')"
+          id="btnTeamShort"
+          class="px-5 py-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition"
+        >
+          전체 (외출/외박)
         </button>
       </div>
 
       <div
         class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden h-full flex flex-col relative pt-16"
       >
+
         <div
           class="calendar-grid bg-gray-50 border-b border-gray-200 text-center py-2 text-xs font-bold text-gray-500 uppercase tracking-wider relative z-20"
         >
@@ -398,123 +418,61 @@
       </button>
     </div>
 
-    <div
-      id="grantModal"
-      onclick="closeModal('grantModal')"
-      class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity"
-    >
-      <div
-        onclick="event.stopPropagation()"
-        class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all"
-      >
-        <div
-          class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50"
-        >
+    <div id="grantModal" onclick="closeModal('grantModal')" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
+      <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
           <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
             <i class="fa-solid fa-gavel text-indigo-600"></i> 출타 심의 (등록)
           </h3>
-          <button
-            onclick="closeModal('grantModal')"
-            class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition"
-          >
+          <button onclick="closeModal('grantModal')" class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-        <div
-          class="p-6 space-y-4 text-sm max-h-[80vh] overflow-y-auto custom-scrollbar"
-        >
+        <div class="p-6 space-y-4 text-sm max-h-[80vh] overflow-y-auto custom-scrollbar">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5"
-                >출타 대분류</label
-              >
-              <select
-                id="grantMainCategory"
-                onchange="handleGrantCategoryChange()"
-                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
+              <label class="block font-bold text-gray-700 mb-1.5">출타 대분류</label>
+              <select id="grantMainCategory" onchange="handleGrantCategoryChange()" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
                 <option value="휴가">휴가</option>
                 <option value="외박">외박</option>
                 <option value="외출">외출</option>
               </select>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5"
-                >세부 종류</label
-              >
-              <select
-                id="grantSubType"
-                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              ></select>
+              <label class="block font-bold text-gray-700 mb-1.5">세부 종류</label>
+              <select id="grantSubType" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"></select>
             </div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5"
-                >부여 일수(일)</label
-              >
-              <input
-                id="grantDays"
-                type="number"
-                min="1"
-                value="1"
-                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-200 disabled:text-gray-500"
-              />
+              <label class="block font-bold text-gray-700 mb-1.5">부여 일수(일)</label>
+              <input id="grantDays" type="number" min="1" value="1" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-200 disabled:text-gray-500"/>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5"
-                >만료 기한 (선택)</label
-              >
-              <input
-                id="grantExpires"
-                type="date"
-                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-xs"
-              />
+              <label class="block font-bold text-gray-700 mb-1.5">만료 기한 (선택)</label>
+              <input id="grantExpires" type="date" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-xs"/>
             </div>
           </div>
           <div>
-            <label class="block font-bold text-gray-700 mb-1.5"
-              >심의 사유</label
-            >
-            <input
-              id="grantReason"
-              type="text"
-              placeholder="예: 분대장 임무수행 유공"
-              class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
+            <label class="block font-bold text-gray-700 mb-1.5">심의 사유</label>
+            <input id="grantReason" type="text" placeholder="예: 분대장 임무수행 유공" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
           </div>
         </div>
         <div class="p-4 bg-gray-50 border-t border-gray-100">
-          <button
-            onclick="submitGrant()"
-            class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition"
-          >
+          <button onclick="submitGrant()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition">
             등록 완료
           </button>
         </div>
       </div>
     </div>
 
-    <div
-      id="requestModal"
-      onclick="closeModal('requestModal')"
-      class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity"
-    >
-      <div
-        onclick="event.stopPropagation()"
-        class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
-      >
-        <div
-          class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0"
-        >
+    <div id="requestModal" onclick="closeModal('requestModal')" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
+      <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
           <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-            <i class="fa-solid fa-plane-departure text-indigo-600"></i> 출타
-            신청
+            <i class="fa-solid fa-plane-departure text-indigo-600"></i> 출타 신청
           </h3>
-          <button
-            onclick="closeModal('requestModal')"
-            class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition"
-          >
+          <button onclick="closeModal('requestModal')" class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition">
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
@@ -522,121 +480,75 @@
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block font-bold text-gray-700 mb-1.5">출발일</label>
-              <input
-                id="reqStartDate"
-                type="date"
-                onchange="calculateReqDays()"
-                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
+              <input id="reqStartDate" type="date" onchange="calculateReqDays()" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
             </div>
             <div>
               <label class="block font-bold text-gray-700 mb-1.5">복귀일</label>
-              <input
-                id="reqEndDate"
-                type="date"
-                onchange="calculateReqDays()"
-                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
+              <input id="reqEndDate" type="date" onchange="calculateReqDays()" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
             </div>
           </div>
-          <div
-            id="daysCalcBox"
-            class="bg-indigo-50 border border-indigo-100 rounded-xl p-3.5 flex justify-between items-center hidden transition-colors"
-          >
-            <span class="text-indigo-800 font-bold"
-              ><i class="fa-regular fa-calendar-check mr-1.5"></i>일정 필요
-              일수</span
-            >
-            <span id="daysCalcText" class="text-indigo-600 font-black text-lg"
-              >0일</span
-            >
+          <div id="daysCalcBox" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3.5 flex justify-between items-center hidden transition-colors">
+            <span class="text-indigo-800 font-bold"><i class="fa-regular fa-calendar-check mr-1.5"></i>일정 필요 일수</span>
+            <span id="daysCalcText" class="text-indigo-600 font-black text-lg">0일</span>
           </div>
           <div>
             <div class="flex justify-between items-end mb-2">
-              <label class="block font-bold text-gray-700"
-                >사용할 휴가 직접 선택
-                <span
-                  id="totalRemainsText"
-                  class="ml-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"
-                  >총 0일</span
-                ></label
-              >
+              <label class="block font-bold text-gray-700">사용할 휴가 직접 선택 <span id="totalRemainsText" class="ml-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">총 0일</span></label>
             </div>
-            <div
-              id="reqSlotList"
-              class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-gray-100 bg-gray-50/50 rounded-xl"
-            ></div>
+            <div id="reqSlotList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-gray-100 bg-gray-50/50 rounded-xl"></div>
           </div>
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block font-bold text-gray-700 mb-1.5">행선지</label>
-              <input
-                id="reqDestination"
-                type="text"
-                placeholder="예: 서울특별시"
-                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
+              <input id="reqDestination" type="text" placeholder="예: 서울특별시" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5"
-                >비상 연락처</label
-              >
-              <input
-                id="reqContact"
-                type="text"
-                placeholder="010-0000-0000"
-                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-              />
+              <label class="block font-bold text-gray-700 mb-1.5">비상 연락처</label>
+              <input id="reqContact" type="text" placeholder="010-0000-0000" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
             </div>
           </div>
           <div>
-            <label class="block font-bold text-gray-700 mb-1.5"
-              >신청 상세 사유</label
-            >
-            <input
-              id="reqReason"
-              type="text"
-              placeholder="예: 정기 및 위로 휴가 사용"
-              class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
+            <label class="block font-bold text-gray-700 mb-1.5">신청 상세 사유</label>
+            <input id="reqReason" type="text" placeholder="예: 정기 및 위로 휴가 사용" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
           </div>
-
           <div class="mt-2">
-            <label class="block font-bold text-gray-700 mb-1.5"
-              >증빙 서류 (선택, 최대 5개)</label
-            >
-            <input
-              type="file"
-              id="reqFile"
-              class="hidden"
-              multiple
-              accept="image/*,.pdf"
-              onchange="updateFileName(this)"
-            />
-            <div
-              onclick="document.getElementById('reqFile').click()"
-              class="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer transition flex flex-col items-center"
-            >
-              <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i
-              ><span id="fileNameDisplay" class="truncate max-w-[200px]"
-                >클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)</span
-              >
+            <label class="block font-bold text-gray-700 mb-1.5">증빙 서류 (선택, 최대 5개)</label>
+            <input type="file" id="reqFile" class="hidden" multiple accept="image/*,.pdf" onchange="updateFileName(this)"/>
+            <div onclick="document.getElementById('reqFile').click()" class="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer transition flex flex-col items-center">
+              <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i><span id="fileNameDisplay" class="truncate max-w-[200px]">클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)</span>
             </div>
           </div>
-
         </div>
         <div class="p-5 bg-gray-50 border-t border-gray-100 shrink-0">
-          <button
-            onclick="submitRequest()"
-            class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-base"
-          >
+          <button onclick="submitRequest()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-base">
             출타 신청서 제출
           </button>
         </div>
       </div>
     </div>
 
+    <div id="bottomSheetOverlay" class="fixed inset-0 bg-black/50 z-[110] hidden opacity-0 transition-opacity duration-300" onclick="closeBottomSheet()"></div>
+    <div id="bottomSheet" class="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[120] transform translate-y-full transition-transform duration-300 flex flex-col max-h-[85vh]">
+      <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-2"></div>
+      <div class="px-6 py-3 border-b border-gray-100 flex justify-between items-center">
+        <h3 class="text-lg font-black text-gray-800" id="bsDateTitle">3월 15일 출타 현황</h3>
+        <span id="bsQuotaInfo" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">정원 5/5명</span>
+      </div>
+      <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50">
+        
+        <h4 class="text-xs font-bold text-gray-500 mb-2"><i class="fa-solid fa-circle-check text-green-500 mr-1"></i>승인 대상 (정원 내)</h4>
+        <div id="bsApprovedList" class="space-y-2 mb-4">
+          </div>
+
+        <h4 class="text-xs font-bold text-gray-500 mb-2 mt-4"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-1"></i>후보 (정원 초과)</h4>
+        <div id="bsWaitlistList" class="space-y-2">
+           </div>
+
+      </div>
+    </div>
+
     <script>
+      // 保持原本的 grantModal 邏輯與介面互動函數...
       function handleGrantCategoryChange() {
         const main = document.getElementById("grantMainCategory").value;
         const sub = document.getElementById("grantSubType");
@@ -677,25 +589,15 @@
       }
 
       function openSidebar() {
-        document
-          .getElementById("sidebar")
-          ?.classList.remove("-translate-x-full");
-        document
-          .getElementById("sidebarOverlay")
-          ?.classList.remove("hidden", "opacity-0");
+        document.getElementById("sidebar")?.classList.remove("-translate-x-full");
+        document.getElementById("sidebarOverlay")?.classList.remove("hidden", "opacity-0");
         document.getElementById("sidebarOverlay")?.classList.add("opacity-100");
       }
       function closeSidebar() {
         document.getElementById("sidebar")?.classList.add("-translate-x-full");
-        document
-          .getElementById("sidebarOverlay")
-          ?.classList.remove("opacity-100");
+        document.getElementById("sidebarOverlay")?.classList.remove("opacity-100");
         document.getElementById("sidebarOverlay")?.classList.add("opacity-0");
-        setTimeout(
-          () =>
-            document.getElementById("sidebarOverlay")?.classList.add("hidden"),
-          300
-        );
+        setTimeout(() => document.getElementById("sidebarOverlay")?.classList.add("hidden"), 300);
       }
 
       const roleMap = {
@@ -707,32 +609,20 @@
 
       function applyRolePermissions() {
         const userRole = localStorage.getItem("role");
-        const sidebarManageBtn = document.getElementById(
-          "manageTeamSidebarBtn"
-        );
+        const sidebarManageBtn = document.getElementById("manageTeamSidebarBtn");
         const notifWrapper = document.getElementById("notificationWrapper");
         const calToggle = document.getElementById("calendarToggle");
         const fabGrantBtn = document.getElementById("fabGrantBtn");
 
-        if (calToggle)
-          calToggle.style.setProperty("display", "flex", "important");
+        if (calToggle) calToggle.style.setProperty("display", "flex", "important");
 
-        if (
-          userRole === "reviewer" ||
-          userRole === "approver" ||
-          userRole === "superadmin"
-        ) {
-          if (sidebarManageBtn)
-            sidebarManageBtn.style.setProperty("display", "flex", "important");
+        if (userRole === "reviewer" || userRole === "approver" || userRole === "superadmin") {
+          if (sidebarManageBtn) sidebarManageBtn.style.setProperty("display", "flex", "important");
         } else {
-          if (sidebarManageBtn)
-            sidebarManageBtn.style.setProperty("display", "none", "important");
+          if (sidebarManageBtn) sidebarManageBtn.style.setProperty("display", "none", "important");
         }
 
-        if (fabGrantBtn) {
-          fabGrantBtn.style.setProperty("display", "flex", "important");
-        }
-
+        if (fabGrantBtn) fabGrantBtn.style.setProperty("display", "flex", "important");
         if (notifWrapper) notifWrapper.style.display = "flex";
 
         checkPendingLeaves();
@@ -740,9 +630,7 @@
       }
 
       function toggleNotifications() {
-        document
-          .getElementById("notificationDropdown")
-          .classList.toggle("hidden");
+        document.getElementById("notificationDropdown").classList.toggle("hidden");
       }
 
       async function checkPendingLeaves() {
@@ -751,27 +639,17 @@
 
         let userRoleObj = "soldier";
         try {
-          const profileRes = await fetch("/profile", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const profileRes = await fetch("/profile", { headers: { Authorization: `Bearer ${token}` } });
           const profileData = await profileRes.json();
           if (profileData.user) {
             userRoleObj = profileData.user.role;
             const roleStr = roleMap[userRoleObj] || userRoleObj;
             const uName = profileData.user.name || "알 수 없음";
-            document.getElementById(
-              "user-profile-name"
-            ).innerText = `${uName} (${roleStr})`;
-            document.getElementById("headerProfileInitials").innerText =
-              uName.charAt(0);
-            localStorage.setItem(
-              "unitName",
-              profileData.user.orgName || "부대"
-            );
+            document.getElementById("user-profile-name").innerText = `${uName} (${roleStr})`;
+            document.getElementById("headerProfileInitials").innerText = uName.charAt(0);
+            localStorage.setItem("unitName", profileData.user.orgName || "부대");
           }
-        } catch (err) {
-          console.error("이름 정보 로딩 실패", err);
-        }
+        } catch (err) {}
 
         try {
           const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
@@ -783,13 +661,9 @@
           const approveAllBtn = document.getElementById("approveAllBtn");
 
           if (["reviewer", "approver", "superadmin"].includes(userRoleObj)) {
-            const hasLeaves =
-              data.notifications &&
-              data.notifications.some(
-                (n) =>
-                  (n.status && n.status.includes("PENDING")) ||
-                  (n.status && n.status.includes("CANCEL_REQ"))
-              );
+            const hasLeaves = data.notifications && data.notifications.some(
+                (n) => (n.status && n.status.includes("PENDING")) || (n.status && n.status.includes("CANCEL_REQ"))
+            );
             if (approveAllBtn) {
               if (hasLeaves) approveAllBtn.classList.remove("hidden");
               else approveAllBtn.classList.add("hidden");
@@ -801,11 +675,7 @@
             list.innerHTML = "";
 
             data.notifications.forEach((noti) => {
-              let title,
-                color,
-                actionHtml,
-                onClickAction,
-                isDefaultCursor = false;
+              let title, color, actionHtml, onClickAction, isDefaultCursor = false;
 
               if (noti.status === "NEW_MEMBER_PENDING") {
                 title = "신규 부대원 가입 대기";
@@ -830,15 +700,9 @@
                 onClickAction = "";
                 isDefaultCursor = true;
               } else {
-                title = noti.status.includes("CANCEL")
-                  ? "휴가 취소 결재 대기"
-                  : "새로운 출타 심의 대기";
-                color = noti.status.includes("CANCEL")
-                  ? "text-orange-500"
-                  : "text-indigo-600";
-                if (
-                  ["reviewer", "approver", "superadmin"].includes(userRoleObj)
-                ) {
+                title = noti.status.includes("CANCEL") ? "휴가 취소 결재 대기" : "새로운 출타 심의 대기";
+                color = noti.status.includes("CANCEL") ? "text-orange-500" : "text-indigo-600";
+                if (["reviewer", "approver", "superadmin"].includes(userRoleObj)) {
                   actionHtml = `
                       <div class="flex gap-1">
                         <button onclick="quickApprove('${noti._id}', '${noti.status}', event)" class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] rounded font-bold hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">승인</button>
@@ -851,14 +715,10 @@
               }
 
               list.innerHTML += `
-                <div onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${
-                isDefaultCursor ? "cursor-default" : ""
-              }">
+                <div onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${isDefaultCursor ? "cursor-default" : ""}">
                   <div class="flex-1 overflow-hidden">
                     <p class="text-[13px] font-bold ${color} truncate mb-0.5">${title}</p>
-                    <p class="text-[11px] text-gray-600 truncate">${
-                      noti.userId?.name || "알 수 없음"
-                    } - ${noti.reason || "사유 없음"}</p>
+                    <p class="text-[11px] text-gray-600 truncate">${noti.userId?.name || "알 수 없음"} - ${noti.reason || "사유 없음"}</p>
                   </div>
                   <div class="shrink-0 flex items-center">${actionHtml}</div>
                 </div>`;
@@ -874,14 +734,10 @@
       async function quickApprove(id, status, event) {
         event.stopPropagation();
         try {
-          const endpoint = status.includes("REVIEW")
-            ? `/leaves/${id}/review`
-            : `/leaves/${id}/approve`;
+          const endpoint = status.includes("REVIEW") ? `/leaves/${id}/review` : `/leaves/${id}/approve`;
           const res = await fetch(endpoint, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           const data = await res.json();
           if (data.success) {
@@ -902,9 +758,7 @@
         try {
           const res = await fetch(`/leaves/${id}/reject`, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           const data = await res.json();
           if (data.success) {
@@ -920,18 +774,11 @@
       }
 
       async function approveAllLeaves() {
-        if (
-          !confirm(
-            "현재 대기 중인 모든 휴가 및 취소 요청을 일괄 승인하시겠습니까?\n(신병 가입 및 전역 처리는 제외됩니다)"
-          )
-        )
-          return;
+        if (!confirm("현재 대기 중인 모든 휴가 및 취소 요청을 일괄 승인하시겠습니까?\n(신병 가입 및 전역 처리는 제외됩니다)")) return;
         try {
           const res = await fetch(`/leaves/approve-all`, {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           const data = await res.json();
           if (data.success) {
@@ -949,14 +796,11 @@
 
       async function approvePasswordReset(userId, event) {
         event.stopPropagation();
-        if (!confirm("이 용사의 비밀번호를 군번으로 초기화하시겠습니까?"))
-          return;
+        if (!confirm("이 용사의 비밀번호를 군번으로 초기화하시겠습니까?")) return;
         try {
           const res = await fetch(`/auth/approve-reset/${userId}`, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           const data = await res.json();
           alert(data.message || data.error);
@@ -969,10 +813,7 @@
       function goToReviewApprove(status, id) {
         if (status === "PENDING_REVIEW" || status === "CANCEL_REQ_REVIEW") {
           window.location.href = `review.html?id=${id}`;
-        } else if (
-          status === "PENDING_APPROVAL" ||
-          status === "CANCEL_REQ_APPROVAL"
-        ) {
+        } else if (status === "PENDING_APPROVAL" || status === "CANCEL_REQ_APPROVAL") {
           window.location.href = `approve.html?id=${id}`;
         }
       }
@@ -982,15 +823,10 @@
         try {
           await fetch(`/leaves/${id}/confirm-reject`, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
           checkPendingLeaves();
-          if (
-            typeof fetchLeavesFromDB === "function" &&
-            typeof renderEvents === "function"
-          ) {
+          if (typeof fetchLeavesFromDB === "function" && typeof renderEvents === "function") {
             await fetchLeavesFromDB();
             renderEvents();
           }
@@ -1001,10 +837,7 @@
         const dropdown = document.getElementById("notificationDropdown");
         const wrapper = document.getElementById("notificationWrapper");
         if (dropdown && !dropdown.classList.contains("hidden")) {
-          if (
-            !dropdown.contains(event.target) &&
-            !wrapper.contains(event.target)
-          )
+          if (!dropdown.contains(event.target) && !wrapper.contains(event.target))
             dropdown.classList.add("hidden");
         }
       });
@@ -1014,18 +847,10 @@
         const icon = document.getElementById("fabIcon");
         if (menu && icon) {
           if (menu.classList.contains("opacity-0")) {
-            menu.classList.remove(
-              "opacity-0",
-              "translate-y-4",
-              "pointer-events-none"
-            );
+            menu.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
             icon.classList.add("rotate-45");
           } else {
-            menu.classList.add(
-              "opacity-0",
-              "translate-y-4",
-              "pointer-events-none"
-            );
+            menu.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
             icon.classList.remove("rotate-45");
           }
         }
@@ -1046,17 +871,14 @@
         if (modal) modal.classList.add("hidden");
       }
 
-      // 🔥 수정됨: 파일 개수 제한 및 이름 표시 (다중 선택 대응)
       function updateFileName(input) {
         const display = document.getElementById("fileNameDisplay");
-        
         if (input.files && input.files.length > 5) {
           alert("증빙 서류는 최대 5개까지만 업로드 가능합니다.");
-          input.value = ""; // 초기화
+          input.value = ""; 
           display.innerText = "클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)";
           return;
         }
-
         if (input.files && input.files.length > 1) {
           display.innerText = `${input.files[0].name} 외 ${input.files.length - 1}건`;
         } else if (input.files && input.files.length === 1) {
@@ -1075,9 +897,7 @@
 
       document.addEventListener("DOMContentLoaded", () => {
         applyRolePermissions();
-        document
-          .getElementById("grantSubType")
-          .addEventListener("change", handleGrantSubTypeChange);
+        document.getElementById("grantSubType").addEventListener("change", handleGrantSubTypeChange);
         handleGrantCategoryChange();
       });
     </script>

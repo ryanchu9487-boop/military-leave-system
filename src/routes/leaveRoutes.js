@@ -12,7 +12,6 @@ const Organization = require("../../models/Organization");
 // 📁 Multer 檔案上傳設定
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // 🔥 改成退兩層，準確存入專案的 public/uploads 裡面 ✅
     const dir = path.join(__dirname, "../../public/uploads/");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
@@ -25,7 +24,140 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ==========================================
-// 🔥 1. 幹部發放額度 (已拔除檔案功能，恢復純文字)
+// 🧠 [核心大腦 1] 優先順位計分器 (Priority Score Calculator)
+// ==========================================
+async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
+  let score = 0;
+  const now = new Date();
+  const targetDate = new Date(startDate);
+
+  // 1. 判斷是否錯過申請死線 (Phase 1 vs Phase 2)
+  // 規則：申請下個月的假，必須在「這個月1號」之前。例如 4月的假，要在 3/1 00:00 前送出。
+  const deadline = new Date(targetDate.getFullYear(), targetDate.getMonth() - 1, 1);
+  if (now > deadline) {
+    // 遲交者 (Phase 2)：直接扣 10萬分，永遠墊底，只能撿漏
+    score -= 100000;
+  }
+
+  // 2. 長假 (휴가) 專屬加分
+  if (leaveType === "휴가") {
+    // 第 1 順位：新兵慰勞休假 (無敵星星)
+    if (leaveReason.includes("신병위로휴가")) score += 50000;
+    
+    // 第 2 順位：退伍前兩個月的末年休假 (말년휴가)
+    if (user.dischargeDate) {
+      const daysToDischarge = (new Date(user.dischargeDate) - targetDate) / (1000 * 60 * 60 * 24);
+      if (daysToDischarge <= 60 && daysToDischarge > 0) score += 30000;
+    }
+  }
+
+  // 3. 短假 (외출/외박) 專屬加分
+  if (leaveType === "외출" || leaveType === "외박") {
+    if (leaveReason.includes("정기")) score += 10000; // 定期優先於特別
+  }
+
+  // 4. 距離上次休假越久，分數越高 (每天 +10 分)
+  const lastLeave = await Leave.findOne({
+    userId: user._id,
+    type: "휴가",
+    status: { $in: ["APPROVED", "PENDING_APPROVAL", "PENDING_REVIEW"] }
+  }).sort({ endDate: -1 });
+
+  if (lastLeave) {
+    const daysSinceLastLeave = Math.max(0, (now - new Date(lastLeave.endDate)) / (1000 * 60 * 60 * 24));
+    score += Math.floor(daysSinceLastLeave * 10);
+  } else {
+    // 從來沒放過假的人，給予極高補償分
+    score += 5000;
+  }
+
+  // 5. 終極平手判定 (Tie-breaker)
+  // 5-1. 入伍日越早越好 (老兵優待)
+  if (user.enlistmentDate) {
+    const daysServed = Math.max(0, (now - new Date(user.enlistmentDate)) / (1000 * 60 * 60 * 24));
+    score += Math.floor(daysServed);
+  }
+  
+  // 5-2. 總出島次數越少越好 (扣分機制)
+  const totalLeavesTaken = await Leave.countDocuments({
+    userId: user._id,
+    status: { $in: ["APPROVED", "PENDING_APPROVAL", "PENDING_REVIEW"] }
+  });
+  score -= (totalLeavesTaken * 50);
+
+  return score;
+}
+
+// ==========================================
+// 🧠 [核心大腦 2] 全自動連帶判定引擎 (All-or-Nothing Waitlist Recalculator)
+// ==========================================
+async function recalculateWaitlist(orgId, startDate, endDate) {
+  const org = await Organization.findById(orgId);
+  if (!org) return;
+
+  const totalSoldiers = org.settings?.totalSoldiers || 100;
+  const limitLong = Math.floor(totalSoldiers * ((org.settings?.leaveRateLong || 20) / 100));
+  const limitShort = Math.floor(totalSoldiers * ((org.settings?.leaveRateShort || 15) / 100));
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  
+  // 找出這段期間內所有重疊的假單 (只要不是被拒絕或取消的都要算)
+  const overlappingLeaves = await Leave.find({
+    organizationId: orgId,
+    status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] },
+    $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
+  }).populate("userId", "role");
+
+  // 只過濾出勇士 (幹部不佔名額)
+  const soldierLeaves = overlappingLeaves.filter(l => l.userId && l.userId.role === "soldier");
+
+  // 建立一個字典來記錄每張假單是否「觸雷」
+  let waitlistFlags = {};
+  soldierLeaves.forEach(l => waitlistFlags[l._id.toString()] = false);
+
+  // 逐日檢查
+  let iter = new Date(start);
+  while (iter <= end) {
+    const currentDayLeaves = soldierLeaves.filter(l => new Date(l.startDate) <= iter && new Date(l.endDate) >= iter);
+    
+    // 分成長假與短假
+    const longLeaves = currentDayLeaves.filter(l => l.type === "휴가");
+    const shortLeaves = currentDayLeaves.filter(l => l.type === "외출" || l.type === "외박");
+
+    // 排序邏輯：1. 手動鎖定(長官保底)優先 2. 積分高優先
+    const sortFn = (a, b) => {
+      if (a.isManualOverride && !b.isManualOverride) return -1;
+      if (!a.isManualOverride && b.isManualOverride) return 1;
+      return b.priorityScore - a.priorityScore;
+    };
+
+    longLeaves.sort(sortFn);
+    shortLeaves.sort(sortFn);
+
+    // 如果名次超過了當日的極限人數，標記觸雷
+    longLeaves.forEach((l, index) => {
+      if (index >= limitLong) waitlistFlags[l._id.toString()] = true;
+    });
+    shortLeaves.forEach((l, index) => {
+      if (index >= limitShort) waitlistFlags[l._id.toString()] = true;
+    });
+
+    iter.setDate(iter.getDate() + 1);
+  }
+
+  // 只要有任何一天觸雷 (All-or-Nothing)，整張假單更新為候補 (isWaitlisted = true)
+  for (const leave of soldierLeaves) {
+    const shouldBeWaitlisted = waitlistFlags[leave._id.toString()];
+    if (leave.isWaitlisted !== shouldBeWaitlisted && !leave.isManualOverride) {
+      leave.isWaitlisted = shouldBeWaitlisted;
+      await leave.save();
+    }
+  }
+}
+
+// ==========================================
+// 1. 幹部發放額度
 // ==========================================
 router.post("/leave-slots", authMiddleware, async (req, res) => {
   try {
@@ -80,7 +212,7 @@ router.get("/leave-slots/me", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// 🔥 2. 勇士申請假單 (新增：支援多檔案上傳)
+// 🔥 2. 勇士申請假單 (自動計分 + 排候補)
 // ==========================================
 router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (req, res) => {
   try {
@@ -88,7 +220,6 @@ router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (
     const userId = req.user.userId;
     const userRole = req.user.role;
 
-    // 前端 FormData 傳來的 usedSlots 是字串，必須轉回 JSON 陣列
     let usedSlots = [];
     if (req.body.usedSlots) {
         usedSlots = typeof req.body.usedSlots === 'string' ? JSON.parse(req.body.usedSlots) : req.body.usedSlots;
@@ -131,11 +262,14 @@ router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (
     if (userRole === "officer" || userRole === "reviewer")
       initialStatus = "PENDING_APPROVAL";
 
-    // 📁 處理勇士上傳的檔案路徑
     let evidenceFilesPaths = [];
     if (req.files && req.files.length > 0) {
       evidenceFilesPaths = req.files.map(file => `/uploads/${file.filename}`);
     }
+
+    // 🌟 核心：為這張假單打分數
+    const currentUser = await User.findById(userId);
+    const calculatedScore = await calculatePriorityScore(currentUser, mainType, reason, startDate);
 
     const newLeave = new Leave({
       organizationId: req.user.orgId,
@@ -148,10 +282,18 @@ router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (
       usedSlots: usedSlots,
       reason: `${reason} (행선지: ${destination}, 연락처: ${emergencyContact})`,
       status: initialStatus,
-      evidenceFiles: evidenceFilesPaths, // 把檔案路徑存進這張假單
+      evidenceFiles: evidenceFilesPaths,
+      priorityScore: calculatedScore, // 存入分數
+      isWaitlisted: false // 預設先給 false，交給引擎重算
     });
 
     await newLeave.save();
+
+    // 🌟 核心：觸發全自動連帶判定引擎，重算那幾天的正備取
+    if (userRole === "soldier") {
+      await recalculateWaitlist(req.user.orgId, startDate, endDate);
+    }
+
     res.json({
       success: true,
       message: "성공적으로 출타 신청이 완료되었습니다.",
@@ -180,6 +322,7 @@ router.get("/leaves/my", authMiddleware, async (req, res) => {
       status: l.status,
       reason: l.reason,
       totalDaysUsed: l.totalDaysUsed,
+      isWaitlisted: l.isWaitlisted // 讓前端知道是不是候補
     }));
     res.json({ leaves: mappedLeaves });
   } catch (error) {
@@ -211,6 +354,9 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
       status: l.status,
       reason: l.reason,
       totalDaysUsed: l.totalDaysUsed,
+      isWaitlisted: l.isWaitlisted,
+      isManualOverride: l.isManualOverride,
+      priorityScore: l.priorityScore
     }));
     
     res.json({ leaves: mappedLeaves });
@@ -220,7 +366,7 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
-// 🔥 3. 小鈴鐺通知 (已補上 rank 和 serviceNumber)
+// 3. 小鈴鐺通知
 // ==========================================
 router.get("/notifications", authMiddleware, async (req, res) => {
   try {
@@ -229,7 +375,6 @@ router.get("/notifications", authMiddleware, async (req, res) => {
 
     let notifications = [];
 
-    // 🔥 這裡的 populate 已經全面升級為抓取 "name rank serviceNumber"
     if (role === "reviewer" || role === "officer") {
       const leaves = await Leave.find({
         organizationId: orgId,
@@ -355,6 +500,10 @@ router.put("/leaves/:id/reject", authMiddleware, async (req, res) => {
       }
     }
     await leave.save();
+    
+    // 🌟 拒絕了一張假單，名額釋出！重算一次那幾天的排隊狀況
+    await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
+
     res.json({
       success: true,
       message: "거절 처리 및 휴가 일수가 반환되었습니다.",
@@ -424,6 +573,8 @@ router.put("/leaves/:id/approve", authMiddleware, async (req, res) => {
           await slot.save();
         }
       }
+      // 🌟 假單被正式取消了，釋出名額，趕快重算一下候補區！
+      await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
     }
 
     leave.approverId = req.user.userId;
@@ -456,6 +607,10 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
       }
       leave.status = "CANCELLED";
       await leave.save();
+      
+      // 🌟 勇士自行取消了排隊中的假單，釋出名額！
+      await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
+      
       return res.json({
         success: true,
         message: "휴가가 즉시 취소되었습니다. (일수 반환 완료)",
@@ -503,8 +658,9 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
           newCancelStatus = "CANCEL_APPROVED";
       }
 
+      // 🔥 注意：這裡的批次核准，未來我們可以依照您的需求，加強為「只核准正取 (isWaitlisted: false) 的單子」，候補的自動退回！
       const leaveUpdate = await Leave.updateMany(
-          { organizationId: orgId, status: targetStatus },
+          { organizationId: orgId, status: targetStatus, isWaitlisted: false }, // 只核准正取
           { $set: { status: newStatus } }
       );
 
@@ -516,7 +672,7 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
       const totalUpdated = leaveUpdate.modifiedCount + cancelUpdate.modifiedCount;
 
       if (totalUpdated === 0) {
-          return res.json({ success: true, message: "승인할 대기 건이 없습니다." });
+          return res.json({ success: true, message: "승인할 대기 건이 없습니다. (혹은 모두 후보 상태입니다)" });
       }
 
       res.json({ 
