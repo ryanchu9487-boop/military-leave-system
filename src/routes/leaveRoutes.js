@@ -921,4 +921,19 @@ router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
   }
 });
 
+// ==========================================
+// 🔥 [新增] 單一假單詳細資料查詢 (給審核頁面專用，不受小鈴鐺權限限制)
+// ==========================================
+router.get("/leaves/detail/:id", authMiddleware, async (req, res) => {
+  try {
+    const leave = await Leave.findById(req.params.id)
+      .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
+      .lean();
+    if (!leave) return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
+    res.json({ success: true, leave });
+  } catch (error) {
+    res.status(500).json({ error: "상세 조회 실패" });
+  }
+});
+
 module.exports = router;

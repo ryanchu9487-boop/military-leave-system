@@ -104,7 +104,13 @@
             <p id="leaveReason" class="text-gray-700 font-medium leading-relaxed"></p>
           </div>
 
-        
+          <div id="evidenceSection" class="col-span-2 p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm transition-colors">
+            <span class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-paperclip"></i> 첨부된 증빙 서류
+            </span>
+            <div id="evidenceFilesContainer" class="flex flex-wrap gap-2"></div>
+          </div>
+        </div>
 
         <div class="mt-6 border-t border-gray-100 pt-5">
           <h4 class="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
@@ -202,21 +208,26 @@
       async function fetchLeaveDetails() {
         try {
           document.getElementById("unitNameDisplay").innerText = localStorage.getItem("unitName") || "소속부대";
-          const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
+          
+          // 🔥 수정 2: 알림 대신 상세조회 API 직접 호출
+          const res = await fetch(`/leaves/detail/${leaveId}`, { headers: { Authorization: `Bearer ${token}` } });
+          
+          if (!res.ok) throw new Error("서버 응답 오류");
+          
           const data = await res.json();
-          const leave = data.notifications.find((l) => l._id === leaveId);
-          if (!leave) return (window.location.href = "index.html");
+          if (!data.success || !data.leave) return (window.location.href = "index.html");
+          const leave = data.leave;
 
           if (leave.status === "CANCEL_REQ_APPROVAL") {
             isCancelRequest = true;
             applyCancelModeUI();
           }
 
-          const name = leave.userId.name || "알수없음";
+          const name = leave.userId?.name || "알수없음";
           document.getElementById("userInitial").innerText = name.charAt(0);
           document.getElementById("userRank").innerText = getCurrentRank(leave.userId);
           document.getElementById("userName").innerText = name;
-          document.getElementById("serviceNumber").innerText = leave.userId.serviceNumber;
+          document.getElementById("serviceNumber").innerText = leave.userId?.serviceNumber || "";
 
           const startDateOnly = leave.startDate.split("T")[0];
           const endDateOnly = leave.endDate.split("T")[0];
@@ -224,7 +235,7 @@
           document.getElementById("totalDays").innerText = leave.totalDaysUsed;
           document.getElementById("leaveReason").innerText = leave.reason;
 
-          // 🔥 AI 보조 시스템 렌더링
+          // AI 보조 시스템 렌더링
           if (!isCancelRequest) {
             const aiPanel = document.getElementById("aiAssistPanel");
             const aiTitle = document.getElementById("aiAssistTitle");
@@ -233,33 +244,31 @@
             aiPanel.classList.remove("hidden");
 
             if (leave.isWaitlisted) {
-              aiPanel.className = "col-span-2 p-5 rounded-2xl border shadow-sm transition-colors bg-orange-50 border-orange-200";
+              aiPanel.className = "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-orange-50 border-orange-200";
               aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-orange-600";
               aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-200 text-orange-800";
               aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점`;
               aiMsg.className = "font-medium text-sm mt-1 text-orange-800 leading-snug";
               aiMsg.innerHTML = "⚠️ <strong>[출타율 초과 - 후보]</strong> 시스템 계산 결과, 해당 일자의 출타율 정원이 초과되었습니다. 부대 전투력 유지를 위해 <strong>반려를 권장</strong>합니다.";
             } else if (leave.isManualOverride) {
-              aiPanel.className = "col-span-2 p-5 rounded-2xl border shadow-sm transition-colors bg-blue-50 border-blue-200";
+              aiPanel.className = "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-blue-50 border-blue-200";
               aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-blue-600";
               aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200 text-blue-800";
               aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점 (수동 고정)`;
               aiMsg.className = "font-medium text-sm mt-1 text-blue-800 leading-snug";
               aiMsg.innerHTML = "🔒 <strong>[관리자 수동 고정]</strong> 달력에서 1차 검토자가 정규 편성에 강제로 고정한 인원입니다. <strong>최종 승인을 권장</strong>합니다.";
             } else {
-              aiPanel.className = "col-span-2 p-5 rounded-2xl border shadow-sm transition-colors bg-emerald-50 border-emerald-200";
+              aiPanel.className = "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-emerald-50 border-emerald-200";
               aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-emerald-600";
               aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800";
               aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점`;
               aiMsg.className = "font-medium text-sm mt-1 text-emerald-800 leading-snug";
-              aiMsg.innerHTML = "✅ <strong>[정규 편성]</strong> 출타율 정원 내에 안전하게 편성 및 1차 검토가 완료되었습니다. <strong>최종 승인을 권장</strong>합니다.";
+              aiMsg.innerHTML = "✅ <strong>[정규 편성]</strong> 출타율 정원 내에 안전하게 편성되었습니다. <strong>최종 승인을 권장</strong>합니다.";
             }
           }
 
-          const evidenceSection = document.getElementById("evidenceSection");
           const evidenceContainer = document.getElementById("evidenceFilesContainer");
           evidenceContainer.innerHTML = "";
-          let hasFiles = false;
 
           const createBtn = (url, name) => `
             <a href="${url}" target="_blank" class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300 transition-all text-xs font-bold text-gray-700">
@@ -267,6 +276,7 @@
             </a>
           `;
 
+          // 🔥 수정 3: 서류 없음 렌더링 로직
           if (leave.evidenceFiles && leave.evidenceFiles.length > 0) {
             leave.evidenceFiles.forEach((fileUrl, index) => {
               evidenceContainer.innerHTML += createBtn(fileUrl, `증빙 서류 #${index + 1}`);
@@ -283,7 +293,10 @@
           document.getElementById("leave-content").classList.remove("hidden");
 
           loadLeaveHistory(leave.userId._id, startDateOnly);
-        } catch (err) {}
+        } catch (err) {
+          console.error(err);
+          alert("데이터를 불러오는데 실패했습니다. 백엔드 서버를 확인해주세요.");
+        }
       }
 
       async function loadLeaveHistory(userId, requestedStartDate) {
