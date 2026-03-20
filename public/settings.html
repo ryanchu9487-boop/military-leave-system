@@ -154,22 +154,29 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-2 sm:gap-3">
+        
         <div class="relative group hidden sm:flex items-center">
           <input
+            id="globalSearchInput"
+            onfocus="initGlobalSearchData()"
+            oninput="handleGlobalSearch(this.value)"
             type="text"
-            placeholder="검색..."
-            class="w-9 h-9 rounded-full bg-gray-100/80 border border-transparent focus:w-40 sm:focus:w-56 focus:bg-white focus:border-gray-200 focus:shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] focus:px-4 focus:pl-10 transition-all duration-500 outline-none text-sm placeholder-transparent focus:placeholder-gray-400 cursor-pointer focus:cursor-text peer text-gray-700"
+            placeholder="이름, 사유, 계급 검색..."
+            class="w-9 h-9 rounded-full bg-gray-100/80 border border-transparent focus:w-56 lg:focus:w-72 focus:bg-white focus:border-indigo-300 focus:shadow-[0_4px_20px_-5px_rgba(99,102,241,0.15)] focus:px-4 focus:pl-10 transition-all duration-500 outline-none text-sm placeholder-transparent focus:placeholder-gray-400 cursor-pointer focus:cursor-text peer text-gray-700"
           />
-          <i
-            class="fa-solid fa-magnifying-glass absolute left-2.5 text-gray-500 peer-focus:text-indigo-500 transition-colors duration-300 pointer-events-none"
-          ></i>
+          <i class="fa-solid fa-magnifying-glass absolute left-2.5 text-gray-500 peer-focus:text-indigo-500 transition-colors duration-300 pointer-events-none"></i>
+          
+          <div id="globalSearchDropdown" class="hidden absolute top-12 left-0 w-full min-w-[280px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-[60vh] overflow-hidden">
+            <div class="p-3 border-b border-gray-100 bg-indigo-50/50 font-bold text-indigo-800 text-xs flex justify-between items-center shrink-0">
+              <span><i class="fa-solid fa-bolt text-indigo-500 mr-1.5"></i>빠른 검색 결과</span>
+            </div>
+            <div id="globalSearchList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white">
+              </div>
+          </div>
         </div>
 
-        <span
-          id="user-profile-name"
-          class="text-sm font-bold text-gray-700 hidden sm:block"
-          >로딩중...</span
-        >
+        <span id="user-profile-name" class="text-sm font-bold text-gray-700 hidden sm:block">로딩중...</span>
 
         <div class="relative flex items-center">
           <button
@@ -186,35 +193,22 @@
           </button>
           <div
             id="notificationDropdown"
-            class="hidden absolute top-12 right-0 w-80 sm:w-96 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-50 flex flex-col max-h-96 overflow-hidden transition-all transform origin-top-right"
+            class="hidden absolute top-12 right-0 w-80 sm:w-96 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-96 overflow-hidden transition-all transform origin-top-right"
           >
-            <div
-              class="p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm font-bold text-gray-800 text-sm flex justify-between items-center"
-            >
-              <span
-                ><i class="fa-solid fa-bell text-indigo-500 mr-1.5"></i>알림
-                내역</span
-              >
+            <div class="p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm font-bold text-gray-800 text-sm flex justify-between items-center">
+              <span><i class="fa-solid fa-bell text-indigo-500 mr-1.5"></i>알림 내역</span>
               <div class="flex items-center gap-2">
                 <button
                   id="approveAllBtn"
                   onclick="approveAllLeaves()"
                   class="hidden text-[11px] bg-indigo-600 text-white px-2.5 py-1 rounded shadow-sm hover:bg-indigo-700 transition font-bold"
-                >
-                  일괄 승인
-                </button>
-                <button
-                  onclick="toggleNotifications()"
-                  class="text-gray-400 hover:text-gray-600"
-                >
+                >일괄 승인</button>
+                <button onclick="toggleNotifications()" class="text-gray-400 hover:text-gray-600">
                   <i class="fa-solid fa-xmark"></i>
                 </button>
               </div>
             </div>
-            <div
-              id="notificationList"
-              class="flex flex-col overflow-y-auto custom-scrollbar bg-white"
-            ></div>
+            <div id="notificationList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white"></div>
           </div>
         </div>
 
@@ -842,6 +836,68 @@
         fetchUserInfoAndNotifications();
         setInterval(fetchUserInfoAndNotifications, 60000);
       });
+
+     // ==========================================
+      // 🔥 타 페이지 전용: 전역 검색 엔진 (클릭 시 홈으로 이동하여 스포트라이트 실행)
+      // ==========================================
+      let globalSearchCache = null;
+
+      async function initGlobalSearchData() {
+        if(globalSearchCache) return;
+        const currentToken = localStorage.getItem("token");
+        const currentUserRole = localStorage.getItem("role") || "soldier";
+        const endpoint = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) ? "/leaves/all" : "/leaves/my";
+        try {
+          const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
+          const data = await res.json();
+          globalSearchCache = data.leaves || [];
+        } catch(e) {}
+      }
+
+      function handleGlobalSearch(query) {
+        query = query.trim().toLowerCase();
+        const dropdown = document.getElementById("globalSearchDropdown");
+        if (!query) { dropdown.classList.add("hidden"); return; }
+        if (!globalSearchCache) return;
+
+        const results = globalSearchCache.filter(l => {
+          if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false; 
+          const searchStr = `${l.userId?.name || ""} ${l.userId?.rank || ""} ${l.reason || ""} ${l.type || ""}`.toLowerCase();
+          return searchStr.includes(query);
+        });
+
+        const list = document.getElementById("globalSearchList");
+        dropdown.classList.remove("hidden");
+        
+        if (results.length === 0) {
+          list.innerHTML = `<div class="p-5 text-sm text-gray-400 text-center"><i class="fa-solid fa-magnifying-glass-minus block text-2xl mb-2"></i>검색 결과가 없습니다.</div>`;
+          return;
+        }
+
+        list.innerHTML = results.map(l => {
+          const sDate = l.startDate.split("T")[0];
+          const eDate = l.endDate.split("T")[0];
+          let statusBadge = l.isWaitlisted ? `<span class="bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">후보</span>` : `<span class="bg-blue-100 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">정규</span>`;
+          
+          // 🔥 點擊時，附帶 URL 參數導向 index.html
+          return `
+          <div onclick="window.location.href='index.html?focus=${l._id}&type=${l.type}&date=${sDate}'" class="p-3 hover:bg-indigo-50 border-b border-gray-50 cursor-pointer transition flex flex-col gap-1">
+              <div class="flex justify-between items-center">
+                  <span class="font-bold text-[13px] text-gray-800">[${l.type}] ${l.userId?.name || "알수없음"} <span class="text-[11px] text-gray-500 font-normal">(${l.userId?.rank || ""})</span></span>
+                  ${statusBadge}
+              </div>
+              <div class="text-[11px] text-gray-500 truncate"><i class="fa-regular fa-calendar mr-1"></i>${sDate.replace(/-/g, ".")} ~ ${eDate.replace(/-/g, ".")} | ${l.reason}</div>
+          </div>`;
+        }).join("");
+      }
+
+      document.addEventListener("click", (e) => {
+        const dropdown = document.getElementById("globalSearchDropdown");
+        const input = document.getElementById("globalSearchInput");
+        if (dropdown && !dropdown.classList.contains("hidden")) {
+          if (!dropdown.contains(e.target) && e.target !== input) dropdown.classList.add("hidden");
+        }
+      }); 
     </script>
   </body>
 </html>

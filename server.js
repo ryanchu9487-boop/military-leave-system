@@ -130,14 +130,16 @@ mongoose
 // 👤 사용자 관련 API (누락되었던 부분 복구)
 // ============================
 
-// 1. 내 프로필 정보 가져오기
+// 1. 내 프로필 정보 가져오기 (🔥 수리 완료: 프론트엔드에 필요한 모든 데이터 포함)
 app.get("/profile", authMiddleware, async (req, res) => {
   try {
     if (!req.user || !req.user.userId) {
       throw new Error("토큰 정보에 userId가 누락되었습니다.");
     }
+    
+    // 🔥 修改 1：使用 .select("-password") 排除密碼，其他資料全部拿出來！
     const user = await User.findById(req.user.userId)
-      .select("_id name serviceNumber role organizationId")
+      .select("-password") 
       .populate("organizationId", "name orgCode");
 
     if (!user) {
@@ -145,13 +147,25 @@ app.get("/profile", authMiddleware, async (req, res) => {
         .status(404)
         .json({ success: false, message: "사용자가 존재하지 않습니다." });
     }
+    
+    // 🔥 修改 2：把所有前端設定頁 (settings.html) 需要的欄位全部打包送出去！
     res.json({
       success: true,
       user: {
         id: user._id,
         name: user.name,
+        rank: user.rank, // 階級
+        serviceNumber: user.serviceNumber, // 軍番
         role: user.role,
         orgName: user.organizationId?.name || "소속 없음",
+        forceChangePassword: user.forceChangePassword, // 強制改密碼警告
+        
+        // 📅 軍隊專屬日期 (進度條與晉升計算的核心)
+        enlistmentDate: user.enlistmentDate,
+        dischargeDate: user.dischargeDate,
+        promoToIlbyung: user.promoToIlbyung,
+        promoToSangbyung: user.promoToSangbyung,
+        promoToByungjang: user.promoToByungjang,
       },
     });
   } catch (err) {

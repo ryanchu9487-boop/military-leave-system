@@ -42,16 +42,42 @@ window.onload = async function () {
 };
 
 async function initApp() {
-  const now = new Date();
-  currentYear = now.getFullYear();
-  currentMonth = now.getMonth();
+  // 🔥 1. 優先檢查 URL 參數，決定「初始月份」
+  const urlParams = new URLSearchParams(window.location.search);
+  const focusId = urlParams.get("focus");
+  const targetDateStr = urlParams.get("date");
+
+  if (focusId && targetDateStr) {
+    // 跨頁面導航：直接把初始時間設定在目標月份！
+    const targetDate = new Date(targetDateStr);
+    currentYear = targetDate.getFullYear();
+    currentMonth = targetDate.getMonth();
+  } else {
+    // 正常登入：設定為今天
+    const now = new Date();
+    currentYear = now.getFullYear();
+    currentMonth = now.getMonth();
+  }
+  
+  // 🔥 2. 這裡畫出來的月曆，直接就是目標月份了！
   await refreshCalendarData();
   await fetchLeaveRates();
   setupScrollObserver();
   setupDragSelection();
-  setTimeout(() => {
-    scrollToMonth(currentYear, currentMonth, false);
-  }, 50);
+  
+  setTimeout(async () => {
+    if (focusId) {
+      const type = urlParams.get("type");
+      // 清除網址列參數，保持乾淨
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // 啟動聚光燈導航 (傳入 false 代表「不要平滑滾動」，瞬間切換)
+      await executeSearchNavigation(focusId, type, targetDateStr, false);
+    } else {
+      // 正常載入
+      scrollToMonth(currentYear, currentMonth, false);
+    }
+  }, 100); // 等待初始渲染完成
 }
 
 async function refreshCalendarData() {
@@ -1165,3 +1191,141 @@ async function handleDrop(e, targetId, targetName) {
     }
   }
 }
+
+// ==========================================
+// 🔥 全局搜尋引擎 (Global Search & Spotlight)
+// ==========================================
+let globalSearchCache = null;
+
+// 當搜尋框獲得焦點時，偷偷在背景拉取一次全軍資料 (避免每次打字都發送 API 請求)
+async function initGlobalSearchData() {
+  const endpoint = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) ? "/leaves/all" : "/leaves/my";
+  try {
+    const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
+    const data = await res.json();
+    globalSearchCache = data.leaves || [];
+  } catch(e) {
+    console.error("搜尋資料載入失敗", e);
+  }
+}
+
+// 處理使用者打字過濾
+function handleGlobalSearch(query) {
+  query = query.trim().toLowerCase();
+  const dropdown = document.getElementById("globalSearchDropdown");
+  
+  if (!query) {
+    dropdown.classList.add("hidden");
+    return;
+  }
+
+  if (!globalSearchCache) return; // 如果資料還沒回來就先等一下
+
+  const results = globalSearchCache.filter(l => {
+    // 排除已經取消或被拒絕的假單
+    if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false; 
+    
+    // 把名字、階級、事由、假別全部串在一起搜
+    const searchStr = `${l.userId?.name || ""} ${l.userId?.rank || ""} ${l.reason || ""} ${l.type || ""}`.toLowerCase();
+    return searchStr.includes(query);
+  });
+
+  renderSearchResults(results);
+}
+
+// 渲染下拉選單結果
+function renderSearchResults(results) {
+  const dropdown = document.getElementById("globalSearchDropdown");
+  const list = document.getElementById("globalSearchList");
+  dropdown.classList.remove("hidden");
+  
+  if (results.length === 0) {
+    list.innerHTML = `<div class="p-5 text-sm text-gray-400 text-center"><i class="fa-solid fa-magnifying-glass-minus block text-2xl mb-2"></i>검색 결과가 없습니다.</div>`;
+    return;
+  }
+
+  list.innerHTML = results.map(l => {
+    const sDate = l.startDate.split("T")[0];
+    const eDate = l.endDate.split("T")[0];
+    let statusBadge = l.isWaitlisted 
+        ? `<span class="bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">후보</span>` 
+        : `<span class="bg-blue-100 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">정규</span>`;
+    
+    // 點擊時觸發聚光燈導航 (executeSearchNavigation)
+    return `
+    <div onclick="executeSearchNavigation('${l._id}', '${l.type}', '${sDate}')" class="p-3 hover:bg-indigo-50 border-b border-gray-50 cursor-pointer transition flex flex-col gap-1">
+        <div class="flex justify-between items-center">
+            <span class="font-bold text-[13px] text-gray-800">[${l.type}] ${l.userId?.name || "알수없음"} <span class="text-[11px] text-gray-500 font-normal">(${l.userId?.rank || ""})</span></span>
+            ${statusBadge}
+        </div>
+        <div class="text-[11px] text-gray-500 truncate"><i class="fa-regular fa-calendar mr-1"></i>${sDate.replace(/-/g, ".")} ~ ${eDate.replace(/-/g, ".")} | ${l.reason}</div>
+    </div>`;
+  }).join("");
+}
+
+// 🌟 殺手級功能：聚光燈導航特效 (加入 isSmooth 參數)
+async function executeSearchNavigation(leaveId, type, startDateStr, isSmooth = true) {
+  // 1. 隱藏下拉選單
+  const dropdown = document.getElementById("globalSearchDropdown");
+  const input = document.getElementById("globalSearchInput");
+  if(dropdown) dropdown.classList.add("hidden");
+  if(input) { input.value = ""; input.blur(); }
+
+  // 2. 如果是長官，根據假別切換模式
+  if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
+    const targetMode = (type === "휴가") ? "team-long" : "team-short";
+    if (currentCalendarMode !== targetMode) {
+      await switchCalendarMode(targetMode); // 會重新抓取資料
+    }
+  }
+
+  // 3. 🔥 滾動到目標月份 (根據 isSmooth 決定要不要有動畫)
+  const targetDate = new Date(startDateStr);
+  await scrollToMonth(targetDate.getFullYear(), targetDate.getMonth(), isSmooth);
+
+  // 4. 🔥 智能追蹤雷達 (單純加上/移除 Class，依靠 CSS 實現平滑過渡)
+  let attempts = 0;
+  const tryHighlight = () => {
+    const targetBar = document.querySelector(`.leave-bar-${leaveId}`);
+    
+    if (targetBar) {
+      // 找到了！大家貼上標籤
+      const allBars = document.querySelectorAll('[class*="leave-bar-"]');
+      allBars.forEach(bar => {
+        if (bar === targetBar) {
+          bar.classList.add('spotlight-target'); // 放大浮出
+        } else {
+          bar.classList.add('spotlight-dimmed'); // 其他變暗
+        }
+      });
+
+      // 3.5 秒後「平滑縮回原本大小」
+      setTimeout(() => {
+        allBars.forEach(bar => {
+          bar.classList.remove('spotlight-target', 'spotlight-dimmed');
+        });
+        // ⚠️ 這裡絕對不能呼叫 renderEvents()！
+        // 只要把 class 移除，CSS 就會自動平滑地把它縮回原本的大小和狀態。
+      }, 1500);
+
+    } else if (attempts < 20) {
+      // 還沒畫出來，等 0.2 秒再找一次
+      attempts++;
+      setTimeout(tryHighlight, 200);
+    }
+  };
+
+  // 啟動雷達！
+  tryHighlight();
+}
+
+// 當點擊畫面空白處時，自動關閉搜尋下拉選單
+document.addEventListener("click", (e) => {
+  const dropdown = document.getElementById("globalSearchDropdown");
+  const input = document.getElementById("globalSearchInput");
+  if (dropdown && !dropdown.classList.contains("hidden")) {
+    if (!dropdown.contains(e.target) && e.target !== input) {
+      dropdown.classList.add("hidden");
+    }
+  }
+});

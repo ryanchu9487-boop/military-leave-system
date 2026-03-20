@@ -94,7 +94,17 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
   const org = await Organization.findById(orgId);
   if (!org) return;
 
-  const totalSoldiers = org.settings?.totalSoldiers || 100;
+  // 🔥 1. 去資料庫精準算出「這個部隊目前真正有多少位勇士」
+  const actualSoldierCount = await User.countDocuments({
+    organizationId: orgId,
+    role: "soldier",
+    status: "approved" // 只計算已經核准加入的勇士
+  });
+
+  // 🔥 2. 防呆機制：如果部隊目前沒半個人，系統先當作有 1 個人，避免算出來額度變成 0 導致錯誤
+  const totalSoldiers = actualSoldierCount > 0 ? actualSoldierCount : 1;
+
+  // 🔥 3. 根據真實人數，計算出長假(休假)與短假(外泊/外出)的當天名額上限
   const defaultLimitLong = Math.floor(totalSoldiers * ((org.settings?.leaveRateLong || 20) / 100));
   const defaultLimitShort = Math.floor(totalSoldiers * ((org.settings?.leaveRateShort || 15) / 100));
   const specialRates = org.settings?.specialRates || [];

@@ -165,6 +165,30 @@
         padding: 0 2px;
         border-radius: 2px;
       }
+
+      /* ==========================================
+         🔍 優雅放大版：保留原色，平滑縮放特效
+         ========================================== */
+
+      /* 確保所有長條圖本身都有過渡效果，這樣放大、縮小時才會平滑 */
+      [class*="leave-bar-"] {
+        transition: all 0.4s ease !important; 
+      }
+
+      /* 其他沒被搜到的假單：單純變半透明退到背景 */
+      .spotlight-dimmed {
+        opacity: 0.25 !important;
+        transition: opacity 0.4s ease !important;
+        pointer-events: none;
+      }
+
+      /* 目標假單：保留原本顏色，稍微放大並加上陰影讓它浮出來 */
+      .spotlight-target {
+        transform: scale(1.08) !important; /* 微微放大 8% */
+        z-index: 100 !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important; /* 加上立體陰影讓它浮出來 */
+        transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) !important; /* 帶有微微彈性的平滑過渡 */
+      }
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 overflow-hidden h-screen flex flex-col">
@@ -233,15 +257,27 @@
       </div>
 
       <div class="flex items-center gap-2 sm:gap-3">
+        <div class="flex items-center gap-2 sm:gap-3">
         <div class="relative group hidden sm:flex items-center">
           <input
+            id="globalSearchInput"
+            onfocus="initGlobalSearchData()"
+            oninput="handleGlobalSearch(this.value)"
             type="text"
-            placeholder="검색..."
-            class="w-9 h-9 rounded-full bg-gray-100/80 border border-transparent focus:w-40 sm:focus:w-56 focus:bg-white focus:border-gray-200 focus:shadow-[0_4px_20px_-5px_rgba(0,0,0,0.1)] focus:px-4 focus:pl-10 transition-all duration-500 outline-none text-sm placeholder-transparent focus:placeholder-gray-400 cursor-pointer focus:cursor-text peer text-gray-700"
+            placeholder="이름, 사유, 계급 검색..."
+            class="w-9 h-9 rounded-full bg-gray-100/80 border border-transparent focus:w-56 lg:focus:w-72 focus:bg-white focus:border-indigo-300 focus:shadow-[0_4px_20px_-5px_rgba(99,102,241,0.15)] focus:px-4 focus:pl-10 transition-all duration-500 outline-none text-sm placeholder-transparent focus:placeholder-gray-400 cursor-pointer focus:cursor-text peer text-gray-700"
           />
           <i
             class="fa-solid fa-magnifying-glass absolute left-2.5 text-gray-500 peer-focus:text-indigo-500 transition-colors duration-300 pointer-events-none"
           ></i>
+          
+          <div id="globalSearchDropdown" class="hidden absolute top-12 left-0 w-full min-w-[280px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-[60vh] overflow-hidden">
+            <div class="p-3 border-b border-gray-100 bg-indigo-50/50 font-bold text-indigo-800 text-xs flex justify-between items-center shrink-0">
+              <span><i class="fa-solid fa-bolt text-indigo-500 mr-1.5"></i>빠른 검색 결과</span>
+            </div>
+            <div id="globalSearchList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white">
+              </div>
+          </div>
         </div>
 
         <span
@@ -265,7 +301,7 @@
           </button>
           <div
             id="notificationDropdown"
-            class="hidden absolute top-12 right-0 w-80 sm:w-96 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-50 flex flex-col max-h-96 overflow-hidden transition-all transform origin-top-right"
+            class="hidden absolute top-12 right-0 w-80 sm:w-96 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-96 overflow-hidden transition-all transform origin-top-right"
           >
             <div
               class="p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm font-bold text-gray-800 text-sm flex justify-between items-center"
@@ -776,14 +812,32 @@
                 title = noti.status.includes("CANCEL") ? "휴가 취소 결재 대기" : "새로운 출타 심의 대기";
                 color = noti.status.includes("CANCEL") ? "text-orange-500" : "text-indigo-600";
                 if (["reviewer", "approver", "superadmin"].includes(userRoleObj)) {
-                  actionHtml = `
-                      <div class="flex gap-1">
-                        <button onclick="quickApprove('${noti._id}', '${noti.status}', event)" class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] rounded font-bold hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">승인</button>
-                        <button onclick="quickReject('${noti._id}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold hover:bg-red-600 hover:text-white transition-colors shadow-sm">반려</button>
-                      </div>`;
-                } else {
-                  actionHtml = `<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold">결재중</span>`;
-                }
+  
+  // 🔥 核心判斷：如果是候補 (isWaitlisted為true)，且不是取消申請的單
+  if (noti.isWaitlisted && !noti.status.includes("CANCEL")) {
+    // ⚠️ 候補狀態：拔掉一鍵審核，換成橘色警告與「詳細審議」按鈕
+    actionHtml = `
+      <div class="flex gap-1 items-center">
+        <span class="text-[9px] font-black text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200 tracking-tighter shadow-sm">
+          <i class="fa-solid fa-triangle-exclamation mr-0.5"></i>정원초과
+        </span>
+        <button onclick="goToReviewApprove('${noti.status}', '${noti._id}'); event.stopPropagation();" class="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] rounded font-bold hover:bg-gray-200 transition-colors shadow-sm border border-gray-200">
+          상세 심의
+        </button>
+      </div>`;
+  } else {
+    // ✅ 正常編制內 (정원 내)：維持原本的一鍵秒殺按鈕
+    actionHtml = `
+      <div class="flex gap-1">
+        <button onclick="quickApprove('${noti._id}', '${noti.status}', event)" class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] rounded font-bold hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">승인</button>
+        <button onclick="quickReject('${noti._id}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold hover:bg-red-600 hover:text-white transition-colors shadow-sm">반려</button>
+      </div>`;
+  }
+
+} else {
+  // 一般勇士看到的狀態
+  actionHtml = `<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold">결재중</span>`;
+}
                 onClickAction = `goToReviewApprove('${noti.status}', '${noti._id}')`;
               }
 
@@ -973,6 +1027,7 @@
         document.getElementById("grantSubType").addEventListener("change", handleGrantSubTypeChange);
         handleGrantCategoryChange();
       });
+ 
     </script>
     <script src="calendar.js"></script>
   </body>
