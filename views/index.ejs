@@ -65,27 +65,27 @@
           justify-content: center !important;
           border-radius: 10px !important; 
           white-space: nowrap !important; 
-          letter-spacing: -0.5px !important; 
+          letter-spacing: -0.5px !important;
         }
         
         .holiday-name {
-          font-size: 0.55rem !important;      
+          font-size: 0.55rem !important;
           margin-top: 1px !important;
           width: 100% !important;            
           display: block !important;         
           white-space: normal !important;    
           word-break: keep-all !important;   
-          line-height: 1.1 !important;       
+          line-height: 1.1 !important;
           max-height: 16px !important;       
           overflow: hidden !important;       
           text-align: center !important;
         }
 
         .event-layer {
-          top: 24px !important; 
+          top: 24px !important;
         }
         .event-layer > div {
-          height: 14px !important; 
+          height: 14px !important;
           margin-bottom: 2px !important;
         }
         [class*="leave-bar-"] {
@@ -97,25 +97,25 @@
         }
 
         #notificationDropdown {
-          position: fixed !important; 
+          position: fixed !important;
           top: 60px !important;       
           right: auto !important;     
           left: 50% !important;       
           transform: translateX(-50%) !important; 
           width: 92vw !important;     
-          max-height: 75vh !important; 
+          max-height: 75vh !important;
           z-index: 9999 !important;   
         }
 
         #floatingPill {
-          top: 54px !important; 
+          top: 54px !important;
           transform: translateX(-50%) scale(0.85) !important; 
           padding: 4px 10px !important;
           white-space: nowrap !important;
         }
         
         #floatingYearMonth {
-          font-size: 0.85rem !important; 
+          font-size: 0.85rem !important;
           letter-spacing: -0.5px !important;
         }
 
@@ -127,7 +127,8 @@
 
       /* 📱 手機橫向 */
       @media (max-width: 932px) and (orientation: landscape) {
-        .week-row { min-height: 80px !important; }
+        .week-row { min-height: 80px !important;
+        }
         .holiday-name {
           font-size: 0.65rem !important;
           white-space: nowrap !important;
@@ -141,9 +142,12 @@
       
       /* 🔥 等待線的動畫效果 */
       @keyframes pulseLine {
-        0% { opacity: 0.4; }
-        50% { opacity: 0.8; box-shadow: 0 0 8px rgba(249, 115, 22, 0.4); }
-        100% { opacity: 0.4; }
+        0% { opacity: 0.4;
+        }
+        50% { opacity: 0.8; box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+        }
+        100% { opacity: 0.4;
+        }
       }
       .waitlist-line {
         position: absolute;
@@ -167,7 +171,7 @@
       }
 
       [class*="leave-bar-"] {
-        transition: all 0.4s ease !important; 
+        transition: all 0.4s ease !important;
       }
 
       .spotlight-dimmed {
@@ -522,12 +526,25 @@
           }
         }
 
-        // 綁定事件
-        document.addEventListener("DOMContentLoaded", () => {
+        // 🔥 終極 SPA 喚醒引擎 - Index 事件
+        window.initIndexEvents = function() {
+          console.log("🔥 Index 嘗試自我喚醒...");
           const grantSubTypeEl = document.getElementById("grantSubType");
-          if(grantSubTypeEl) grantSubTypeEl.addEventListener("change", handleGrantSubTypeChange);
+          if(grantSubTypeEl) {
+            // 先移除再綁定，防止重複觸發
+            grantSubTypeEl.removeEventListener("change", handleGrantSubTypeChange);
+            grantSubTypeEl.addEventListener("change", handleGrantSubTypeChange);
+          }
           handleGrantCategoryChange();
-        });
+
+          // 順便確認 calendar.js 有沒有被正確喚醒
+          if (typeof window.initCalendarPage === "function") {
+            window.initCalendarPage();
+          }
+        };
+
+        // 當 SPA 引擎把這段 HTML 塞進畫面時，0.1秒後讓它自己叫醒自己！
+        setTimeout(window.initIndexEvents, 100);
       </script>
     </div> <script src="/common.js"></script>
   </body>

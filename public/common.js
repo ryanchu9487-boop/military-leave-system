@@ -8,7 +8,7 @@ const roleMap = {
 };
 
 // ==========================================
-// 🚀 SmartMil 終極 SPA 導航引擎 (加入強制除快取與絕對偵測)
+// 🚀 SmartMil 終極 SPA 導航引擎 (暴力破解腳本快取版)
 // ==========================================
 window.spaNavigate = async function (urlPath) {
   const url = new URL(urlPath, window.location.origin).href;
@@ -20,25 +20,20 @@ window.spaNavigate = async function (urlPath) {
     return;
   }
 
-  // 讓畫面變半透明，讓使用者知道正在載入
   wrapper.style.transition = "opacity 0.2s ease";
-  wrapper.style.opacity = "0.4";
+  wrapper.style.opacity = "0.3";
 
   try {
-    // 🔥 1. 殺死「舊網頁幽靈」：在網址後面加上時間戳，強迫瀏覽器去伺服器抓最新的！
+    // 1. 強制抓取最新的 HTML
     const fetchUrl = url + (url.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
-    const res = await fetch(fetchUrl, { 
-        cache: 'no-store', 
-        headers: { 'Cache-Control': 'no-cache' } 
-    });
-    
+    const res = await fetch(fetchUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
     const html = await res.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     document.title = doc.title;
     document.body.className = doc.body.className;
 
-    // 同步 CSS
+    // 2. 同步 CSS
     document.querySelectorAll("style:not([id])").forEach(s => s.remove());
     doc.querySelectorAll("style:not([id])").forEach(s => {
       const newStyle = document.createElement("style");
@@ -50,27 +45,24 @@ window.spaNavigate = async function (urlPath) {
     if (newContent) {
       wrapper.innerHTML = newContent.innerHTML;
 
-      // 載入腳本，並嚴格等待外部檔案下載完成
+      // 🔥 3. 核心修復：拔除所有的「防重複檢查」
+      // 直接讓瀏覽器把 adduser.js 當作全新的檔案強制重新載入並執行！
       const scripts = Array.from(newContent.querySelectorAll("script"));
       for (const oldScript of scripts) {
-        await new Promise((resolve) => {
-          if (oldScript.src) {
-            const srcPath = new URL(oldScript.src, window.location.origin).pathname;
-            const isLoaded = Array.from(document.querySelectorAll("script")).some(
-              s => s.src && new URL(s.src, window.location.origin).pathname === srcPath
-            );
-            if (isLoaded) { resolve(); return; }
+        if (oldScript.src && oldScript.src.includes("common.js")) continue;
 
-            const newScript = document.createElement("script");
-            newScript.src = oldScript.src;
+        await new Promise((resolve) => {
+          const newScript = document.createElement("script");
+          if (oldScript.src) {
+            // 加上時間戳，強迫瀏覽器忘記舊快取，重新執行腳本！
+            newScript.src = oldScript.src + "?t=" + new Date().getTime(); 
             newScript.onload = resolve;
-            newScript.onerror = resolve; 
+            newScript.onerror = resolve;
             document.body.appendChild(newScript);
           } else {
-            const newScript = document.createElement("script");
             newScript.textContent = oldScript.textContent;
             document.body.appendChild(newScript);
-            newScript.remove(); 
+            newScript.remove();
             resolve();
           }
         });
@@ -79,48 +71,40 @@ window.spaNavigate = async function (urlPath) {
 
     history.pushState(null, "", url);
 
-    // 🔥 等待 150ms，確保瀏覽器把 HTML 跟腳本都消化完畢
+    // 4. 喚醒畫面
     setTimeout(() => {
       wrapper.style.opacity = "1";
       reInitializePage();
-    }, 150);
+    }, 50);
 
   } catch (err) {
-    console.error("SPA 導航失敗, 改用傳統跳轉:", err);
+    console.error("SPA 導航失敗:", err);
     window.location.href = url;
   }
 };
+
 // ==========================================
-// 🚀 絕對偵測版：直接看畫面上有什麼元素，就叫醒誰
+// 🚀 簡單粗暴的喚醒機制
 // ==========================================
 function reInitializePage() {
-  // 重新執行 Header 的權限與名字顯示
   applyRolePermissions(); 
   
-  // 🔍 偵測：畫面上如果出現人員名單的容器 -> 叫醒 AddUser！
-  if (document.getElementById("userList")) {
-    console.log("✅ 啟動人員管理...");
-    if (typeof window.initAddUserPage === "function") window.initAddUserPage();
-    else if (typeof window.fetchUsers === "function") window.fetchUsers();
-  } 
+  const path = window.location.pathname.toLowerCase();
   
-  // 🔍 偵測：畫面上如果出現設定頁的頭像 -> 叫醒 Settings！
-  else if (document.getElementById("profileInitial")) {
-    console.log("✅ 啟動設定頁...");
-    if (typeof window.loadSettingsPage === "function") window.loadSettingsPage();
-  }
-  
-  // 🔍 偵測：畫面上如果出現月曆 -> 叫醒 Calendar！
-  else if (document.getElementById("calendar")) {
-    console.log("✅ 啟動月曆...");
-    if (typeof window.initCalendarPage === "function") window.initCalendarPage();
-  }
+  // 既然腳本已經被我們「強制重新執行」了，我們直接呼叫對應的大腦就好！
+  setTimeout(() => {
+    if (path.includes("adduser")) {
+       console.log("✅ 啟動人員管理...");
+       if (typeof window.fetchUsers === "function") window.fetchUsers();
+    } else if (path.includes("settings")) {
+       console.log("✅ 啟動設定頁...");
+       if (typeof window.loadSettingsPage === "function") window.loadSettingsPage();
+    } else {
+       console.log("✅ 啟動月曆...");
+       if (typeof window.initCalendarPage === "function") window.initCalendarPage();
+    }
+  }, 150);
 }
-
-// 處理瀏覽器返回鍵 (強制重新整理，避免讀到舊快取)
-window.addEventListener("popstate", () => {
-  window.location.href = window.location.href;
-});
 
 // ==========================================
 // 🔔 權限與小鈴鐺共用邏輯

@@ -1,32 +1,33 @@
 /**
  * SmartMil Unified Calendar Logic - 終極防呆、自動排備取、抽屜選單與完整申請版
- * (SPA 無縫切換相容完整版)
+ * (SPA 無縫切換完美相容版 - 解決全域變數衝突)
  */
 
-const GOOGLE_API_KEY = "AIzaSyBDbm1GF1W0wKYXSeAoIj3F8TJbmn7wHuw";
-const KOREA_HOLIDAY_CALENDAR_ID = "ko.south_korea#holiday@group.v.calendar.google.com";
+// 🔥 關鍵修正：將最外層的全域變數全部改為 var，防止 SPA 重複載入時發生 SyntaxError
+var GOOGLE_API_KEY = "AIzaSyBDbm1GF1W0wKYXSeAoIj3F8TJbmn7wHuw";
+var KOREA_HOLIDAY_CALENDAR_ID = "ko.south_korea#holiday@group.v.calendar.google.com";
 
-let currentYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth();
-let renderStartDate = null;
-let renderEndDate = null;
-let dbLeavesCache = [];
-let leavesCache = [];
-let currentToken = localStorage.getItem("token") || "";
-let currentUserRole = localStorage.getItem("role") || "soldier";
+var currentYear = new Date().getFullYear();
+var currentMonth = new Date().getMonth();
+var renderStartDate = null;
+var renderEndDate = null;
+var dbLeavesCache = [];
+var leavesCache = [];
+var currentToken = localStorage.getItem("token") || "";
+var currentUserRole = localStorage.getItem("role") || "soldier";
 
-let currentCalendarMode = "personal"; // 'personal', 'team-long', 'team-short'
-let myAvailableSlots = [];
-let currentUsedSlots = [];
-let isDragging = false;
-let dragStartStr = null;
-let dragEndStr = null;
+var currentCalendarMode = "personal"; // 'personal', 'team-long', 'team-short'
+var myAvailableSlots = [];
+var currentUsedSlots = [];
+var isDragging = false;
+var dragStartStr = null;
+var dragEndStr = null;
 
 // ==========================================
-// 🚀 SPA 啟動入口 (替換原本的 window.onload)
+// 🚀 SPA 啟動入口 (由 index.ejs 負責喚醒)
 // ==========================================
 window.initCalendarPage = async function () {
-  console.log("SmartMil Calendar Initializing...");
+  console.log("🔥 SmartMil Calendar Initializing...");
   currentToken = localStorage.getItem("token") || "";
   if (!currentToken) {
     window.location.href = "/login.html";
@@ -44,14 +45,61 @@ window.initCalendarPage = async function () {
 
   injectFloatingUI();
   setupProUX();
+  bindGlobalEventsOnce(); // 確保全域事件不會因為 SPA 切換而重複疊加
   await initApp();
 };
 
-// 初次載入或 SPA 切換時的喚醒機制
-if (document.readyState === "complete" || document.readyState === "interactive") {
-  window.initCalendarPage();
-} else {
-  document.addEventListener("DOMContentLoaded", window.initCalendarPage);
+// ==========================================
+// 全域事件防重複綁定 (SPA 必備)
+// ==========================================
+function bindGlobalEventsOnce() {
+  if (window.__smartmilCalendarGlobalsBound) return;
+
+  // 1. Mini picker & Global search 點擊外部隱藏
+  document.addEventListener("click", (e) => {
+    const box = document.getElementById("miniPickerBox");
+    const pill = document.getElementById("floatingPill");
+    if (box && !box.classList.contains("pointer-events-none") && pill && !pill.contains(e.target)) {
+      box.classList.add("opacity-0", "pointer-events-none", "scale-95");
+    }
+
+    const dropdown = document.getElementById("globalSearchDropdown");
+    const input = document.getElementById("globalSearchInput");
+    if (dropdown && !dropdown.classList.contains("hidden")) {
+      if (!dropdown.contains(e.target) && e.target !== input) {
+        dropdown.classList.add("hidden");
+      }
+    }
+  });
+
+  // 2. Drag Selection 的放開事件
+  window.addEventListener("mouseup", async (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    document.body.style.userSelect = "";
+    if (dragStartStr && dragEndStr) {
+      const d1 = new Date(dragStartStr), d2 = new Date(dragEndStr);
+      const start = d1 < d2 ? d1 : d2, end = d1 < d2 ? d2 : d1;
+      const startDateInput = document.getElementById("reqStartDate");
+      const endDateInput = document.getElementById("reqEndDate");
+      if(startDateInput && endDateInput) {
+          startDateInput.value = formatDate(start.getFullYear(), start.getMonth(), start.getDate());
+          endDateInput.value = formatDate(end.getFullYear(), end.getMonth(), end.getDate());
+          calculateReqDays();
+          if(typeof openModal === "function") openModal("requestModal");
+      }
+    }
+    clearSelectionVisuals();
+  });
+
+  // 3. Pro Tooltip 滑鼠移開事件
+  document.addEventListener("mouseover", (e) => {
+    if (e.target && typeof e.target.className === "string" && !e.target.className.includes("leave-bar")) {
+      hideProTooltip();
+    }
+  });
+
+  window.__smartmilCalendarGlobalsBound = true;
 }
 
 // ==========================================
@@ -186,17 +234,14 @@ function injectFloatingUI() {
 }
 
 function setupProUX() {
-  if (document.getElementById("proTooltip")) return; 
-  const tooltip = document.createElement("div");
-  tooltip.id = "proTooltip";
-  tooltip.className = "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
-  document.body.appendChild(tooltip);
+  let tooltip = document.getElementById("proTooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.id = "proTooltip";
+    tooltip.className = "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
+    document.body.appendChild(tooltip);
+  }
 
-  document.addEventListener("mouseover", (e) => {
-    if (e.target && typeof e.target.className === "string" && !e.target.className.includes("leave-bar")) {
-      hideProTooltip();
-    }
-  });
   const calendarEl = document.getElementById("calendar");
   if(calendarEl) calendarEl.addEventListener("scroll", hideProTooltip, { passive: true });
 }
@@ -228,14 +273,6 @@ function toggleMonthPicker() {
     box.classList.add("opacity-0", "pointer-events-none", "scale-95");
   }
 }
-
-document.addEventListener("click", (e) => {
-  const box = document.getElementById("miniPickerBox");
-  const pill = document.getElementById("floatingPill");
-  if (box && !box.classList.contains("pointer-events-none") && pill && !pill.contains(e.target)) {
-    box.classList.add("opacity-0", "pointer-events-none", "scale-95");
-  }
-});
 
 function renderMiniPickerLists() {
   const yList = document.getElementById("miniYearList");
@@ -620,24 +657,6 @@ function setupDragSelection() {
       updateSelectionVisuals();
     }
   });
-  window.addEventListener("mouseup", async (e) => {
-    if (!isDragging) return;
-    isDragging = false;
-    document.body.style.userSelect = "";
-    if (dragStartStr && dragEndStr) {
-      const d1 = new Date(dragStartStr), d2 = new Date(dragEndStr);
-      const start = d1 < d2 ? d1 : d2, end = d1 < d2 ? d2 : d1;
-      const startDateInput = document.getElementById("reqStartDate");
-      const endDateInput = document.getElementById("reqEndDate");
-      if(startDateInput && endDateInput) {
-          startDateInput.value = formatDate(start.getFullYear(), start.getMonth(), start.getDate());
-          endDateInput.value = formatDate(end.getFullYear(), end.getMonth(), end.getDate());
-          calculateReqDays();
-          if(typeof openModal === "function") openModal("requestModal");
-      }
-    }
-    clearSelectionVisuals();
-  });
 }
 
 function updateSelectionVisuals() {
@@ -974,6 +993,9 @@ async function submitRequest() {
 // ==========================================
 // 🔥 檢討者專用：底部抽屜選單互動邏輯 (支援 Drag & Drop)
 // ==========================================
+var draggedLeaveId = null;
+var draggedLeaveName = null;
+
 function openBottomSheet(dateStr) {
   const targetDate = new Date(dateStr);
   const dayLeaves = dbLeavesCache.filter(l => {
@@ -1169,8 +1191,6 @@ async function deleteSpecialRate(rateId) {
 // ==========================================
 // 🔥 抽屜面板 Drag & Drop (1換1 積分對調) 邏輯
 // ==========================================
-let draggedLeaveId = null;
-let draggedLeaveName = null;
 
 function handleDragStart(e, id, name) {
   if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
@@ -1216,7 +1236,7 @@ async function handleDrop(e, targetId, targetName) {
 // ==========================================
 // 🔥 全局搜尋引擎 (Global Search & Spotlight)
 // ==========================================
-let globalSearchCache = null;
+var globalSearchCache = null;
 
 async function initGlobalSearchData() {
   const endpoint = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) ? "/leaves/all" : "/leaves/my";
@@ -1327,13 +1347,3 @@ async function executeSearchNavigation(leaveId, type, startDateStr, isSmooth = t
 
   tryHighlight();
 }
-
-document.addEventListener("click", (e) => {
-  const dropdown = document.getElementById("globalSearchDropdown");
-  const input = document.getElementById("globalSearchInput");
-  if (dropdown && !dropdown.classList.contains("hidden")) {
-    if (!dropdown.contains(e.target) && e.target !== input) {
-      dropdown.classList.add("hidden");
-    }
-  }
-});
