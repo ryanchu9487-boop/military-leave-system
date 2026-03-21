@@ -1,0 +1,52 @@
+<header class="bg-white/75 backdrop-blur-2xl border-b border-gray-100 px-4 sm:px-6 py-3 flex items-center justify-between relative z-40 transition-all shrink-0">
+  <div class="flex items-center gap-3">
+    <button onclick="openSidebar()" class="text-gray-500 hover:text-gray-800 transition p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+      <i class="fa-solid fa-bars text-lg"></i>
+    </button>
+    <h1 onclick="spaNavigate('/')" class="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 tracking-tighter cursor-pointer hover:opacity-80 transition-opacity">
+      SmartMil
+    </h1>
+  </div>
+
+  <div class="flex items-center gap-2 sm:gap-3">
+    <div class="relative group hidden sm:flex items-center">
+      <input id="globalSearchInput" onfocus="initGlobalSearchData()" oninput="handleGlobalSearch(this.value)" type="text" placeholder="이름, 사유, 계급 검색..." class="w-9 h-9 rounded-full bg-gray-100/80 border border-transparent focus:w-56 lg:focus:w-72 focus:bg-white focus:border-indigo-300 focus:shadow-[0_4px_20px_-5px_rgba(99,102,241,0.15)] focus:px-4 focus:pl-10 transition-all duration-500 outline-none text-sm placeholder-transparent focus:placeholder-gray-400 cursor-pointer focus:cursor-text peer text-gray-700" />
+      <i class="fa-solid fa-magnifying-glass absolute left-2.5 text-gray-500 peer-focus:text-indigo-500 transition-colors duration-300 pointer-events-none"></i>
+      <div id="globalSearchDropdown" class="hidden absolute top-12 left-0 w-full min-w-[280px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-[60vh] overflow-hidden">
+        <div class="p-3 border-b border-gray-100 bg-indigo-50/50 font-bold text-indigo-800 text-xs flex justify-between items-center shrink-0">
+          <span><i class="fa-solid fa-bolt text-indigo-500 mr-1.5"></i>빠른 검색 결과</span>
+        </div>
+        <div id="globalSearchList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white"></div>
+      </div>
+    </div>
+
+    <span id="user-profile-name" class="text-sm font-bold text-gray-700 hidden sm:block">로딩중...</span>
+
+    <div class="relative flex items-center">
+      <button id="notificationWrapper" onclick="toggleNotifications()" class="w-9 h-9 relative flex items-center justify-center text-gray-600 hover:text-indigo-600 hover:bg-gray-100 rounded-full transition-all focus:outline-none hidden" title="알림">
+        <i class="fa-regular fa-bell text-lg"></i>
+        <span id="notificationBadge" class="hidden absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+      </button>
+      <div id="notificationDropdown" class="hidden absolute top-12 right-0 w-80 sm:w-96 bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-96 overflow-hidden transition-all transform origin-top-right">
+        <div class="p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm font-bold text-gray-800 text-sm flex justify-between items-center">
+          <span><i class="fa-solid fa-bell text-indigo-500 mr-1.5"></i>알림 내역</span>
+          <div class="flex items-center gap-2">
+            <button id="approveAllBtn" onclick="approveAllLeaves()" class="hidden text-[11px] bg-indigo-600 text-white px-2.5 py-1 rounded shadow-sm hover:bg-indigo-700 transition font-bold">일괄 승인</button>
+            <button onclick="toggleNotifications()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+        </div>
+        <div id="notificationList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white"></div>
+      </div>
+    </div>
+
+    <div class="hidden sm:block w-px h-5 bg-gray-300 mx-1"></div>
+
+    <button onclick="spaNavigate('/settings.html')" class="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold shadow-sm hover:shadow-md hover:scale-105 transition-all focus:outline-none" title="내 정보 및 설정">
+      <span class="text-xs" id="headerProfileInitials">U</span>
+    </button>
+
+    <button onclick="logout()" class="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all focus:outline-none" title="로그아웃">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i>
+    </button>
+  </div>
+</header>

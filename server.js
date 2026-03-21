@@ -13,6 +13,11 @@ const User = require("./models/User");
 const Leave = require("./models/Leave");
 
 const app = express();
+
+// 🔥 [新增] 啟動 EJS 模板引擎
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
 app.set("trust proxy", 1);
 
 // 🔐 기본 보안 및 미들웨어
@@ -309,6 +314,17 @@ app.get("/leaves/notifications", authMiddleware, async (req, res) => {
 app.use("/", require("./src/routes/authRoutes"));
 app.use("/", require("./src/routes/leaveRoutes"));
 app.use("/", require("./src/routes/memberRoutes"));
+
+// ============================
+// 🔥 [新增] EJS 網頁渲染路由
+// (為了不破壞您原本的網址，我們讓 .html 的網址也能對應到 .ejs 檔案)
+// ============================
+app.get(["/", "/index.html"], (req, res) => res.render("index"));
+app.get("/login.html", (req, res) => res.render("login"));
+app.get("/settings.html", (req, res) => res.render("settings"));
+app.get("/adduser.html", (req, res) => res.render("adduser"));
+app.get("/review.html", (req, res) => res.render("review"));
+app.get("/approve.html", (req, res) => res.render("approve"));
 
 // ============================
 // 서버 실행
