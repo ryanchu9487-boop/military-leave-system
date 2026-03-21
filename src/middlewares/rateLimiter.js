@@ -3,7 +3,7 @@ const rateLimit = require("express-rate-limit");
 // 🔐 전역 요청 제한
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
 });

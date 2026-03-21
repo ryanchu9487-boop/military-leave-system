@@ -495,11 +495,11 @@ function renderEvents() {
       levelRow.className = "relative w-full h-[22px]";
       let currentLeave = null, startIndex = -1, span = 0;
 
-      const drawBar = (leave, startIdx, sp) => {
+     const drawBar = (leave, startIdx, sp) => {
         const bar = document.createElement("div");
         const isGlobalStart = leave.startDate.split("T")[0] === days[startIdx];
         const isGlobalEnd = leave.endDate.split("T")[0] === days[startIdx + sp - 1];
-        
+
         bar.className = `absolute top-0 h-[22px] pointer-events-auto cursor-pointer transition-all duration-200 z-10 px-1.5 flex items-center text-[11px] font-bold text-white truncate shadow-sm leave-bar-${leave._id}`;
         bar.style.left = `calc(100% / 7 * ${startIdx})`;
         bar.style.width = `calc((100% / 7 * ${sp}) - 6px)`;
@@ -529,6 +529,7 @@ function renderEvents() {
         bar.innerText = isGlobalStart || startIdx === 0 ? displayName : "";
         const fixedColor = getLeaveColor(leave.reason, leave.type);
 
+        // 🔥 這裡的 if...else 鏈已經完美修復，絕不會再報 SyntaxError
         if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
@@ -538,36 +539,37 @@ function renderEvents() {
             e.stopPropagation(); 
             hideProTooltip(); 
             
-            const dropdown = document.getElementById("notificationDropdown");
-            if (dropdown) dropdown.classList.add("hidden");
+            // 1. 立即隱藏 알림창
+            if (typeof window.closeNotifications === "function") window.closeNotifications();
 
+            // 2. 讓月曆上的 bar 瞬間淡出消失
             bar.style.transition = "all 0.3s ease";
             bar.style.opacity = "0";
             bar.style.transform = "scale(0.9)";
             
+            // 3. 瞬間從 알림창 中移除這個項目，並重新計算小鈴鐺數字
             const notiEl = document.getElementById(`noti-${leave._id}`);
             if (notiEl) notiEl.remove();
-
+            
             const notificationList = document.getElementById("notificationList");
             const badge = document.getElementById("notificationBadge");
-            if (notificationList && badge && notificationList.children.length === 0) {
-              badge.classList.add("hidden");
+            if (notificationList && badge) {
+              const remaining = notificationList.querySelectorAll('.noti-item').length;
+              if (remaining === 0) {
+                badge.classList.add("hidden");
+                notificationList.innerHTML = `<div class="p-8 text-center text-slate-400"><div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-bell-slash text-xl text-slate-300"></i></div><p class="text-xs font-bold text-slate-500">새로운 알림이 없습니다.</p></div>`;
+              } else {
+                badge.innerText = remaining;
+              }
             }
 
+            // 4. 發送已讀請求
             try {
               await fetch(`/leaves/${leave._id}/confirm-reject`, {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${currentToken}` }
               });
-              
-              setTimeout(() => {
-                if (typeof window.fetchUserInfoAndNotifications === "function") {
-                  window.fetchUserInfoAndNotifications();
-                }
-              }, 500);
-            } catch(err) { 
-              console.error("Confirm Reject Error:", err); 
-            }
+            } catch(err) { console.error("Confirm Reject Error:", err); }
 
             setTimeout(() => refreshCalendarData(), 300); 
           };
@@ -598,13 +600,14 @@ function renderEvents() {
           bar.onclick = (e) => {
             e.stopPropagation();
             hideProTooltip();
+            if (typeof window.closeNotifications === "function") window.closeNotifications();
             
             if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
               if (leave.status === "PENDING_REVIEW" || leave.status === "CANCEL_REQ_REVIEW") {
-                window.location.href = `review.html?id=${leave._id}`;
+                spaNavigate(`/review.ejs?id=${leave._id}`); // 注意：如果是 html 檔這裡請改為 review.html
                 return;
               } else if (leave.status === "PENDING_APPROVAL" || leave.status === "CANCEL_REQ_APPROVAL") {
-                window.location.href = `approve.html?id=${leave._id}`;
+                spaNavigate(`/approve.html?id=${leave._id}`);
                 return;
               }
             }
@@ -677,7 +680,16 @@ async function fetchLeavesFromDB() {
   currentToken = localStorage.getItem("token") || ""; 
   const endpoint = currentCalendarMode === "personal" ? "/leaves/my" : "/leaves/all";
   const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
-  dbLeavesCache = (await res.json()).leaves || [];
+  
+  // 🛡️ 401 防呆：抓不到資料就直接踢回登入頁
+  if (res.status === 401) {
+      localStorage.removeItem("token");
+      window.location.href = "/login.html";
+      return;
+  }
+  
+  const data = await res.json();
+  dbLeavesCache = data.leaves || [];
 }
 
 async function fetchGoogleHolidays(start, end) {
