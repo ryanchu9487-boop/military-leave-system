@@ -17,12 +17,12 @@
         .glass-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05); border-radius: 1.5rem; }
     </style>
 </head>
-<body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
+<body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative">
 
     <%- include('partials/sidebar') %>
     <%- include('partials/header') %>
 
-    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-hidden flex flex-col transition-opacity duration-300">
         
         <div class="mesh-bg">
             <div class="blob blob-1"></div>
@@ -64,10 +64,7 @@
                     <div class="bg-gray-50 border border-gray-100 rounded-xl p-5 flex items-center justify-between">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-xl text-yellow-500 shadow-sm border border-gray-100"><i class="fa-solid fa-angles-up"></i></div>
-                            <div>
-                                <p class="text-xs font-bold text-gray-500 mb-0.5">다음 진급 목표</p>
-                                <p class="text-lg font-black text-gray-800" id="nextPromoTarget">계산 중...</p>
-                            </div>
+                            <div><p class="text-xs font-bold text-gray-500 mb-0.5">다음 진급 목표</p><p class="text-lg font-black text-gray-800" id="nextPromoTarget">계산 중...</p></div>
                         </div>
                         <div class="text-right"><p class="text-xl font-black text-indigo-600" id="nextPromoDday">D-0</p></div>
                     </div>
@@ -76,143 +73,136 @@
                 <section class="glass-card p-6 sm:p-8">
                     <h3 class="text-lg font-black text-gray-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-indigo-500"></i> 보안 설정</h3>
                     <div class="space-y-4 max-w-md">
-                        <p class="text-xs font-bold text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 mb-4 hidden" id="forceChangeWarning">
-                            <i class="fa-solid fa-triangle-exclamation mr-1"></i>보안을 위해 비밀번호를 반드시 변경해야 합니다!
-                        </p>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5">현재 비밀번호</label>
-                            <input type="password" id="oldPassword" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none" placeholder="현재 비밀번호를 입력하세요" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5">새 비밀번호</label>
-                            <input type="password" id="newPassword" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none" placeholder="새로운 비밀번호 (6자리 이상)" />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1.5">새 비밀번호 확인</label>
-                            <input type="password" id="confirmPassword" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none" placeholder="새로운 비밀번호를 다시 입력하세요" />
-                        </div>
+                        <p class="text-xs font-bold text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 mb-4 hidden" id="forceChangeWarning"><i class="fa-solid fa-triangle-exclamation mr-1"></i>보안을 위해 비밀번호를 반드시 변경해야 합니다!</p>
+                        <div><label class="block text-sm font-bold text-gray-700 mb-1.5">현재 비밀번호</label><input type="password" id="oldPassword" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none" placeholder="현재 비밀번호" /></div>
+                        <div><label class="block text-sm font-bold text-gray-700 mb-1.5">새 비밀번호</label><input type="password" id="newPassword" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none" placeholder="새 비밀번호 (6자리 이상)" /></div>
+                        <div><label class="block text-sm font-bold text-gray-700 mb-1.5">새 비밀번호 확인</label><input type="password" id="confirmPassword" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl outline-none" placeholder="새 비밀번호 확인" /></div>
                         <button onclick="changePassword()" class="mt-4 px-6 py-2.5 bg-gray-800 text-white font-bold rounded-xl shadow-md hover:bg-gray-900 transition-colors">비밀번호 변경</button>
                     </div>
                 </section>
             </div>
         </main>
-    </div>
 
-    <script src="/common.js"></script>
-    <script>
-        // 🚀 設定頁專屬初始化函數 (供 SPA 引擎呼叫)
-        window.loadSettingsPage = async function() {
-            console.log("Settings Page Initializing...");
-            await loadSettingsProfileData();
-        };
+        <script>
+            // 🔥 供 common.js 呼叫的初始化器
+            window.loadSettingsPage = async function() {
+                console.log("Settings Page Initializing...");
+                await loadSettingsProfileData();
+            };
 
-        // 頁面加載時執行
-        document.addEventListener("DOMContentLoaded", () => {
-            window.loadSettingsPage();
-        });
+            async function loadSettingsProfileData() {
+                const token = localStorage.getItem("token");
+                if (!token) return;
+                try {
+                    const res = await fetch("/profile", { headers: { Authorization: `Bearer ${token}` } });
+                    const data = await res.json();
+                    if (data.user) {
+                        const u = data.user;
+                        const roleLocal = { soldier: "용사", officer: "간부", reviewer: "검토자", approver: "승인자" }[u.role] || u.role;
+                        document.getElementById("profileName").innerText = u.name || "알 수 없음";
+                        document.getElementById("profileInitial").innerText = (u.name || "U").charAt(0);
+                        document.getElementById("profileServiceNum").innerText = u.serviceNumber || "-";
+                        document.getElementById("profileRank").innerText = u.rank || "계급없음";
+                        document.getElementById("profileRole").innerText = roleLocal;
+                        document.getElementById("profileUnit").innerText = u.orgName || "소속 부대 없음";
+                        if (u.forceChangePassword) document.getElementById("forceChangeWarning").classList.remove("hidden");
+                        if (u.role === "soldier") {
+                            document.getElementById("ddaySection").classList.remove("hidden");
+                            calculateDdays(u);
+                        }
+                    }
+                } catch (err) { console.error("Data Fetch Error", err); }
+            }
 
-        function formatDate(dateStr) {
-            if (!dateStr) return "-";
-            const d = new Date(dateStr);
-            return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-        }
-
-        async function loadSettingsProfileData() {
-            const token = localStorage.getItem("token");
-            if (!token) return;
-            try {
-                const res = await fetch("/profile", { headers: { Authorization: `Bearer ${token}` } });
-                const data = await res.json();
-                if (data.user) {
-                    const u = data.user;
-                    const roleMapLocal = { soldier: "용사", officer: "간부", reviewer: "검토자", approver: "승인자" };
-                    const roleStr = roleMapLocal[u.role] || u.role;
-
-                    document.getElementById("profileName").innerText = u.name || "알 수 없음";
-                    document.getElementById("profileInitial").innerText = (u.name || "U").charAt(0);
-                    document.getElementById("profileServiceNum").innerText = u.serviceNumber || "-";
-                    document.getElementById("profileRank").innerText = u.rank || "계급없음";
-                    document.getElementById("profileRole").innerText = roleStr;
-                    document.getElementById("profileUnit").innerText = u.orgName || "소속 부대 없음";
-
-                    if (u.forceChangePassword) document.getElementById("forceChangeWarning").classList.remove("hidden");
-                    if (u.role === "soldier") {
-                        document.getElementById("ddaySection").classList.remove("hidden");
-                        calculateDdays(u);
+            function calculateDdays(user) {
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                
+                // 1. 處理退伍日計算
+                if (user.enlistmentDate && user.dischargeDate) {
+                    const enlist = new Date(user.enlistmentDate);
+                    const discharge = new Date(user.dischargeDate);
+                    const totalDays = (discharge - enlist) / 86400000;
+                    const servedDays = (today - enlist) / 86400000;
+                    const remainDays = Math.ceil((discharge - today) / 86400000);
+                    
+                    const enlistEl = document.getElementById("enlistDate");
+                    const dischargeEl = document.getElementById("dischargeDate");
+                    if(enlistEl) enlistEl.innerText = `입대일: ${user.enlistmentDate.split('T')[0]}`;
+                    if(dischargeEl) dischargeEl.innerText = `전역일: ${user.dischargeDate.split('T')[0]}`;
+                    
+                    if (remainDays > 0) {
+                        const ddayEl = document.getElementById("dischargeDday");
+                        if(ddayEl) ddayEl.innerText = `D-${remainDays}`;
+                        
+                        let percent = Math.floor((servedDays / totalDays) * 100);
+                        percent = Math.max(0, Math.min(100, percent));
+                        const pctEl = document.getElementById("progressPercent");
+                        if(pctEl) pctEl.innerText = `${percent}%`;
+                        
+                        setTimeout(() => { 
+                            const bar = document.getElementById("progressBar");
+                            if(bar) bar.style.width = `${percent}%`; 
+                        }, 300);
+                    } else {
+                        const ddayEl = document.getElementById("dischargeDday");
+                        if(ddayEl) ddayEl.innerText = "🎉 전역 완료";
+                        const bar = document.getElementById("progressBar");
+                        if(bar) bar.style.width = "100%";
                     }
                 }
-            } catch (err) { console.error("抓取個人資料失敗", err); }
-        }
 
-        function calculateDdays(user) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            if (user.enlistmentDate && user.dischargeDate) {
-                const enlist = new Date(user.enlistmentDate);
-                const discharge = new Date(user.dischargeDate);
-                document.getElementById("enlistDate").innerText = `입대일: ${formatDate(enlist)}`;
-                document.getElementById("dischargeDate").innerText = `전역일: ${formatDate(discharge)}`;
+                // 2. 處理晉升目標
+                const promoTargets = [
+                    { rank: "일병", date: user.promoToIlbyung },
+                    { rank: "상병", date: user.promoToSangbyung },
+                    { rank: "병장", date: user.promoToByungjang },
+                ];
+                
+                let nextTarget = null;
+                for (let t of promoTargets) {
+                    if (t.date && new Date(t.date) > today) {
+                        nextTarget = t;
+                        break;
+                    }
+                }
 
-                const totalDays = (discharge - enlist) / (1000 * 60 * 60 * 24);
-                const servedDays = (today - enlist) / (1000 * 60 * 60 * 24);
-                const remainDays = Math.ceil((discharge - today) / (1000 * 60 * 60 * 24));
+                const targetEl = document.getElementById("nextPromoTarget");
+                const ddayEl = document.getElementById("nextPromoDday");
 
-                if (remainDays > 0) {
-                    document.getElementById("dischargeDday").innerText = `D-${remainDays}`;
-                    let percent = Math.floor((servedDays / totalDays) * 100);
-                    percent = percent < 0 ? 0 : (percent > 100 ? 100 : percent);
-                    document.getElementById("progressPercent").innerText = `${percent}%`;
-                    setTimeout(() => { document.getElementById("progressBar").style.width = `${percent}%`; }, 300);
+                if (nextTarget) {
+                    const remain = Math.ceil((new Date(nextTarget.date) - today) / 86400000);
+                    if(targetEl) targetEl.innerText = `${nextTarget.rank} 진급 (${nextTarget.date.split('T')[0]})`;
+                    if(ddayEl) ddayEl.innerText = `D-${remain}`;
                 } else {
-                    document.getElementById("dischargeDday").innerText = "🎉 전역 완료";
-                    document.getElementById("progressPercent").innerText = "100%";
-                    document.getElementById("progressBar").style.width = "100%";
-                    document.getElementById("progressBar").classList.replace("bg-emerald-400", "bg-yellow-400");
+                    if(targetEl) targetEl.innerText = "⭐ 최고 계급 도달";
+                    if(ddayEl) {
+                        ddayEl.innerText = "무사 전역 기원!";
+                        ddayEl.className = "text-sm font-bold text-indigo-600";
+                    }
                 }
             }
 
-            const promoTargets = [
-                { rank: "일병", date: user.promoToIlbyung },
-                { rank: "상병", date: user.promoToSangbyung },
-                { rank: "병장", date: user.promoToByungjang },
-            ];
-            let nextTarget = promoTargets.find(t => t.date && new Date(t.date) > today);
-            const targetEl = document.getElementById("nextPromoTarget");
-            const ddayEl = document.getElementById("nextPromoDday");
-
-            if (nextTarget) {
-                const remain = Math.ceil((new Date(nextTarget.date) - today) / (1000 * 60 * 60 * 24));
-                targetEl.innerText = `${nextTarget.rank} 진급 (${formatDate(nextTarget.date)})`;
-                ddayEl.innerText = `D-${remain}`;
-            } else {
-                targetEl.innerText = "⭐ 최고 계급 도달";
-                ddayEl.innerText = "무사 전역 기원!";
-                ddayEl.className = "text-sm font-bold text-indigo-600";
+            async function changePassword() {
+                const oldPassword = document.getElementById("oldPassword").value;
+                const newPassword = document.getElementById("newPassword").value;
+                const confirmPassword = document.getElementById("confirmPassword").value;
+                if (!oldPassword || !newPassword || !confirmPassword) return alert("모든 칸을 입력해주세요.");
+                if (newPassword !== confirmPassword) return alert("비밀번호가 일치하지 않습니다.");
+                try {
+                    const res = await fetch("/profile/password", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
+                        body: JSON.stringify({ oldPassword, newPassword }),
+                    });
+                    const data = await res.json();
+                    if (data.success) { alert("변경되었습니다."); window.location.href = "/login.html"; }
+                    else alert(data.error);
+                } catch (e) { alert("서버 오류"); }
             }
-        }
 
-        async function changePassword() {
-            const oldPassword = document.getElementById("oldPassword").value;
-            const newPassword = document.getElementById("newPassword").value;
-            const confirmPassword = document.getElementById("confirmPassword").value;
-            if (!oldPassword || !newPassword || !confirmPassword) return alert("모든 칸을 입력해주세요.");
-            if (newPassword.length < 6) return alert("새 비밀번호는 6자리 이상이어야 합니다.");
-            if (newPassword !== confirmPassword) return alert("새 비밀번호가 일치하지 않습니다.");
-
-            try {
-                const res = await fetch("/profile/password", {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` },
-                    body: JSON.stringify({ oldPassword, newPassword }),
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert("비밀번호가 변경되었습니다. 다시 로그인해주세요.");
-                    localStorage.removeItem("token");
-                    window.location.href = "/login.html";
-                } else alert(data.error || "변경 실패");
-            } catch (error) { alert("서버 오류"); }
-        }
-    </script>
+            // 初始執行
+            document.addEventListener("DOMContentLoaded", window.loadSettingsPage);
+        </script>
+    </div> <script src="/common.js"></script>
 </body>
 </html>

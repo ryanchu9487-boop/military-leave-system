@@ -1,5 +1,6 @@
 /**
  * SmartMil Unified Calendar Logic - 終極防呆、自動排備取、抽屜選單與完整申請版
+ * (SPA 無縫切換相容完整版)
  */
 
 const GOOGLE_API_KEY = "AIzaSyBDbm1GF1W0wKYXSeAoIj3F8TJbmn7wHuw";
@@ -21,7 +22,12 @@ let isDragging = false;
 let dragStartStr = null;
 let dragEndStr = null;
 
-window.onload = async function () {
+// ==========================================
+// 🚀 SPA 啟動入口 (替換原本的 window.onload)
+// ==========================================
+window.initCalendarPage = async function () {
+  console.log("SmartMil Calendar Initializing...");
+  currentToken = localStorage.getItem("token") || "";
   if (!currentToken) {
     window.location.href = "/login.html";
     return;
@@ -41,25 +47,32 @@ window.onload = async function () {
   await initApp();
 };
 
+// 初次載入或 SPA 切換時的喚醒機制
+if (document.readyState === "complete" || document.readyState === "interactive") {
+  window.initCalendarPage();
+} else {
+  document.addEventListener("DOMContentLoaded", window.initCalendarPage);
+}
+
+// ==========================================
+// 核心應用程式初始化與渲染邏輯
+// ==========================================
+
 async function initApp() {
-  // 🔥 1. 優先檢查 URL 參數，決定「初始月份」
   const urlParams = new URLSearchParams(window.location.search);
   const focusId = urlParams.get("focus");
   const targetDateStr = urlParams.get("date");
 
   if (focusId && targetDateStr) {
-    // 跨頁面導航：直接把初始時間設定在目標月份！
     const targetDate = new Date(targetDateStr);
     currentYear = targetDate.getFullYear();
     currentMonth = targetDate.getMonth();
   } else {
-    // 正常登入：設定為今天
     const now = new Date();
     currentYear = now.getFullYear();
     currentMonth = now.getMonth();
   }
   
-  // 🔥 2. 這裡畫出來的月曆，直接就是目標月份了！
   await refreshCalendarData();
   await fetchLeaveRates();
   setupScrollObserver();
@@ -68,16 +81,12 @@ async function initApp() {
   setTimeout(async () => {
     if (focusId) {
       const type = urlParams.get("type");
-      // 清除網址列參數，保持乾淨
       window.history.replaceState({}, document.title, window.location.pathname);
-      
-      // 啟動聚光燈導航 (傳入 false 代表「不要平滑滾動」，瞬間切換)
       await executeSearchNavigation(focusId, type, targetDateStr, false);
     } else {
-      // 正常載入
       scrollToMonth(currentYear, currentMonth, false);
     }
-  }, 100); // 等待初始渲染完成
+  }, 100); 
 }
 
 async function refreshCalendarData() {
@@ -89,7 +98,6 @@ async function refreshCalendarData() {
 async function switchCalendarMode(mode) {
   if (currentCalendarMode === mode) return;
   currentCalendarMode = mode;
-  // 🔥 [修復] 切換模式時，必須強制重新去資料庫抓資料 (因為 endpoint 會從 /my 變成 /all)
   await refreshCalendarData(); 
 }
 
@@ -107,16 +115,13 @@ function updateModeUI() {
   if (btnTeamLong) btnTeamLong.className = currentCalendarMode === "team-long" ? activeClass : inactiveClass;
   if (btnTeamShort) btnTeamShort.className = currentCalendarMode === "team-short" ? activeClass : inactiveClass;
 
-  // 🔥 判斷是否為長官
   const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole);
 
-  // ⚙️ 齒輪按鈕 (出島率設定)：只要是長官就永遠顯示
   if (settingsModalBtn) {
     if (isManager) settingsModalBtn.classList.remove("hidden");
     else settingsModalBtn.classList.add("hidden");
   }
 
-  // 📝 一鍵結算按鈕：長官 + 必須在「全體月曆模式」才顯示
   if (batchApproveBtn) {
     if (isManager && currentCalendarMode !== "personal") {
       batchApproveBtn.classList.remove("hidden");
@@ -126,7 +131,6 @@ function updateModeUI() {
   }
 }
 
-// 🔥 [修改] 將結算按鈕 API 修改為專屬月曆的正取結算 (Phase 1)
 async function batchApprovePhase1() {
   if (!confirm("현재 월력에 표시된 [정규 편성(정원 내)] 인원만 일괄 승인/검토완료 처리하시겠습니까?\n(후보 인원은 제외됩니다)")) return;
   try {
@@ -145,10 +149,15 @@ async function batchApprovePhase1() {
 }
 
 function injectFloatingUI() {
-  const container = document.getElementById("calendar").parentElement;
+  const container = document.getElementById("calendar")?.parentElement;
+  if (!container) return;
   container.classList.add("relative");
   container.style.paddingTop = "0px";
-  if (document.getElementById("floatingPill")) return;
+  
+  if (document.getElementById("floatingPill")) {
+    document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
+    return;
+  }
 
   const pill = document.createElement("div");
   pill.id = "floatingPill";
@@ -177,6 +186,7 @@ function injectFloatingUI() {
 }
 
 function setupProUX() {
+  if (document.getElementById("proTooltip")) return; 
   const tooltip = document.createElement("div");
   tooltip.id = "proTooltip";
   tooltip.className = "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
@@ -187,11 +197,13 @@ function setupProUX() {
       hideProTooltip();
     }
   });
-  document.getElementById("calendar").addEventListener("scroll", hideProTooltip, { passive: true });
+  const calendarEl = document.getElementById("calendar");
+  if(calendarEl) calendarEl.addEventListener("scroll", hideProTooltip, { passive: true });
 }
 
 function showProTooltip(e, title, dates, reason, color) {
   const tt = document.getElementById("proTooltip");
+  if(!tt) return;
   tt.innerHTML = `<div class="flex items-center gap-2 mb-1.5"><div class="w-2.5 h-2.5 rounded-full shadow-sm" style="background-color: ${color}"></div><span class="font-black text-gray-800 text-[13px] tracking-tight">${title}</span></div><div class="text-[11px] text-gray-500 font-medium font-mono bg-gray-50 rounded px-1.5 py-0.5 inline-block mb-1.5"><i class="fa-regular fa-calendar mr-1"></i>${dates}</div><div class="text-[12px] text-gray-600 leading-snug break-words">${reason}</div>`;
   tt.style.left = e.clientX + "px";
   tt.style.top = e.clientY + "px";
@@ -199,8 +211,7 @@ function showProTooltip(e, title, dates, reason, color) {
 }
 function moveProTooltip(e) {
   const tt = document.getElementById("proTooltip");
-  tt.style.left = e.clientX + "px";
-  tt.style.top = e.clientY + "px";
+  if(tt) { tt.style.left = e.clientX + "px"; tt.style.top = e.clientY + "px"; }
 }
 function hideProTooltip() {
   const tt = document.getElementById("proTooltip");
@@ -209,6 +220,7 @@ function hideProTooltip() {
 
 function toggleMonthPicker() {
   const box = document.getElementById("miniPickerBox");
+  if (!box) return;
   if (box.classList.contains("pointer-events-none")) {
     renderMiniPickerLists();
     box.classList.remove("opacity-0", "pointer-events-none", "scale-95");
@@ -220,7 +232,7 @@ function toggleMonthPicker() {
 document.addEventListener("click", (e) => {
   const box = document.getElementById("miniPickerBox");
   const pill = document.getElementById("floatingPill");
-  if (box && !box.classList.contains("pointer-events-none") && !pill.contains(e.target)) {
+  if (box && !box.classList.contains("pointer-events-none") && pill && !pill.contains(e.target)) {
     box.classList.add("opacity-0", "pointer-events-none", "scale-95");
   }
 });
@@ -228,6 +240,7 @@ document.addEventListener("click", (e) => {
 function renderMiniPickerLists() {
   const yList = document.getElementById("miniYearList");
   const mList = document.getElementById("miniMonthList");
+  if (!yList || !mList) return;
   yList.innerHTML = "";
   mList.innerHTML = "";
   for (let y = currentYear - 3; y <= currentYear + 3; y++) {
@@ -270,7 +283,8 @@ async function resetCalendarTo(year, month) {
 
   const holidays = await fetchGoogleHolidays(renderStartDate, renderEndDate);
   leavesCache = [...dbLeavesCache, ...holidays];
-  document.getElementById("calendar").innerHTML = generateCellsHTML(renderStartDate, renderEndDate);
+  const cal = document.getElementById("calendar");
+  if(cal) cal.innerHTML = generateCellsHTML(renderStartDate, renderEndDate);
   renderEvents();
 }
 
@@ -293,7 +307,6 @@ function generateCellsHTML(start, end) {
       const isFirst = d === 1;
       const dateColor = isToday ? "bg-indigo-600 text-white px-2 py-0.5 rounded-full font-black inline-block" : i === 0 ? "text-red-500 date-text" : i === 6 ? "text-blue-500 date-text" : "text-gray-700 date-text";
       
-      // 🔥 [分離] 只有點擊格子空白處，才會打開抽屜面板
       const clickAction = isClickable ? `onclick="openBottomSheet('${fullDateStr}')"` : "";
       const hoverClass = isClickable ? "hover:bg-indigo-50/50 cursor-pointer" : "cursor-default";
 
@@ -339,6 +352,7 @@ function updateVisualFocus(focusYear, focusMonth) {
 
 function setupScrollObserver() {
   const container = document.getElementById("calendar");
+  if (!container) return;
   container.addEventListener("scroll", async () => {
     const rect = container.getBoundingClientRect();
     const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 3);
@@ -478,7 +492,7 @@ function renderEvents() {
         bar.innerText = isGlobalStart || startIdx === 0 ? displayName : "";
         const fixedColor = getLeaveColor(leave.reason, leave.type);
 
-      if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
+        if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
           bar.style.color = "#4b5563";
@@ -487,20 +501,16 @@ function renderEvents() {
             e.stopPropagation(); 
             hideProTooltip(); 
             
-            // 🔥 [新增] 1. 點擊瞬間，強制關閉小鈴鐺選單！還給勇士乾淨的視野
             const dropdown = document.getElementById("notificationDropdown");
             if (dropdown) dropdown.classList.add("hidden");
 
-            // 2. [瞬間刪除月曆長條] 平滑淡出
             bar.style.transition = "all 0.3s ease";
             bar.style.opacity = "0";
             bar.style.transform = "scale(0.9)";
             
-            // 3. [瞬間刪除鈴鐺通知]
             const notiEl = document.getElementById(`noti-${leave._id}`);
             if (notiEl) notiEl.remove();
 
-            // 🔥 [新增] 4. 樂觀更新紅點：檢查如果刪掉後，鈴鐺裡沒通知了，瞬間把紅點藏起來！
             const notificationList = document.getElementById("notificationList");
             const badge = document.getElementById("notificationBadge");
             if (notificationList && badge && notificationList.children.length === 0) {
@@ -508,14 +518,11 @@ function renderEvents() {
             }
 
             try {
-              // 5. 呼叫後端確認已讀並隱藏
               await fetch(`/leaves/${leave._id}/confirm-reject`, {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${currentToken}` }
               });
               
-              // 6. 背景重整小鈴鐺，確保伺服器與畫面資料 100% 同步
-
               setTimeout(() => {
                 if (typeof window.fetchUserInfoAndNotifications === "function") {
                   window.fetchUserInfoAndNotifications();
@@ -525,7 +532,6 @@ function renderEvents() {
               console.error("Confirm Reject Error:", err); 
             }
 
-            // 7. 0.3秒後無縫重繪月曆
             setTimeout(() => refreshCalendarData(), 300); 
           };
           
@@ -544,7 +550,6 @@ function renderEvents() {
           bar.style.opacity = "1";
         }
 
-        // 下方的 tooltip 與一般點擊導航邏輯維持原樣，不需要動！
         if (!leave.status.includes("REJECTED") && leave.status !== "CANCEL_APPROVED") {
           bar.addEventListener("mouseenter", (e) => {
             highlightLeave(leave._id);
@@ -557,7 +562,6 @@ function renderEvents() {
             e.stopPropagation();
             hideProTooltip();
             
-            // 🔥 [分離] 只要點擊長條本身，直接導航去審核
             if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
               if (leave.status === "PENDING_REVIEW" || leave.status === "CANCEL_REQ_REVIEW") {
                 window.location.href = `review.html?id=${leave._id}`;
@@ -568,7 +572,6 @@ function renderEvents() {
               }
             }
             
-            // 如果是勇士點自己的長條 (或審核已完成)，則維持原有的取消功能
             if (["PENDING_REVIEW", "PENDING_APPROVAL", "APPROVED"].includes(leave.status)) {
               if (confirm(`일정을 취소/삭제하시겠습니까?\n사유: ${leave.reason}`)) cancelLeave(leave._id);
             }
@@ -596,6 +599,7 @@ function renderEvents() {
 
 function setupDragSelection() {
   const calendar = document.getElementById("calendar");
+  if(!calendar) return;
   calendar.addEventListener("dragstart", (e) => e.preventDefault());
   calendar.addEventListener("mousedown", (e) => {
     if (e.button !== 0 || e.target.closest('[class*="leave-bar"]') || currentCalendarMode !== "personal") return;
@@ -623,10 +627,14 @@ function setupDragSelection() {
     if (dragStartStr && dragEndStr) {
       const d1 = new Date(dragStartStr), d2 = new Date(dragEndStr);
       const start = d1 < d2 ? d1 : d2, end = d1 < d2 ? d2 : d1;
-      document.getElementById("reqStartDate").value = formatDate(start.getFullYear(), start.getMonth(), start.getDate());
-      document.getElementById("reqEndDate").value = formatDate(end.getFullYear(), end.getMonth(), end.getDate());
-      calculateReqDays();
-      await openModal("requestModal");
+      const startDateInput = document.getElementById("reqStartDate");
+      const endDateInput = document.getElementById("reqEndDate");
+      if(startDateInput && endDateInput) {
+          startDateInput.value = formatDate(start.getFullYear(), start.getMonth(), start.getDate());
+          endDateInput.value = formatDate(end.getFullYear(), end.getMonth(), end.getDate());
+          calculateReqDays();
+          if(typeof openModal === "function") openModal("requestModal");
+      }
     }
     clearSelectionVisuals();
   });
@@ -647,6 +655,7 @@ function clearSelectionVisuals() {
 }
 
 async function fetchLeavesFromDB() {
+  currentToken = localStorage.getItem("token") || ""; 
   const endpoint = currentCalendarMode === "personal" ? "/leaves/my" : "/leaves/all";
   const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
   dbLeavesCache = (await res.json()).leaves || [];
@@ -686,7 +695,7 @@ function highlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forE
 function unhighlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "none"; el.style.zIndex = "10"; }); }
 
 // ==========================================
-// 勇士自主登錄、讀取假單與送出申請的靈魂函數
+// 勇士自主登錄、讀取假單與送出申請
 // ==========================================
 
 async function submitGrant() {
@@ -714,7 +723,7 @@ async function submitGrant() {
     const result = await res.json();
     if (result.error) return alert("오류 발생: " + result.error);
     alert("휴가가 성공적으로 등록되었습니다.");
-    closeModal("grantModal");
+    if(typeof closeModal === "function") closeModal("grantModal");
     await loadMySlots(); 
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
@@ -954,7 +963,7 @@ async function submitRequest() {
     });
     const result = await res.json();
     if (result.error) return alert(result.error);
-    closeModal("requestModal");
+    if(typeof closeModal === "function") closeModal("requestModal");
     await refreshCalendarData();
     alert("출타 신청서가 성공적으로 제출되었습니다.");
   } catch (err) {
@@ -986,17 +995,17 @@ function openBottomSheet(dateStr) {
   document.getElementById("bsDateTitle").innerText = `${m}월 ${d}일 출타 현황`;
   
   const appContainer = document.getElementById("bsApprovedList");
+  if(!appContainer) return;
   appContainer.innerHTML = approvedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">승인 대상이 없습니다.</div>` : "";
   
   approvedLeaves.forEach(l => {
-    // 🔥 [修復核心] 如果已經最終核准，就不給拖曳屬性，圖示換成鎖頭！
     const isApproved = l.status === "APPROVED";
     const dragAttrs = isApproved ? "" : `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
     const gripIcon = isApproved ? `<i class="fa-solid fa-lock text-gray-200 mr-3 text-lg" title="최종 승인됨"></i>` : `<i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>`;
     const cursorClass = isApproved ? "cursor-default" : "cursor-move hover:shadow-md";
 
     appContainer.innerHTML += `
-      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center transition ${cursorClass}">
+      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center transition ${cursorClass} mb-2">
         <div class="flex items-center min-w-0 pr-2">
           ${gripIcon}
           <div class="truncate">
@@ -1010,12 +1019,13 @@ function openBottomSheet(dateStr) {
   });
 
   const waitContainer = document.getElementById("bsWaitlistList");
+  if(!waitContainer) return;
   waitContainer.innerHTML = waitlistedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">후보 인원이 없습니다.</div>` : "";
   
   waitlistedLeaves.forEach(l => {
     const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
     waitContainer.innerHTML += `
-      <div ${dragAttrs} class="bg-gray-50 p-3 rounded-xl border border-dashed border-orange-300 flex justify-between items-center opacity-90 cursor-move hover:opacity-100 hover:shadow-md transition">
+      <div ${dragAttrs} class="bg-gray-50 p-3 rounded-xl border border-dashed border-orange-300 flex justify-between items-center opacity-90 cursor-move hover:opacity-100 hover:shadow-md transition mb-2">
         <div class="flex items-center min-w-0 pr-2">
           <i class="fa-solid fa-grip-lines text-orange-200 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>
           <div class="truncate">
@@ -1028,27 +1038,38 @@ function openBottomSheet(dateStr) {
     `;
   });
 
-  document.getElementById("bottomSheetOverlay").classList.remove("hidden");
+  document.getElementById("bottomSheetOverlay")?.classList.remove("hidden");
   setTimeout(() => {
-    document.getElementById("bottomSheetOverlay").classList.remove("opacity-0");
-    document.getElementById("bottomSheet").classList.remove("translate-y-full");
+    document.getElementById("bottomSheetOverlay")?.classList.remove("opacity-0");
+    document.getElementById("bottomSheet")?.classList.remove("translate-y-full");
   }, 10);
 }
 
 function closeBottomSheet() {
-  document.getElementById("bottomSheetOverlay").classList.add("opacity-0");
-  document.getElementById("bottomSheet").classList.add("translate-y-full");
+  document.getElementById("bottomSheetOverlay")?.classList.add("opacity-0");
+  document.getElementById("bottomSheet")?.classList.add("translate-y-full");
   setTimeout(() => {
-    document.getElementById("bottomSheetOverlay").classList.add("hidden");
+    document.getElementById("bottomSheetOverlay")?.classList.add("hidden");
   }, 300);
 }
 
 async function toggleWaitlistStatus(leaveId) {
-  alert("이 기능은 수동 개입(isManualOverride) API 연결이 필요합니다!\n(클릭된 ID: " + leaveId + ")");
+  if (!confirm("이 인원의 정규/후보 상태를 수동으로 강제 변경(고정)하시겠습니까?\n(수동 고정된 인원은 T/O를 차지하지 않습니다.)")) return;
+  try {
+    const res = await fetch(`/leaves/${leaveId}/manual-override`, {
+      method: "PUT", headers: { Authorization: `Bearer ${currentToken}` }
+    });
+    const data = await res.json();
+    if (data.success) {
+      await refreshCalendarData(); 
+      closeBottomSheet(); 
+      alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
+    }
+  } catch(e) { alert("수동 개입 처리 중 오류가 발생했습니다."); }
 }
 
 // ==========================================
-// 🔥 出島率與長官特權 API 串接 (進階可視化版)
+// 🔥 出島率與長官特權 API
 // ==========================================
 async function fetchLeaveRates() {
   if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
@@ -1056,9 +1077,11 @@ async function fetchLeaveRates() {
     const res = await fetch("/leaves/rates", { headers: { Authorization: `Bearer ${currentToken}` } });
     const data = await res.json();
     if (data.success) {
-      document.getElementById("rateLongInput").value = data.leaveRateLong;
-      document.getElementById("rateShortInput").value = data.leaveRateShort;
-      renderSpecialRates(data.specialRates); // 畫出特殊期間列表
+      const rl = document.getElementById("rateLongInput");
+      const rs = document.getElementById("rateShortInput");
+      if(rl) rl.value = data.leaveRateLong;
+      if(rs) rs.value = data.leaveRateShort;
+      renderSpecialRates(data.specialRates); 
     }
   } catch(e) {}
 }
@@ -1066,13 +1089,14 @@ async function fetchLeaveRates() {
 function renderSpecialRates(rates) {
   const container = document.getElementById("activeSpecialRatesContainer");
   const list = document.getElementById("specialRatesList");
+  if (!container || !list) return;
   if (!rates || rates.length === 0) {
     container.classList.add("hidden");
     return;
   }
   container.classList.remove("hidden");
   list.innerHTML = rates.map(r => `
-    <li class="flex justify-between items-center bg-white border border-indigo-100 px-3 py-1.5 rounded-lg text-xs shadow-sm">
+    <li class="flex justify-between items-center bg-white border border-indigo-100 px-3 py-1.5 rounded-lg text-xs shadow-sm mb-2">
       <div class="flex items-center">
         <span class="font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded mr-2">${r.startDate} ~ ${r.endDate}</span>
         <span class="font-bold text-gray-700">${r.reason}</span>
@@ -1083,7 +1107,6 @@ function renderSpecialRates(rates) {
   `).join("");
 }
 
-// 儲存基本出島率
 async function updateLeaveRates() {
   const rateLong = document.getElementById("rateLongInput").value;
   const rateShort = document.getElementById("rateShortInput").value;
@@ -1100,7 +1123,6 @@ async function updateLeaveRates() {
   } catch(e) { alert("오류가 발생했습니다."); }
 }
 
-// 新增特殊期間出島率
 async function addSpecialRate() {
   const sDate = document.getElementById("specialStartDate").value;
   const eDate = document.getElementById("specialEndDate").value;
@@ -1119,21 +1141,17 @@ async function addSpecialRate() {
     const data = await res.json();
     alert(data.message || data.error);
     if (data.success) {
-      // 成功後清空輸入框
       document.getElementById("specialStartDate").value = "";
       document.getElementById("specialEndDate").value = "";
       document.getElementById("specialReason").value = "";
       document.getElementById("specialRateLong").value = "";
       document.getElementById("specialRateShort").value = "";
-      
-      // 🔥 關鍵修正：立刻去後端抓最新的列表，讓 UI 瞬間顯示/隱藏！
       await fetchLeaveRates(); 
       await refreshCalendarData(); 
     }
   } catch(e) { alert("오류가 발생했습니다."); }
 }
 
-// 刪除特殊期間出島率
 async function deleteSpecialRate(rateId) {
   if(!confirm("이 특별 출타율 설정을 삭제하시겠습니까?\n(삭제 시 해당 기간은 기본 출타율 기준으로 즉시 재계산됩니다.)")) return;
   try {
@@ -1142,27 +1160,10 @@ async function deleteSpecialRate(rateId) {
     });
     const data = await res.json();
     if(data.success) {
-      // 🔥 關鍵修正：立刻去後端抓最新的列表，讓 UI 瞬間顯示/隱藏！
       await fetchLeaveRates(); 
       await refreshCalendarData();
     }
   } catch(e) { alert("삭제 중 오류가 발생했습니다."); }
-}
-
-// 長官手動把候補拉上來 (不佔名額特例)
-async function toggleWaitlistStatus(leaveId) {
-  if (!confirm("이 인원의 정규/후보 상태를 수동으로 강제 변경(고정)하시겠습니까?\n(수동 고정된 인원은 T/O를 차지하지 않습니다.)")) return;
-  try {
-    const res = await fetch(`/leaves/${leaveId}/manual-override`, {
-      method: "PUT", headers: { Authorization: `Bearer ${currentToken}` }
-    });
-    const data = await res.json();
-    if (data.success) {
-      await refreshCalendarData(); 
-      closeBottomSheet(); 
-      alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
-    }
-  } catch(e) { alert("수동 개입 처리 중 오류가 발생했습니다."); }
 }
 
 // ==========================================
@@ -1176,7 +1177,6 @@ function handleDragStart(e, id, name) {
   draggedLeaveId = id;
   draggedLeaveName = name;
   e.dataTransfer.effectAllowed = "move";
-  // 讓被拖起來的那塊變半透明，視覺上更直覺
   setTimeout(() => { e.target.classList.add("opacity-50", "scale-95"); }, 0);
 }
 
@@ -1185,7 +1185,7 @@ function handleDragEnd(e) {
 }
 
 function handleDragOver(e) {
-  e.preventDefault(); // 允許 Drop 發生
+  e.preventDefault();
   e.dataTransfer.dropEffect = "move";
 }
 
@@ -1204,8 +1204,8 @@ async function handleDrop(e, targetId, targetName) {
       alert(data.message || data.error);
       
       if (data.success) {
-        closeBottomSheet(); // 關閉抽屜
-        await refreshCalendarData(); // 重新整理月曆，長條顏色會瞬間交換！
+        closeBottomSheet(); 
+        await refreshCalendarData(); 
       }
     } catch(err) {
       alert("교환 중 오류가 발생했습니다.");
@@ -1218,7 +1218,6 @@ async function handleDrop(e, targetId, targetName) {
 // ==========================================
 let globalSearchCache = null;
 
-// 當搜尋框獲得焦點時，偷偷在背景拉取一次全軍資料 (避免每次打字都發送 API 請求)
 async function initGlobalSearchData() {
   const endpoint = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) ? "/leaves/all" : "/leaves/my";
   try {
@@ -1230,23 +1229,20 @@ async function initGlobalSearchData() {
   }
 }
 
-// 處理使用者打字過濾
 function handleGlobalSearch(query) {
   query = query.trim().toLowerCase();
   const dropdown = document.getElementById("globalSearchDropdown");
+  if(!dropdown) return;
   
   if (!query) {
     dropdown.classList.add("hidden");
     return;
   }
 
-  if (!globalSearchCache) return; // 如果資料還沒回來就先等一下
+  if (!globalSearchCache) return;
 
   const results = globalSearchCache.filter(l => {
-    // 排除已經取消或被拒絕的假單
     if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false; 
-    
-    // 把名字、階級、事由、假別全部串在一起搜
     const searchStr = `${l.userId?.name || ""} ${l.userId?.rank || ""} ${l.reason || ""} ${l.type || ""}`.toLowerCase();
     return searchStr.includes(query);
   });
@@ -1254,10 +1250,10 @@ function handleGlobalSearch(query) {
   renderSearchResults(results);
 }
 
-// 渲染下拉選單結果
 function renderSearchResults(results) {
   const dropdown = document.getElementById("globalSearchDropdown");
   const list = document.getElementById("globalSearchList");
+  if(!dropdown || !list) return;
   dropdown.classList.remove("hidden");
   
   if (results.length === 0) {
@@ -1272,7 +1268,6 @@ function renderSearchResults(results) {
         ? `<span class="bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">후보</span>` 
         : `<span class="bg-blue-100 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">정규</span>`;
     
-    // 點擊時觸發聚光燈導航 (executeSearchNavigation)
     return `
     <div onclick="executeSearchNavigation('${l._id}', '${l.type}', '${sDate}')" class="p-3 hover:bg-indigo-50 border-b border-gray-50 cursor-pointer transition flex flex-col gap-1">
         <div class="flex justify-between items-center">
@@ -1284,69 +1279,55 @@ function renderSearchResults(results) {
   }).join("");
 }
 
-// 🌟 殺手級功能：聚光燈導航特效 (加入 isSmooth 參數)
 async function executeSearchNavigation(leaveId, type, startDateStr, isSmooth = true) {
-  // 1. 隱藏下拉選單
   const dropdown = document.getElementById("globalSearchDropdown");
   const input = document.getElementById("globalSearchInput");
   if(dropdown) dropdown.classList.add("hidden");
   if(input) { input.value = ""; input.blur(); }
 
-  // 2. 根據身分切換合適的月曆模式
   if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
-    // 長官：根據假別自動切換到對應的全體月曆
     const targetMode = (type === "휴가") ? "team-long" : "team-short";
     if (currentCalendarMode !== targetMode) {
       await switchCalendarMode(targetMode); 
     }
   } else {
-    // 🔥 [新增] 勇士專屬：只要點擊小鈴鐺通知或搜尋，一律強制切換回「내 휴가 (我的休假)」模式！
     if (currentCalendarMode !== "personal") {
       await switchCalendarMode("personal");
     }
   }
 
-  // 3. 🔥 滾動到目標月份 (根據 isSmooth 決定要不要有動畫)
   const targetDate = new Date(startDateStr);
   await scrollToMonth(targetDate.getFullYear(), targetDate.getMonth(), isSmooth);
 
-  // 4. 🔥 智能追蹤雷達 (單純加上/移除 Class，依靠 CSS 實現平滑過渡)
   let attempts = 0;
   const tryHighlight = () => {
     const targetBar = document.querySelector(`.leave-bar-${leaveId}`);
     
     if (targetBar) {
-      // 找到了！大家貼上標籤
       const allBars = document.querySelectorAll('[class*="leave-bar-"]');
       allBars.forEach(bar => {
         if (bar === targetBar) {
-          bar.classList.add('spotlight-target'); // 放大浮出
+          bar.classList.add('spotlight-target'); 
         } else {
-          bar.classList.add('spotlight-dimmed'); // 其他變暗
+          bar.classList.add('spotlight-dimmed'); 
         }
       });
 
-      // 3.5 秒後「平滑縮回原本大小」
       setTimeout(() => {
         allBars.forEach(bar => {
           bar.classList.remove('spotlight-target', 'spotlight-dimmed');
         });
-        // ⚠️ 這裡絕對不能呼叫 renderEvents()！
-        // 只要把 class 移除，CSS 就會自動平滑地把它縮回原本的大小和狀態。
       }, 1500);
 
     } else if (attempts < 20) {
-      // 還沒畫出來，等 0.2 秒再找一次
       attempts++;
       setTimeout(tryHighlight, 200);
     }
   };
 
-  // 啟動雷達！
   tryHighlight();
 }
 
-// 當點擊畫面空白處時，自動關閉搜尋下拉選單
 document.addEventListener("click", (e) => {
   const dropdown = document.getElementById("globalSearchDropdown");
   const input = document.getElementById("globalSearchInput");

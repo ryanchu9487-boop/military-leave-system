@@ -9,13 +9,32 @@
     <style>
         @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
         body { font-family: "Pretendard", sans-serif; }
+
         .mesh-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; background-color: #f8fafc; }
         .blob { position: absolute; filter: blur(90px); opacity: 0.65; animation: float 12s infinite alternate ease-in-out; }
         .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%); }
         .blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0) 70%); animation-delay: -5s; }
         @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 50px) scale(1.1); } }
-        #pendingList > div, #userList > div { background: rgba(255, 255, 255, 0.6) !important; backdrop-filter: blur(16px) !important; border: 1px solid rgba(255, 255, 255, 0.8) !important; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05), inset 0 2px 10px rgba(255, 255, 255, 0.8) !important; border-radius: 1.5rem !important; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important; margin-bottom: 0.75rem !important; padding: 1rem 1.25rem !important; }
-        /* 這裡保留您的其他 CSS... */
+
+        #pendingList > div, #userList > div {
+            background: rgba(255, 255, 255, 0.6) !important;
+            backdrop-filter: blur(16px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.8) !important;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05), inset 0 2px 10px rgba(255, 255, 255, 0.8) !important;
+            border-radius: 1.5rem !important;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            margin-bottom: 0.75rem !important;
+            padding: 1rem 1.25rem !important;
+        }
+        #pendingList > div:hover, #userList > div:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 15px 35px -10px rgba(99, 102, 241, 0.15), inset 0 2px 10px rgba(255, 255, 255, 0.9) !important;
+            border-color: rgba(99, 102, 241, 0.3) !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        @keyframes modalPop { 0% { opacity: 0; transform: scale(0.95) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        .modal-animate { animation: modalPop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
@@ -23,7 +42,7 @@
     <%- include('partials/sidebar') %>
     <%- include('partials/header') %>
 
-    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-hidden flex flex-col">
+    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-hidden flex flex-col transition-opacity duration-300">
         
         <div class="mesh-bg">
             <div class="blob blob-1"></div>
@@ -42,10 +61,20 @@
                 </div>
 
                 <section id="pendingSection" class="mb-12 hidden">
+                    <div class="flex items-center gap-3 mb-4 pl-2">
+                        <div class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse shadow-[0_0_12px_rgba(250,204,21,0.8)]"></div>
+                        <h3 class="text-lg font-bold text-gray-800 tracking-tight">가입 승인 대기 <span id="pendingCount" class="ml-1.5 px-2 py-0.5 rounded-md bg-yellow-100 text-yellow-700 text-sm font-black shadow-sm border border-yellow-200/50">0</span></h3>
+                    </div>
                     <div id="pendingList" class="space-y-0"></div>
                 </section>
 
                 <section>
+                    <div class="flex items-center gap-3 mb-4 pl-2">
+                        <div class="w-8 h-8 rounded-full bg-indigo-100/80 text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-200/50">
+                            <i class="fa-solid fa-users text-sm"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-gray-800 tracking-tight">소속 부대원 <span id="activeCount" class="ml-1.5 px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-sm font-black shadow-sm border border-indigo-200/50">0</span></h3>
+                    </div>
                     <div id="userList" class="space-y-0"></div>
                 </section>
             </div>
@@ -54,26 +83,47 @@
         <div id="hrModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
             <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onclick="closeHrModal()"></div>
             <div class="modal-animate relative w-full max-w-md bg-white rounded-[2rem] shadow-2xl border border-gray-100 overflow-hidden flex flex-col max-h-[90vh]">
+                <div class="p-6 pb-4 bg-gradient-to-b from-indigo-50/50 to-white flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="hrRankBadge" class="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-black">계급</span>
+                            <span class="text-xs font-mono text-gray-500" id="hrServiceNum">군번</span>
+                        </div>
+                        <h3 class="text-2xl font-black text-gray-900 tracking-tight" id="hrName">이름</h3>
+                    </div>
+                    <button onclick="closeHrModal()" class="w-8 h-8 flex justify-center items-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
                 </div>
+                <div class="p-6 pt-2 overflow-y-auto custom-scrollbar flex-1 relative">
+                    <div id="hrTimelineContainer" class="space-y-6">
+                        </div>
+                </div>
+            </div>
         </div>
 
         <input type="hidden" id="currentHrUserId" value="" />
+
         <script src="/js/adduser.js"></script>
+        <script>
+            function closeHrModal() { document.getElementById("hrModal").classList.add("hidden"); }
 
+            // 🔥 終極自我喚醒引擎
+            window.initAddUserPage = function() {
+                console.log("🔥 AddUser 嘗試自我喚醒...");
+                if (typeof window.fetchUsers === "function") {
+                    window.fetchUsers();
+                } else {
+                    // 如果腳本還在下載，給它 0.3 秒後再試一次！(防呆機制)
+                    setTimeout(() => {
+                        if (typeof window.fetchUsers === "function") window.fetchUsers();
+                    }, 300);
+                }
+            };
+
+            // 當 SPA 引擎把這段 HTML 塞進畫面時，0.1秒後讓它自己叫醒自己！
+            setTimeout(window.initAddUserPage, 100);
+        </script>
     </div> <script src="/common.js"></script>
-    <script>
-        function closeHrModal() {
-            document.getElementById("hrModal").classList.add("hidden");
-        }
-
-        // 在 adduser.ejs 的 <script> 內
-window.initAddUserPage = function() {
-    console.log("人員管理頁重新初始化...");
-    if (typeof fetchUsers === "function") fetchUsers();
-};
-
-// 為了讓 SPA 引擎能抓到，也可以直接在 DOMContentLoaded 呼叫
-document.addEventListener("DOMContentLoaded", window.initAddUserPage);
-    </script>
 </body>
 </html>
