@@ -478,11 +478,57 @@ function renderEvents() {
         bar.innerText = isGlobalStart || startIdx === 0 ? displayName : "";
         const fixedColor = getLeaveColor(leave.reason, leave.type);
 
-        if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
+      if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
           bar.style.color = "#4b5563";
-          bar.onclick = (e) => { e.stopPropagation(); hideProTooltip(); createShatterAnimation(bar); setTimeout(() => refreshCalendarData(), 800); };
+          
+          bar.onclick = async (e) => { 
+            e.stopPropagation(); 
+            hideProTooltip(); 
+            
+            // 🔥 [新增] 1. 點擊瞬間，強制關閉小鈴鐺選單！還給勇士乾淨的視野
+            const dropdown = document.getElementById("notificationDropdown");
+            if (dropdown) dropdown.classList.add("hidden");
+
+            // 2. [瞬間刪除月曆長條] 平滑淡出
+            bar.style.transition = "all 0.3s ease";
+            bar.style.opacity = "0";
+            bar.style.transform = "scale(0.9)";
+            
+            // 3. [瞬間刪除鈴鐺通知]
+            const notiEl = document.getElementById(`noti-${leave._id}`);
+            if (notiEl) notiEl.remove();
+
+            // 🔥 [新增] 4. 樂觀更新紅點：檢查如果刪掉後，鈴鐺裡沒通知了，瞬間把紅點藏起來！
+            const notificationList = document.getElementById("notificationList");
+            const badge = document.getElementById("notificationBadge");
+            if (notificationList && badge && notificationList.children.length === 0) {
+              badge.classList.add("hidden");
+            }
+
+            try {
+              // 5. 呼叫後端確認已讀並隱藏
+              await fetch(`/leaves/${leave._id}/confirm-reject`, {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${currentToken}` }
+              });
+              
+              // 6. 背景重整小鈴鐺，確保伺服器與畫面資料 100% 同步
+
+              setTimeout(() => {
+                if (typeof window.fetchUserInfoAndNotifications === "function") {
+                  window.fetchUserInfoAndNotifications();
+                }
+              }, 500);
+            } catch(err) { 
+              console.error("Confirm Reject Error:", err); 
+            }
+
+            // 7. 0.3秒後無縫重繪月曆
+            setTimeout(() => refreshCalendarData(), 300); 
+          };
+          
         } else if (leave.isWaitlisted) {
           bar.style.backgroundColor = "rgba(249, 115, 22, 0.15)";
           bar.style.border = "1px dashed #ea580c";
@@ -498,6 +544,7 @@ function renderEvents() {
           bar.style.opacity = "1";
         }
 
+        // 下方的 tooltip 與一般點擊導航邏輯維持原樣，不需要動！
         if (!leave.status.includes("REJECTED") && leave.status !== "CANCEL_APPROVED") {
           bar.addEventListener("mouseenter", (e) => {
             highlightLeave(leave._id);
@@ -637,32 +684,6 @@ function getLeaveColor(reason, type) {
 
 function highlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "brightness(1.15)"; el.style.zIndex = "50"; }); }
 function unhighlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "none"; el.style.zIndex = "10"; }); }
-
-function createShatterAnimation(barEl) {
-  const rect = barEl.getBoundingClientRect();
-  const fragmentCount = 30;
-  const shardsContainer = [];
-  barEl.classList.add("bar-is-shattering");
-  for (let i = 0; i < fragmentCount; i++) {
-    const shard = document.createElement("div"); shard.className = "shatter-fragment";
-    const sW = 6 + Math.random() * 20, sH = 6 + Math.random() * 20;
-    shard.style.width = `${sW}px`; shard.style.height = `${sH}px`;
-    shard.style.setProperty("--fragment-bg", "#6b7280");
-    const points = [`${Math.random() * 10}% ${Math.random() * 10}%`, `${90 + Math.random() * 10}% ${Math.random() * 10}%`, `${90 + Math.random() * 10}% ${90 + Math.random() * 10}%`, `${Math.random() * 10}% ${90 + Math.random() * 10}%`];
-    shard.style.clipPath = `polygon(${points.join(",")})`;
-    shard.style.left = `${rect.left + Math.random() * (rect.width - sW)}px`;
-    shard.style.top = `${rect.top + Math.random() * (rect.height - sH)}px`;
-    const direction = Math.random() < 0.5 ? -1 : 1;
-    const txMid = ((Math.random() * rect.width) / 4) * direction, tyMid = -(10 + Math.random() * 15), rotMid = direction * (30 + Math.random() * 60);
-    const txEnd = Math.random() * rect.width * direction * 1.2, tyEnd = 50 + Math.random() * 80, rotEnd = direction * (180 + Math.random() * 360);
-    shard.style.setProperty("--tx-mid", `${txMid}px`); shard.style.setProperty("--ty-mid", `${tyMid}px`); shard.style.setProperty("--rot-mid", `${rotMid}deg`); shard.style.setProperty("--tx-end", `${txEnd}px`); shard.style.setProperty("--ty-end", `${tyEnd}px`); shard.style.setProperty("--rot-end", `${rotEnd}deg`);
-    const duration = 0.7 + Math.random() * 0.4, delay = Math.random() * 0.05;
-    shard.style.animation = `fragmentShatter ${duration}s cubic-bezier(0.25, 1, 0.5, 1) ${delay}s forwards`;
-    document.body.appendChild(shard); shardsContainer.push(shard);
-  }
-  setTimeout(() => { shardsContainer.forEach((s) => s.remove()); }, 1500);
-}
-
 
 // ==========================================
 // 勇士自主登錄、讀取假單與送出申請的靈魂函數
@@ -1271,11 +1292,17 @@ async function executeSearchNavigation(leaveId, type, startDateStr, isSmooth = t
   if(dropdown) dropdown.classList.add("hidden");
   if(input) { input.value = ""; input.blur(); }
 
-  // 2. 如果是長官，根據假別切換模式
+  // 2. 根據身分切換合適的月曆模式
   if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
+    // 長官：根據假別自動切換到對應的全體月曆
     const targetMode = (type === "휴가") ? "team-long" : "team-short";
     if (currentCalendarMode !== targetMode) {
-      await switchCalendarMode(targetMode); // 會重新抓取資料
+      await switchCalendarMode(targetMode); 
+    }
+  } else {
+    // 🔥 [新增] 勇士專屬：只要點擊小鈴鐺通知或搜尋，一律強制切換回「내 휴가 (我的休假)」模式！
+    if (currentCalendarMode !== "personal") {
+      await switchCalendarMode("personal");
     }
   }
 

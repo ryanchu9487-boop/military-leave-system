@@ -571,8 +571,174 @@
                 onClickAction = `goToReviewApprove('${noti.status}', '${noti._id}')`;
               }
 
-              list.innerHTML += `
-                <div onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${
+             list.innerHTML += `
+                <div id="noti-${noti._id}" onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${
+                isDefaultCursor ? "cursor-default" : ""
+              }">
+                  <div class="flex-1 overflow-hidden">
+                    <p class="text-[13px] font-bold ${color} truncate mb-0.5">${title}</p>
+                    <p class="text-[11px] text-gray-600 truncate">${
+                      noti.userId?.name || "알 수 없음"
+                    } - ${noti.reason || "사유 없음"}</p>
+                  </div>
+                  <div class="shrink-0 flex items-center">${actionHtml}</div>
+                </div>`;
+            });
+          } else {
+            badge.classList.add("hidden");
+            if (approveAllBtn) approveAllBtn.classList.add("hidden");
+            list.innerHTML = `<div class="p-5 text-center text-sm text-gray-400"><i class="fa-regular fa-bell-slash mb-2 text-xl block"></i>새로운 알림이 없습니다.</div>`;
+          }
+        } catch (err) {}
+      }
+
+       async function fetchUserInfoAndNotifications() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "login.html";
+          return;
+        }
+
+        let userRoleObj = "soldier";
+        try {
+          const profileRes = await fetch("/profile", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const profileData = await profileRes.json();
+
+          if (profileData.user) {
+            const user = profileData.user;
+            userRoleObj = user.role;
+            const roleStr = roleMap[user.role] || user.role;
+            const uName = user.name || "알 수 없음";
+
+            document.getElementById(
+              "user-profile-name"
+            ).innerText = `${uName} (${roleStr})`;
+            document.getElementById("headerProfileInitials").innerText =
+              uName.charAt(0);
+
+            if (
+              ["reviewer", "approver", "officer", "superadmin"].includes(
+                userRoleObj
+              )
+            ) {
+              document
+                .getElementById("manageTeamSidebarBtn")
+                ?.style.setProperty("display", "flex", "important");
+            }
+
+            document.getElementById("profileName").innerText = user.name;
+            document.getElementById("profileInitial").innerText =
+              uName.charAt(0);
+            document.getElementById("profileServiceNum").innerText =
+              user.serviceNumber;
+            document.getElementById("profileRank").innerText =
+              user.rank || "계급없음";
+            document.getElementById("profileRole").innerText = roleStr;
+            document.getElementById("profileUnit").innerText =
+              user.orgName || "소속 부대 없음";
+
+            // 🔥 偵測到是被強制要求改密碼的狀態，顯示警告框！
+            if (user.forceChangePassword) {
+              document
+                .getElementById("forceChangeWarning")
+                .classList.remove("hidden");
+            }
+
+            if (user.role === "soldier") {
+              document.getElementById("ddaySection").classList.remove("hidden");
+              calculateDdays(user);
+            }
+          }
+        } catch (err) {
+          console.error("프로필 정보 로딩 실패", err);
+        }
+
+        try {
+         // ✅ 正確的新代碼：
+          const res = await fetch("/notifications", { headers: { Authorization: `Bearer ${token}` } });
+          if (!res.ok) return;
+          const data = await res.json();
+
+          const badge = document.getElementById("notificationBadge");
+          const list = document.getElementById("notificationList");
+          const approveAllBtn = document.getElementById("approveAllBtn");
+          const notifWrapper = document.getElementById("notificationWrapper");
+
+          if (notifWrapper) notifWrapper.style.display = "flex";
+
+          if (["reviewer", "approver", "superadmin"].includes(userRoleObj)) {
+            const hasLeaves =
+              data.notifications &&
+              data.notifications.some(
+                (n) =>
+                  (n.status && n.status.includes("PENDING")) ||
+                  (n.status && n.status.includes("CANCEL_REQ"))
+              );
+            if (approveAllBtn) {
+              if (hasLeaves) approveAllBtn.classList.remove("hidden");
+              else approveAllBtn.classList.add("hidden");
+            }
+          }
+
+          if (data.notifications && data.notifications.length > 0) {
+            badge.classList.remove("hidden");
+            list.innerHTML = "";
+
+            data.notifications.forEach((noti) => {
+              let title,
+                color,
+                actionHtml,
+                onClickAction,
+                isDefaultCursor = false;
+
+              if (noti.status === "NEW_MEMBER_PENDING") {
+                title = "신규 부대원 가입 대기";
+                color = "text-yellow-600";
+                actionHtml = `<span class="text-[10px] bg-yellow-50 text-yellow-600 px-2 py-1 rounded font-bold shadow-sm hover:bg-yellow-500 hover:text-white transition-colors">심사하기</span>`;
+                onClickAction = `window.location.href='adduser.html'`;
+              } else if (noti.status === "DISCHARGE_TODAY") {
+                title = "🎉 전역일 알림";
+                color = "text-emerald-600";
+                actionHtml = `<span class="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold shadow-sm hover:bg-emerald-500 hover:text-white transition-colors">전역 처리</span>`;
+                onClickAction = `window.location.href='adduser.html'`;
+              } else if (noti.status.includes("REJECTED")) {
+                title = "휴가 신청 거절됨";
+                color = "text-red-500";
+                actionHtml = `<button onclick="confirmReject('${noti._id}', event)" class="px-3 py-1 bg-red-100 text-red-600 text-[10px] rounded font-bold hover:bg-red-200 transition">확인</button>`;
+                onClickAction = "";
+                isDefaultCursor = true;
+              } else if (noti.status === "PASSWORD_RESET_REQ") {
+                // 🔥 處理密碼重置通知
+                title = "비밀번호 초기화 요청";
+                color = "text-red-600";
+                actionHtml = `<button onclick="approvePasswordReset('${noti._id}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold shadow-sm hover:bg-red-500 hover:text-white transition-colors">초기화 승인</button>`;
+                onClickAction = ""; // 點擊不跳轉
+                isDefaultCursor = true;
+              } else {
+                title = noti.status.includes("CANCEL")
+                  ? "휴가 취소 결재 대기"
+                  : "새로운 출타 심의 대기";
+                color = noti.status.includes("CANCEL")
+                  ? "text-orange-500"
+                  : "text-indigo-600";
+                if (
+                  ["reviewer", "approver", "superadmin"].includes(userRoleObj)
+                ) {
+                  actionHtml = `
+                      <div class="flex gap-1">
+                        <button onclick="quickApprove('${noti._id}', '${noti.status}', event)" class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] rounded font-bold hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">승인</button>
+                        <button onclick="quickReject('${noti._id}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold hover:bg-red-600 hover:text-white transition-colors shadow-sm">반려</button>
+                      </div>`;
+                } else {
+                  actionHtml = `<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold">결재중</span>`;
+                }
+                onClickAction = `goToReviewApprove('${noti.status}', '${noti._id}')`;
+              }
+
+             list.innerHTML += `
+                <div id="noti-${noti._id}" onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${
                 isDefaultCursor ? "cursor-default" : ""
               }">
                   <div class="flex-1 overflow-hidden">
@@ -612,37 +778,89 @@
         }
       }
 
+      // 🔥 終極防彈版：快速審核
       async function quickApprove(id, status, event) {
         event.stopPropagation();
+        
+        // 瞬間刪除 UI
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
         try {
-          const endpoint = status.includes("REVIEW")
-            ? `/leaves/${id}/review`
-            : `/leaves/${id}/approve`;
-          const res = await fetch(endpoint, {
+          const endpoint = status.includes("REVIEW") ? `/leaves/${id}/review` : `/leaves/${id}/approve`;
+          await fetch(endpoint, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          if ((await res.json()).success) fetchUserInfoAndNotifications();
+          
+          // 🛡️ 安全呼叫：絕對不會再報 ReferenceError！
+          setTimeout(() => {
+            if (typeof window.fetchUserInfoAndNotifications === "function") {
+              window.fetchUserInfoAndNotifications();
+            }
+          }, 500);
+
+          if (typeof window.refreshCalendarData === "function") {
+            window.refreshCalendarData();
+          }
         } catch (e) {
-          alert("오류가 발생했습니다.");
+          console.error(e);
+          alert("네트워크 오류가 발생했습니다.");
         }
       }
 
+      // 🔥 終極防彈版：快速駁回
       async function quickReject(id, event) {
         event.stopPropagation();
-        if (!confirm("반려하시겠습니까?")) return;
+        if (!confirm("반려하시겠습니까? (確定要駁回嗎？)")) return;
+        
+        // 瞬間刪除 UI
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
         try {
-          const res = await fetch(`/leaves/${id}/reject`, {
+          await fetch(`/leaves/${id}/reject`, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          if ((await res.json()).success) fetchUserInfoAndNotifications();
+          
+          // 🛡️ 安全呼叫：絕對不會再報 ReferenceError！
+          setTimeout(() => {
+            if (typeof window.fetchUserInfoAndNotifications === "function") {
+              window.fetchUserInfoAndNotifications();
+            }
+          }, 500);
+
+          if (typeof window.refreshCalendarData === "function") {
+            window.refreshCalendarData();
+          }
         } catch (e) {
-          alert("오류가 발생했습니다.");
+          console.error(e);
+          alert("네트워크 오류가 발생했습니다.");
+        }
+      }
+
+      // 🔥 新增補齊：勇士確認被駁回的通知 (Optimistic UI)
+      async function confirmReject(id, event) {
+        event.stopPropagation();
+        
+        // 1. [樂觀更新] 勇士按下確認的瞬間，直接讓這條紅色的通知消失！
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
+        try {
+          // 2. 呼叫後端把這筆假單狀態改成 CANCELLED (徹底隱藏)
+          await fetch(`/leaves/${id}/confirm-reject`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          });
+          
+          setTimeout(fetchUserInfoAndNotifications, 500);
+          // 3. 如果勇士剛好在首頁(index.html)，連動刷新月曆，讓灰色的假單也瞬間消失！
+          if (typeof refreshCalendarData === "function") refreshCalendarData();
+        } catch (e) {
+          console.error(e);
+          fetchUserInfoAndNotifications();
         }
       }
 

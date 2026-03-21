@@ -797,11 +797,15 @@
                 actionHtml = `<span class="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded font-bold shadow-sm hover:bg-emerald-500 hover:text-white transition-colors">전역 처리</span>`;
                 onClickAction = `window.location.href='adduser.html'`;
               } else if (noti.status.includes("REJECTED")) {
-                title = "휴가 신청 거절됨";
+                title = "휴가 신청 반려됨";
                 color = "text-red-500";
-                actionHtml = `<button onclick="confirmReject('${noti._id}', event)" class="px-3 py-1 bg-red-100 text-red-600 text-[10px] rounded font-bold hover:bg-red-200 transition">확인</button>`;
-                onClickAction = "";
-                isDefaultCursor = true;
+                
+                // 🔥 拔掉確認按鈕，換成灰色的提示標籤
+                actionHtml = `<span class="px-2 py-1 bg-gray-100 text-gray-500 text-[10px] rounded font-bold border border-gray-200 shadow-sm">월력에서 확인</span>`;
+                
+                // 🔥 勇士點擊這則通知時，瞬間跳轉並高光顯示月曆上的灰色假單
+                onClickAction = `executeSearchNavigation('${noti._id}', '${noti.type || "휴가"}', '${noti.startDate}')`;
+                isDefaultCursor = false; 
               } else if (noti.status === "PASSWORD_RESET_REQ") {
                 title = "비밀번호 초기화 요청";
                 color = "text-red-600";
@@ -830,7 +834,7 @@
     actionHtml = `
       <div class="flex gap-1">
         <button onclick="quickApprove('${noti._id}', '${noti.status}', event)" class="px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] rounded font-bold hover:bg-indigo-600 hover:text-white transition-colors shadow-sm">승인</button>
-        <button onclick="quickReject('${noti._id}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold hover:bg-red-600 hover:text-white transition-colors shadow-sm">반려</button>
+        <button onclick="quickReject('${noti._id}', '${noti.type || "휴가"}', '${noti.startDate}', event)" class="px-2 py-1 bg-red-50 text-red-600 text-[10px] rounded font-bold hover:bg-red-600 hover:text-white transition-colors shadow-sm">반려</button>
       </div>`;
   }
 
@@ -842,7 +846,7 @@
               }
 
               list.innerHTML += `
-                <div onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${isDefaultCursor ? "cursor-default" : ""}">
+                <div id="noti-${noti._id}" onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${isDefaultCursor ? "cursor-default" : ""}">
                   <div class="flex-1 overflow-hidden">
                     <p class="text-[13px] font-bold ${color} truncate mb-0.5">${title}</p>
                     <p class="text-[11px] text-gray-600 truncate">${noti.userId?.name || "알 수 없음"} - ${noti.reason || "사유 없음"}</p>
@@ -858,45 +862,142 @@
         } catch (err) {}
       }
 
+      // 🌟 加入一個漂亮的迷你 Toast 提示框函數
+      function showToast(message) {
+        const toast = document.createElement("div");
+        toast.className = "fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm font-bold z-[200] opacity-0 transition-opacity duration-300";
+        toast.innerHTML = message;
+        document.body.appendChild(toast);
+        
+        // 淡入
+        setTimeout(() => toast.classList.remove("opacity-0"), 10);
+        // 2秒後淡出並移除
+        setTimeout(() => {
+          toast.classList.add("opacity-0");
+          setTimeout(() => toast.remove(), 300);
+        }, 2000);
+      }
+
+    // 🔥 全畫面同步秒殺版：快速審核
       async function quickApprove(id, status, event) {
         event.stopPropagation();
+        
+        // 1. [瞬間刪除通知]
+        const notiBox = event.target.closest('.group');
+        if (notiBox) notiBox.remove();
+
+        // 2. 🔥 [瞬間刪除月曆長條]：找到畫面上所有屬於這張假單的長條，瞬間淡出並移除！
+        const calendarBars = document.querySelectorAll(`.leave-bar-${id}`);
+        calendarBars.forEach(bar => {
+          bar.style.transition = "all 0.2s ease";
+          bar.style.opacity = "0";
+          bar.style.transform = "scale(0.9)";
+          setTimeout(() => bar.remove(), 200);
+        });
+
         try {
           const endpoint = status.includes("REVIEW") ? `/leaves/${id}/review` : `/leaves/${id}/approve`;
-          const res = await fetch(endpoint, {
+          await fetch(endpoint, {
             method: "PUT",
             headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          const data = await res.json();
-          if (data.success) {
-            checkPendingLeaves();
-            if (typeof fetchLeavesFromDB === "function") {
-              await fetchLeavesFromDB();
-              renderEvents();
-            }
-          } else alert(data.error);
+          
+          setTimeout(() => {
+            if (typeof window.fetchUserInfoAndNotifications === "function") window.fetchUserInfoAndNotifications();
+          }, 500);
+          if (typeof window.refreshCalendarData === "function") window.refreshCalendarData();
         } catch (e) {
-          alert("승인 처리 중 오류가 발생했습니다.");
+          console.error(e);
+          alert("네트워크 오류가 발생했습니다.");
         }
       }
 
-      async function quickReject(id, event) {
+     // 🔥 視覺確認版：快速駁回 (加入自動關閉鈴鐺選單)
+      async function quickReject(id, type, startDate, event) {
         event.stopPropagation();
-        if (!confirm("이 휴가/취소 신청을 반려하시겠습니까?")) return;
+        if (!confirm("반려하시겠습니까? (確定要駁回嗎？)")) return;
+        
+        // 1. [瞬間刪除通知] 讓小鈴鐺裡的項目先消失
+        const notiBox = event.target.closest('.group');
+        if (notiBox) notiBox.remove();
+
+        // 🔥 [新增這一行] 強制關閉小鈴鐺的下拉選單，把視野還給月曆！
+        const dropdown = document.getElementById("notificationDropdown");
+        if (dropdown) dropdown.classList.add("hidden");
+
+        // 2. [自動導航] 直接使用全域變數，去掉 window.
+        const targetMode = (type === "휴가") ? "team-long" : "team-short";
+        if (typeof currentCalendarMode !== "undefined" && currentCalendarMode !== targetMode) {
+          if (typeof switchCalendarMode === "function") {
+            await switchCalendarMode(targetMode); 
+          }
+        }
+
+        // 3. [自動滾動] 滾動到該假單的月份
+        const targetDate = new Date(startDate);
+        if (typeof scrollToMonth === "function") {
+          await scrollToMonth(targetDate.getFullYear(), targetDate.getMonth(), true);
+        }
+
+        // 4. [放大停頓特效] 導航完畢後，找出那張假單，給它一個「放大 + 紅色警示」的特效！
+        const calendarBars = document.querySelectorAll(`.leave-bar-${id}`);
+        calendarBars.forEach(bar => {
+          bar.style.transition = "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)"; 
+          bar.style.transform = "scale(1.15)"; 
+          bar.style.zIndex = "100"; 
+          bar.style.boxShadow = "0 4px 12px rgba(239, 68, 68, 0.5)"; 
+          bar.style.border = "1px solid #ef4444"; 
+        });
+
         try {
-          const res = await fetch(`/leaves/${id}/reject`, {
+          // 5. 背景呼叫 API 執行駁回
+          await fetch(`/leaves/${id}/reject`, {
             method: "PUT",
             headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          const data = await res.json();
-          if (data.success) {
-            checkPendingLeaves();
-            if (typeof fetchLeavesFromDB === "function") {
-              await fetchLeavesFromDB();
-              renderEvents();
-            }
-          } else alert(data.error);
+          
+          // 6. [消失特效] 停頓 1.5 秒後，縮小並淡出
+          setTimeout(() => {
+            calendarBars.forEach(bar => {
+              bar.style.transition = "all 0.4s ease";
+              bar.style.transform = "scale(0.8)"; 
+              bar.style.opacity = "0"; 
+            });
+
+            // 7. 動畫播完後，徹底重整資料
+            setTimeout(() => {
+              if (typeof fetchUserInfoAndNotifications === "function") fetchUserInfoAndNotifications();
+              if (typeof refreshCalendarData === "function") refreshCalendarData();
+            }, 400);
+
+          }, 1500); 
+
         } catch (e) {
-          alert("반려 처리 중 오류가 발생했습니다.");
+          console.error(e);
+          alert("네트워크 오류가 발생했습니다.");
+        }
+      }
+      // 🔥 新增補齊：勇士確認被駁回的通知 (Optimistic UI)
+      async function confirmReject(id, event) {
+        event.stopPropagation();
+        
+        // 1. [樂觀更新] 勇士按下確認的瞬間，直接讓這條紅色的通知消失！
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
+        try {
+          // 2. 呼叫後端把這筆假單狀態改成 CANCELLED (徹底隱藏)
+          await fetch(`/leaves/${id}/confirm-reject`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          });
+          
+          setTimeout(fetchUserInfoAndNotifications, 500);
+          // 3. 如果勇士剛好在首頁(index.html)，連動刷新月曆，讓灰色的假單也瞬間消失！
+          if (typeof refreshCalendarData === "function") refreshCalendarData();
+        } catch (e) {
+          console.error(e);
+          fetchUserInfoAndNotifications();
         }
       }
 

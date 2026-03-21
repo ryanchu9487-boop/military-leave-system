@@ -695,8 +695,8 @@
                 onClickAction = `goToReviewApprove('${noti.status}', '${noti._id}')`;
               }
 
-              list.innerHTML += `
-                <div onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${
+             list.innerHTML += `
+                <div id="noti-${noti._id}" onclick="${onClickAction}" class="group p-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex justify-between items-center transition gap-3 ${
                 isDefaultCursor ? "cursor-default" : ""
               }">
                   <div class="flex-1 overflow-hidden">
@@ -736,37 +736,74 @@
         }
       }
 
+      // 🔥 極速版：快速審核 (Optimistic UI)
       async function quickApprove(id, status, event) {
         event.stopPropagation();
+        
+        // 1. [樂觀更新] 不等伺服器，按下的 0.01 秒內直接把這條通知從畫面上刪除！
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
         try {
-          const endpoint = status.includes("REVIEW")
-            ? `/leaves/${id}/review`
-            : `/leaves/${id}/approve`;
-          const res = await fetch(endpoint, {
+          const endpoint = status.includes("REVIEW") ? `/leaves/${id}/review` : `/leaves/${id}/approve`;
+          await fetch(endpoint, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          if ((await res.json()).success) fetchUserInfoAndNotifications();
+          
+          // 2. 延遲 0.5 秒再背景重抓資料，確保後端資料庫已經確實更新完畢，避免抓到舊資料
+          setTimeout(fetchUserInfoAndNotifications, 500);
+          if (typeof refreshCalendarData === "function") refreshCalendarData();
         } catch (e) {
           alert("오류가 발생했습니다.");
+          fetchUserInfoAndNotifications(); // 失敗的話再把原本的通知抓回來
         }
       }
 
+      // 🔥 極速版：快速駁回 (Optimistic UI)
       async function quickReject(id, event) {
         event.stopPropagation();
-        if (!confirm("반려하시겠습니까?")) return;
+        if (!confirm("반려하시겠습니까? (確定要駁回嗎？)")) return;
+        
+        // 1. [樂觀更新] 瞬間刪除 UI
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
         try {
-          const res = await fetch(`/leaves/${id}/reject`, {
+          await fetch(`/leaves/${id}/reject`, {
             method: "PUT",
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
           });
-          if ((await res.json()).success) fetchUserInfoAndNotifications();
+          
+          setTimeout(fetchUserInfoAndNotifications, 500);
+          if (typeof refreshCalendarData === "function") refreshCalendarData();
         } catch (e) {
           alert("오류가 발생했습니다.");
+          fetchUserInfoAndNotifications();
+        }
+      }
+
+      // 🔥 新增補齊：勇士確認被駁回的通知 (Optimistic UI)
+      async function confirmReject(id, event) {
+        event.stopPropagation();
+        
+        // 1. [樂觀更新] 勇士按下確認的瞬間，直接讓這條紅色的通知消失！
+        const notiEl = document.getElementById(`noti-${id}`);
+        if (notiEl) notiEl.remove();
+
+        try {
+          // 2. 呼叫後端把這筆假單狀態改成 CANCELLED (徹底隱藏)
+          await fetch(`/leaves/${id}/confirm-reject`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+          });
+          
+          setTimeout(fetchUserInfoAndNotifications, 500);
+          // 3. 如果勇士剛好在首頁(index.html)，連動刷新月曆，讓灰色的假單也瞬間消失！
+          if (typeof refreshCalendarData === "function") refreshCalendarData();
+        } catch (e) {
+          console.error(e);
+          fetchUserInfoAndNotifications();
         }
       }
 
