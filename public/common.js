@@ -24,7 +24,6 @@ window.spaNavigate = async function (urlPath) {
   wrapper.style.opacity = "0.3";
 
   try {
-    // 1. 強制抓取最新的 HTML
     const fetchUrl = url + (url.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
     const res = await fetch(fetchUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-cache' } });
     const html = await res.text();
@@ -33,8 +32,6 @@ window.spaNavigate = async function (urlPath) {
     document.title = doc.title;
     document.body.className = doc.body.className;
 
-    // 🔥 2. 同步 CSS (防閃爍修復版)
-    // 先記下目前畫面已有的 CSS，避免重複載入，也不要刪除舊的，以免 Header 失去樣式閃爍
     const currentStyles = Array.from(document.querySelectorAll("style:not([id])")).map(s => s.textContent.trim());
     
     doc.querySelectorAll("style:not([id])").forEach(s => {
@@ -45,11 +42,8 @@ window.spaNavigate = async function (urlPath) {
       }
     });
 
-    // 🔥 關鍵修復：在塞入 HTML 和執行腳本之前，先更新瀏覽器網址！
-    // 這樣 review.ejs 裡面的 URLSearchParams 才能抓到正確的 ?id=...
     history.pushState(null, "", url);
 
-    // 3. 替換內容與執行腳本
     const newContent = doc.getElementById("page-wrapper");
     if (newContent) {
       wrapper.className = newContent.className;
@@ -76,7 +70,6 @@ window.spaNavigate = async function (urlPath) {
       }
     }
 
-    // 4. 喚醒畫面
     setTimeout(() => {
       wrapper.style.opacity = "1";
       reInitializePage();
@@ -100,7 +93,7 @@ function reInitializePage() {
        if (typeof window.fetchUsers === "function") window.fetchUsers();
     } else if (path.includes("settings")) {
        if (typeof window.loadSettingsPage === "function") window.loadSettingsPage();
-    } else if (path.includes("review")) { // 確保有這行，跳轉才不會白屏！
+    } else if (path.includes("review")) { 
        if (typeof window.initReviewPage === "function") window.initReviewPage();
     } else if (path.includes("approve")) {
        if (typeof window.initApprovePage === "function") window.initApprovePage(); 
@@ -121,7 +114,6 @@ function closeSidebar() {
   document.getElementById("sidebar")?.classList.add("-translate-x-full");
 }
 
-// 🔥 修復關鍵：把原本被我誤刪的 UI 解除隱藏邏輯加回來
 function applyRolePermissions() {
   const userRole = localStorage.getItem("role");
   
@@ -130,14 +122,10 @@ function applyRolePermissions() {
   const notifWrapper = document.getElementById("notificationWrapper");
   const fabGrantBtn = document.getElementById("fabGrantBtn");
 
-  // 解除隱藏月曆頂部控制列 (包含齒輪按鈕)
   if (calToggle) calToggle.style.setProperty("display", "flex", "important");
-  
-  // 解除隱藏小鈴鐺與出島申請按鈕
   if (notifWrapper) notifWrapper.style.display = "flex";
   if (fabGrantBtn) fabGrantBtn.style.setProperty("display", "flex", "important");
   
-  // 側邊欄「人員管理」僅限長官顯示
   if (["reviewer", "approver", "superadmin"].includes(userRole)) {
     if (sidebarManageBtn) sidebarManageBtn.style.setProperty("display", "flex", "important");
   } else {
@@ -147,17 +135,16 @@ function applyRolePermissions() {
   checkPendingLeaves();
 }
 
-// 🔥 [修改] 加入 401 防呆機制
 async function checkPendingLeaves() {
   const token = localStorage.getItem("token");
   if (!token) return;
 
   try {
-    const res = await fetch("/leaves/notifications", { 
+    // 🔥 加一個 t=Date.now() 參數，破解 304 快取魔咒
+    const res = await fetch(`/leaves/notifications?t=${Date.now()}`, { 
       headers: { Authorization: `Bearer ${token}` } 
     });
 
-    // 🛡️ 401 防護：如果登入過期，清空 Token 並跳回登入頁
     if (res.status === 401) {
       localStorage.removeItem("token");
       window.location.href = "/login.html";
@@ -167,7 +154,6 @@ async function checkPendingLeaves() {
     const data = await res.json();
     if (data.success) {
       const u = data.userInfo;
-      const roleMap = { soldier: "용사", officer: "간부", reviewer: "검토자", approver: "승인자" };
       const displayRank = u.rank ? u.rank : (roleMap[u.role] || u.role);
       
       const nameEl = document.getElementById("user-profile-name");
@@ -176,11 +162,11 @@ async function checkPendingLeaves() {
       const initEl = document.getElementById("headerProfileInitials");
       if (initEl) initEl.innerText = u.name.charAt(0);
 
+      // 🔥 強制解除隱藏，確保小鈴鐺永遠存在畫面上
       const notifWrapper = document.getElementById("notificationWrapper");
       if (notifWrapper) {
-          if (["reviewer", "approver", "officer", "superadmin"].includes(u.role) || (data.notifications && data.notifications.length > 0)) {
-              notifWrapper.classList.remove("hidden");
-          }
+          notifWrapper.classList.remove("hidden");
+          notifWrapper.style.display = "flex";
       }
 
       renderNotifications(data.notifications, u.role);
@@ -190,7 +176,7 @@ async function checkPendingLeaves() {
   }
 }
 
-// 🔥 [新增] 友善的時間格式化函數
+// 🔥 友善的時間格式化函數
 function timeAgo(dateString) {
   const now = new Date();
   const past = new Date(dateString);
@@ -201,24 +187,16 @@ function timeAgo(dateString) {
   return `${Math.floor(diffHrs / 24)}일 전`;
 }
 
-/// 🔥 [修改] 升級為全域函數，保證 onClick 隨時都能找到它
 window.closeNotifications = function() {
   const dropdown = document.getElementById("notificationDropdown");
   if (dropdown) dropdown.classList.add("hidden");
 };
 
-// 友善的時間格式化函數
-function timeAgo(dateString) {
-  const now = new Date();
-  const past = new Date(dateString);
-  const diffMins = Math.floor((now - past) / 60000);
-  if (diffMins < 60) return `${diffMins}분 전`;
-  const diffHrs = Math.floor(diffMins / 60);
-  if (diffHrs < 24) return `${diffHrs}시간 전`;
-  return `${Math.floor(diffHrs / 24)}일 전`;
+function toggleNotifications() {
+  const dropdown = document.getElementById("notificationDropdown");
+  if (dropdown) dropdown.classList.toggle("hidden");
 }
 
-// 🔥 [修改] 渲染通知，所有 onClick 都加上了 window.closeNotifications()
 function renderNotifications(notifications, role) {
   const listEl = document.getElementById("notificationList");
   const badgeEl = document.getElementById("notificationBadge");
@@ -255,11 +233,10 @@ function renderNotifications(notifications, role) {
     let icon = "fa-bell", color = "text-indigo-600", bgColor = "bg-indigo-50 border-indigo-100", actionButtons = "", clickAction = "";
     let statusText = noti.reason;
     
-    // 依據不同狀態設定 UI 與跳轉行為
-    if (noti.status === "PENDING_REVIEW" || noti.status === "CANCEL_REQ_REVIEW") {
+if (noti.status === "PENDING_REVIEW" || noti.status === "CANCEL_REQ_REVIEW") {
       icon = "fa-clipboard-check"; color = "text-amber-600"; bgColor = "bg-amber-50 border-amber-100";
       statusText = noti.status.includes("CANCEL") ? "취소 검토 요청" : "새로운 출타 검토 요청";
-      clickAction = `window.closeNotifications(); spaNavigate('/review.html?id=${noti._id}');`; // 或是 /review.html
+      clickAction = `window.closeNotifications(); spaNavigate('/review?id=${noti._id}');`; 
       actionButtons = `
         <div class="flex gap-2 mt-2.5">
           <button onclick="event.stopPropagation(); window.closeNotifications(); quickReview('${noti._id}', 'approve')" class="flex-1 text-[11px] font-bold bg-indigo-600 text-white py-1.5 rounded-md hover:bg-indigo-700 transition shadow-sm">검토완료</button>
@@ -268,7 +245,7 @@ function renderNotifications(notifications, role) {
     } else if (noti.status === "PENDING_APPROVAL" || noti.status === "CANCEL_REQ_APPROVAL") {
       icon = "fa-file-signature"; color = "text-blue-600"; bgColor = "bg-blue-50 border-blue-100";
       statusText = noti.status.includes("CANCEL") ? "취소 승인 대기" : "최종 승인 대기 문서";
-      clickAction = `window.closeNotifications(); spaNavigate('/approve.html?id=${noti._id}');`;
+      clickAction = `window.closeNotifications(); spaNavigate('/approve?id=${noti._id}');`;
       actionButtons = `
         <div class="flex gap-2 mt-2.5">
           <button onclick="event.stopPropagation(); window.closeNotifications(); quickApprove('${noti._id}', 'approve')" class="flex-1 text-[11px] font-bold bg-indigo-600 text-white py-1.5 rounded-md hover:bg-indigo-700 transition shadow-sm">최종승인</button>
@@ -277,20 +254,36 @@ function renderNotifications(notifications, role) {
     } else if (noti.status === "NEW_MEMBER_PENDING") {
       icon = "fa-user-plus"; color = "text-emerald-600"; bgColor = "bg-emerald-50 border-emerald-100"; 
       statusText = "신규 부대원 가입 대기";
-      clickAction = `window.closeNotifications(); spaNavigate('/adduser.html');`;
-    } else if (noti.status.includes("REJECTED")) {
-      icon = "fa-circle-xmark"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
-      statusText = "출타 신청이 반려되었습니다.";
+      clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
+    } else if (noti.status.includes("REJECTED") || noti.status === "CANCEL_APPROVED") {
+      
+      // 🔥 如果是取消成功，顯示灰色 UI
+      if (noti.status === "CANCEL_APPROVED") {
+        icon = "fa-calendar-minus"; color = "text-gray-500"; bgColor = "bg-gray-100 border-gray-200";
+        statusText = "휴가 취소가 최종 승인되어 일수가 반환되었습니다.";
+      } 
+      // 🔥 如果是拒絕，顯示紅色 UI
+      else {
+        icon = "fa-circle-xmark"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
+        statusText = "출타 신청이 반려되었습니다.";
+      }
+      
       const targetDate = noti.startDate ? noti.startDate.split('T')[0] : '';
+      
+      // 點擊後跳轉回月曆，並照亮該灰色的 EventBar
       clickAction = isIndex 
         ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');` 
         : `window.closeNotifications(); spaNavigate('/?focus=${noti._id}&date=${targetDate}&type=${noti.type}');`;
+        
     } else if (noti.status === "DISCHARGE_TODAY") {
       icon = "fa-medal"; color = "text-purple-600"; bgColor = "bg-purple-50 border-purple-100";
       statusText = "오늘 전역 예정입니다.";
-      clickAction = `window.closeNotifications(); spaNavigate('/adduser.html');`;
+      clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
+    } else if (noti.status === "PASSWORD_RESET_REQ") {
+      icon = "fa-key"; color = "text-rose-600"; bgColor = "bg-rose-50 border-rose-100";
+      statusText = "비밀번호 초기화 요청";
+      clickAction = `window.closeNotifications();`;
     }
-
     return `
       <div id="noti-${noti._id}" class="noti-item p-4 hover:bg-slate-50 border-b border-slate-100 transition-all flex items-start gap-3.5 group cursor-pointer" onclick="${clickAction}">
         <div class="w-9 h-9 rounded-full ${bgColor} border flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105">
@@ -298,8 +291,15 @@ function renderNotifications(notifications, role) {
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-start mb-1">
-            <p class="text-[13px] font-black text-slate-800 truncate pr-2">${noti.userId?.name || "시스템 알림"} <span class="text-[10px] text-slate-500 font-medium">(${noti.userId?.rank || ''})</span></p>
-            <span class="text-[10px] font-bold text-indigo-400 whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded">${timeAgo(noti.createdAt)}</span>
+            <p class="text-[13px] font-black text-slate-800 truncate pr-2">
+  ${noti.userId ? (noti.userId.name || "알 수 없음") : "시스템 알림"} 
+  <span class="text-[10px] text-slate-500 font-medium">
+    (${noti.userId?.rank || '정보 없음'})
+  </span>
+</p>
+            <span class="text-[10px] font-bold text-indigo-400 whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded">
+  ${timeAgo(noti.updatedAt || noti.createdAt || new Date())}
+</span>
           </div>
           <p class="text-xs text-slate-600 line-clamp-1 font-medium">${statusText} <span class="text-slate-400 font-normal">- ${noti.reason}</span></p>
           ${actionButtons}
@@ -309,22 +309,32 @@ function renderNotifications(notifications, role) {
   }).join("");
 }
 
-// 🛡️ API 防呆：一鍵審核
-async function approveAllLeaves() {
-  if (!confirm("모든 대기 건을 일괄 처리하시겠습니까?")) return;
+// 🛡️ API 防呆：小鈴鐺專屬一鍵審核 (嚴格白名單模式)
+window.approveAllLeaves = async function() {
+  if (!confirm("알림창 내의 [정규 편성(정원 내)] 일반 휴가만 일괄 처리하시겠습니까?\n(⚠️ 안전을 위해 '후보', '취소 신청', '인원 추가' 등의 알림은 제외됩니다.)")) return;
   const token = localStorage.getItem("token");
   try {
     const res = await fetch("/leaves/approve-all", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     if (res.status === 401) { window.location.href = "/login.html"; return; }
     const data = await res.json();
-    alert(data.message);
-    checkPendingLeaves();
-    if(typeof refreshCalendarData === "function") refreshCalendarData();
+    
+    // 🔥 優化 UX：告訴長官有哪些東西被系統「安全攔截」跳過了
+    if (data.success) {
+        let alertMsg = data.message;
+        if (data.skippedCount > 0) {
+            alertMsg += `\n\n🚨 주의: ${data.skippedCount}건의 알림(후보, 취소신청, 신규가입 등)은 안전을 위해 제외되었습니다. 직접 클릭하여 확인해주세요.`;
+        }
+        alert(alertMsg);
+        checkPendingLeaves(); // 重新整理小鈴鐺
+        if(typeof refreshCalendarData === "function") refreshCalendarData(); // 更新月曆
+    } else {
+        alert(data.error);
+    }
   } catch (e) { alert("처리 중 오류가 발생했습니다."); }
-}
+};
 
 // 🛡️ API 防呆：快速檢討
-async function quickReview(id, action) {
+window.quickReview = async function(id, action) {
   const token = localStorage.getItem("token");
   const path = action === 'approve' ? 'review' : 'reject';
   if(!confirm(action === 'approve' ? "검토 완료하시겠습니까?" : "반려하시겠습니까?")) return;
@@ -338,10 +348,10 @@ async function quickReview(id, action) {
       if(typeof refreshCalendarData === "function") refreshCalendarData(); 
     }
   } catch (e) { alert("처리 중 오류 발생"); }
-}
+};
 
 // 🛡️ API 防呆：快速最終核准
-async function quickApprove(id, action) {
+window.quickApprove = async function(id, action) {
   const token = localStorage.getItem("token");
   const path = action === 'approve' ? 'approve' : 'reject';
   if(!confirm(action === 'approve' ? "최종 승인하시겠습니까?" : "반려하시겠습니까?")) return;
@@ -355,68 +365,7 @@ async function quickApprove(id, action) {
       if(typeof refreshCalendarData === "function") refreshCalendarData();
     }
   } catch (e) { alert("처리 중 오류 발생"); }
-}
-
-// 🔥 新增：快速檢討功能 (與後端 API 對接)
-async function quickReview(id, action) {
-  const token = localStorage.getItem("token");
-  const path = action === 'approve' ? 'review' : 'reject';
-  if(!confirm(action === 'approve' ? "검토 완료하시겠습니까?" : "반려하시겠습니까?")) return;
-  
-  try {
-    const res = await fetch(`/leaves/${id}/${path}`, { 
-      method: "PUT", 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
-    const data = await res.json();
-    if(data.success) {
-      checkPendingLeaves(); // 重新整理列表
-      if(typeof refreshCalendarData === "function") refreshCalendarData(); // 如果在首頁則更新月曆
-    }
-  } catch (e) { alert("처리 중 오류 발생"); }
-}
-
-// 🔥 新增：快速最終核准功能
-async function quickApprove(id, action) {
-  const token = localStorage.getItem("token");
-  const path = action === 'approve' ? 'approve' : 'reject';
-  if(!confirm(action === 'approve' ? "최종 승인하시겠습니까?" : "반려하시겠습니까?")) return;
-  
-  try {
-    const res = await fetch(`/leaves/${id}/${path}`, { 
-      method: "PUT", 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
-    const data = await res.json();
-    if(data.success) {
-      checkPendingLeaves();
-      if(typeof refreshCalendarData === "function") refreshCalendarData();
-    }
-  } catch (e) { alert("처리 중 오류 발생"); }
-}
-
-// 🔥 [新增] 通知窗顯示/隱藏切換
-function toggleNotifications() {
-  const dropdown = document.getElementById("notificationDropdown");
-  if (dropdown) {
-    dropdown.classList.toggle("hidden");
-  }
-}
-
-// 🔥 [新增] 一鍵結算功能
-async function approveAllLeaves() {
-  if (!confirm("모든 대기 건을 일괄 처리하시겠습니까?")) return;
-  const token = localStorage.getItem("token");
-  try {
-    const res = await fetch("/leaves/approve-all", { 
-      method: "POST", 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
-    const data = await res.json();
-    alert(data.message);
-    checkPendingLeaves(); // 重新整理列表
-  } catch (e) { alert("처리 중 오류가 발생했습니다."); }
-}
+};
 
 function logout() {
   if (confirm("로그아웃 하시겠습니까?")) {
@@ -425,9 +374,8 @@ function logout() {
   }
 }
 
-/// 🔥 攔截點擊事件：SPA 跳轉 + 全域下拉選單關閉邏輯
+// 🔥 攔截點擊事件：SPA 跳轉 + 全域下拉選單關閉邏輯
 document.addEventListener("click", (e) => {
-  // 1. SPA 導航攔截
   const link = e.target.closest("a");
   if (link && link.href && link.href.startsWith(window.location.origin) && !link.hasAttribute("target")) {
     if (link.href.includes("logout") || link.onclick?.toString().includes("logout")) return;
@@ -435,7 +383,6 @@ document.addEventListener("click", (e) => {
     spaNavigate(link.href);
   }
 
-  // 2. 點擊外部自動關閉 [알림창 / 通知小鈴鐺]
   const notiDropdown = document.getElementById("notificationDropdown");
   const notiBtn = document.getElementById("notificationWrapper");
   if (notiDropdown && !notiDropdown.classList.contains("hidden")) {
@@ -444,7 +391,6 @@ document.addEventListener("click", (e) => {
     }
   }
 
-  // 3. 點擊外部自動關閉 [전역 검색 / 全域搜尋框]
   const searchDropdown = document.getElementById("globalSearchDropdown");
   const searchInput = document.getElementById("globalSearchInput");
   if (searchDropdown && !searchDropdown.classList.contains("hidden")) {
@@ -458,5 +404,6 @@ document.addEventListener("click", (e) => {
 window.addEventListener("popstate", () => {
   window.location.reload();
 });
+
 // 初始載入
 document.addEventListener("DOMContentLoaded", applyRolePermissions);

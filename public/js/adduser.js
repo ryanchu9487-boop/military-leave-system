@@ -334,9 +334,22 @@ window.openHrModal = function(user) {
 window.renderHrTimeline = function(user) {
   const container = document.getElementById("hrTimelineContainer");
   if (!container) return;
+  
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // 取得退伍日供後續比對
+  const dischargeDate = new Date(user.dischargeDate);
+  dischargeDate.setHours(0, 0, 0, 0);
 
+  // 🔥 陣列最上方加入「전역 (退伍)」，維持從下到上的時間軸順序
   const milestones = [
+    {
+      rank: "전역", date: user.dischargeDate, canAdjust: false, icon: "fa-house",
+      bgActive: "bg-emerald-500", textActive: "text-emerald-700", borderActive: "border-emerald-200", 
+      shadowActive: "shadow-emerald-500/30", badgeBg: "bg-emerald-50", badgeText: "text-emerald-600", 
+      badgeBorder: "border-emerald-100", barGradient: "from-emerald-400 to-emerald-300", ringClass: "ring-emerald-50"
+    },
     {
       rank: "병장", date: user.promoToByungjang, canAdjust: true, icon: "fa-star",
       bgActive: "bg-purple-500", textActive: "text-purple-700", borderActive: "border-purple-200", 
@@ -369,6 +382,7 @@ window.renderHrTimeline = function(user) {
   milestones.forEach((m) => {
     if (!m.date) return;
     const targetDate = new Date(m.date);
+    targetDate.setHours(0, 0, 0, 0);
     const isPassed = today >= targetDate;
 
     const nodeClass = isPassed 
@@ -379,19 +393,43 @@ window.renderHrTimeline = function(user) {
     const textClass = isPassed ? m.textActive : `text-gray-400`;
 
     let actionButtons = "";
-    // 🔥 修改點：只有「尚未晉升」且「設定為可調整」的階級才顯示按鈕
     if (m.canAdjust && !isPassed) {
+      // 🔥 1. 早期晉升計算：檢查調整後是否會早於或等於今天
+      const testEarlyDate = new Date(m.date);
+      testEarlyDate.setMonth(testEarlyDate.getMonth() - 1);
+      const canEarly = testEarlyDate > today;
+
+      // 🔥 2. 延後晉升計算：檢查調整後是否會晚於或等於退伍日
+      const testDelayDate = new Date(m.date);
+      testDelayDate.setMonth(testDelayDate.getMonth() + 1);
+      const canDelay = testDelayDate < dischargeDate;
+
       actionButtons = `
         <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100/80">
+            ${canEarly ? `
             <button onclick="window.adjustPromotion('${user._id}', '${m.rank}', -1)" class="flex-1 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-bold text-gray-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition shadow-sm">
               <i class="fa-solid fa-arrow-left text-[10px] mr-1 text-indigo-400"></i> 조기진급
-            </button>
+            </button>` : `
+            <div class="flex-1 py-1.5 bg-gray-50 border border-transparent rounded-md text-[10px] font-bold text-gray-300 text-center cursor-not-allowed">
+              조기불가
+            </div>
+            `}
+            
+            ${canDelay ? `
             <button onclick="window.adjustPromotion('${user._id}', '${m.rank}', 1)" class="flex-1 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-bold text-gray-600 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition shadow-sm">
               진급누락 <i class="fa-solid fa-arrow-right text-[10px] ml-1 text-rose-400"></i>
-            </button>
+            </button>` : `
+            <div class="flex-1 py-1.5 bg-gray-50 border border-transparent rounded-md text-[10px] font-bold text-gray-300 text-center cursor-not-allowed">
+              누락불가(전역)
+            </div>
+            `}
         </div>
       `;
     }
+
+    // 處理標籤文字（入伍與退伍不加「진급」字眼）
+    const isSpecialNode = m.rank.includes("입대") || m.rank.includes("전역");
+    const titleText = `${m.rank} ${isSpecialNode ? "" : "진급"}`;
 
     html += `
         <div class="relative flex items-start gap-4 mb-6 z-10 group">
@@ -402,7 +440,7 @@ window.renderHrTimeline = function(user) {
                 ${isPassed ? `<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${m.barGradient}"></div>` : ''}
                 <div class="flex justify-between items-start">
                     <div>
-                        <p class="text-sm font-black ${textClass} mb-1 tracking-tight">${m.rank} ${m.rank.includes("입대") ? "" : "진급"}</p>
+                        <p class="text-sm font-black ${textClass} mb-1 tracking-tight">${titleText}</p>
                         <p class="font-mono text-sm font-bold ${isPassed ? 'text-gray-800' : 'text-gray-400'}">${formatDate(m.date)}</p>
                     </div>
                     ${

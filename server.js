@@ -326,6 +326,21 @@ app.get("/adduser.html", (req, res) => res.render("adduser"));
 app.get("/review.html", (req, res) => res.render("review"));
 app.get("/approve.html", (req, res) => res.render("approve"));
 
+// 渲染 1차 검토 (Review) 頁面
+app.get('/review', (req, res) => {
+    res.render('review'); 
+});
+
+// 渲染 최종 승인 (Approve) 頁面
+app.get('/approve', (req, res) => {
+    res.render('approve'); 
+});
+
+// 如果你的 adduser 也是 ejs，順便確認有沒有這行
+app.get('/adduser', (req, res) => {
+    res.render('adduser'); 
+});
+
 // ============================
 // 서버 실행
 // ============================

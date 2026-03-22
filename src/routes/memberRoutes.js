@@ -46,10 +46,11 @@ router.get("/users/org-members", authMiddleware, async (req, res) => {
 
 /**
  * 2. 晉升日手動微調 API (조기진급 / 진급누락)
- * 🔥 修改點：增加日期檢查，禁止修改已經過去的晉升日
+ * 🔥 [終極精準版]：包含權限檢查、既往禁止、防止早於今日，以及防止晚於退伍日！
  */
 router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
   try {
+    // A. 權限檢查
     if (!["reviewer", "approver"].includes(req.user.role)) {
       return res
         .status(403)
@@ -58,7 +59,10 @@ router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
 
     const { targetRank, monthsToAdjust } = req.body;
     const targetUser = await User.findById(req.params.id);
+    
+    // 取得今天日期並歸零時分秒，確保公平比對
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     if (!targetUser)
       return res.status(404).json({ error: "해당 용사를 찾을 수 없습니다." });
@@ -68,32 +72,57 @@ router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
         .status(400)
         .json({ error: "간부의 진급일은 조정할 수 없습니다." });
 
-    // 🔥 [核心防護邏輯]：檢查目標晉升日期是否已經小於等於今天（代表已晉升）
-    let currentPromoDate = null;
-    if (targetRank === "상병") currentPromoDate = targetUser.promoToSangbyung;
-    if (targetRank === "병장") currentPromoDate = targetUser.promoToByungjang;
+    // B. 取得目前的晉升日期資料與退伍日資料
+    let originalDate = null;
+    if (targetRank === "상병") originalDate = targetUser.promoToSangbyung;
+    if (targetRank === "병장") originalDate = targetUser.promoToByungjang;
 
-    if (currentPromoDate && new Date(currentPromoDate) <= today) {
-      return res
-        .status(400)
-        .json({ error: `해당 용사는 이미 ${targetRank}입니다. 이미 달성된 진급일은 수정할 수 없습니다.` });
+    if (!originalDate) {
+      return res.status(400).json({ error: "해당 계급의 진급일 정보가 존재하지 않습니다." });
     }
 
-    let dateToModify = null;
+    const dischargeDateObj = new Date(targetUser.dischargeDate);
+    dischargeDateObj.setHours(0, 0, 0, 0);
 
-    if (targetRank === "상병" && targetUser.promoToSangbyung) {
-      dateToModify = new Date(targetUser.promoToSangbyung);
-      dateToModify.setMonth(dateToModify.getMonth() + monthsToAdjust);
+    // C. [防禦 1] 檢查是否已經晉升
+    const currentDateObj = new Date(originalDate);
+    currentDateObj.setHours(0, 0, 0, 0);
+    
+    if (currentDateObj <= today) {
+      return res.status(400).json({ 
+        error: `해당 용사는 이미 ${targetRank} 계급을 달성했거나 진급일이 지났습니다. 이미 지난 일자는 수정할 수 없습니다.` 
+      });
+    }
+
+    // 計算調整後的日期
+    let dateToModify = new Date(originalDate);
+    dateToModify.setMonth(dateToModify.getMonth() + monthsToAdjust);
+    dateToModify.setHours(0, 0, 0, 0);
+
+    // D. [防禦 2] 預判是否會早於或等於今天 (針對 조기진급)
+    if (dateToModify <= today && monthsToAdjust < 0) {
+      return res.status(400).json({ 
+        error: `조기진급 처리 후의 날짜(${dateToModify.toISOString().split('T')[0]})가 오늘 또는 과거일 수 없습니다. 조정 개월 수를 확인하세요.` 
+      });
+    }
+
+    // E. [防禦 3] 預判是否會晚於或等於退伍日 (針對 진급누락)
+    if (dateToModify >= dischargeDateObj && monthsToAdjust > 0) {
+      return res.status(400).json({ 
+        error: `진급 누락일(${dateToModify.toISOString().split('T')[0]})이 전역일(${dischargeDateObj.toISOString().split('T')[0]})보다 늦거나 같을 수 없습니다.` 
+      });
+    }
+
+    // F. 執行日期修改
+    if (targetRank === "상병") {
       targetUser.promoToSangbyung = dateToModify;
-    } else if (targetRank === "병장" && targetUser.promoToByungjang) {
-      dateToModify = new Date(targetUser.promoToByungjang);
-      dateToModify.setMonth(dateToModify.getMonth() + monthsToAdjust);
+    } else if (targetRank === "병장") {
       targetUser.promoToByungjang = dateToModify;
     } else {
       return res.status(400).json({ error: "잘못된 진급 조정 요청입니다." });
     }
 
-    // 基本日期先後邏輯檢查
+    // G. 基本日期先後邏輯檢查 (例如上兵不能比一兵快)
     if (targetUser.promoToSangbyung <= targetUser.promoToIlbyung) {
       return res
         .status(400)
@@ -105,15 +134,16 @@ router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
         .json({ error: "병장 진급일이 상병 진급일보다 빠를 수 없습니다." });
     }
 
+    // H. 存檔並回傳
     await targetUser.save();
 
     res.json({
       success: true,
-      message: `${targetRank} 진급일이 성공적으로 조정되었습니다.`,
+      message: `${targetRank} 진급일이 ${monthsToAdjust > 0 ? '진급누락' : '조기진급'}으로 인해 성공적으로 조정되었습니다.`,
       newRank: getDynamicRank(targetUser),
     });
   } catch (error) {
-    console.error(error);
+    console.error("🔥 Promotion Adjust Error:", error);
     res.status(500).json({ error: "진급일 조정 중 서버 오류가 발생했습니다." });
   }
 });

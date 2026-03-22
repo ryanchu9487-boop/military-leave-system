@@ -167,63 +167,72 @@
           return "이병";
         }
 
-        function applyCancelModeUI() {
-          const wrapper = document.getElementById("page-wrapper");
-          if (wrapper) wrapper.classList.replace("bg-[#f8fafc]", "bg-[#fffaf5]");
-          
-          const blob1 = document.getElementById("blob-1");
-          if (blob1) blob1.className = "absolute filter blur-[80px] opacity-60 top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[radial-gradient(circle,rgba(249,115,22,0.3)_0%,rgba(249,115,22,0)_70%)]";
-          
-          const blob2 = document.getElementById("blob-2");
-          if (blob2) blob2.className = "absolute filter blur-[80px] opacity-60 bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-[radial-gradient(circle,rgba(239,68,68,0.25)_0%,rgba(239,68,68,0)_70%)]";
+       function applyCancelModeUI() {
+  const wrapper = document.getElementById("page-wrapper");
+  // 替換成微微偏紅的背景色 (Tailwind red-50 的感覺)
+  if (wrapper) wrapper.classList.replace("bg-[#f8fafc]", "bg-[#fef2f2]");
+  
+  // 背景光暈換成紅色系
+  const blob1 = document.getElementById("blob-1");
+  if (blob1) blob1.className = "absolute filter blur-[80px] opacity-60 top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[radial-gradient(circle,rgba(239,68,68,0.3)_0%,rgba(239,68,68,0)_70%)]";
+  
+  const blob2 = document.getElementById("blob-2");
+  if (blob2) blob2.className = "absolute filter blur-[80px] opacity-60 bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-[radial-gradient(circle,rgba(185,28,28,0.25)_0%,rgba(185,28,28,0)_70%)]";
 
-          document.getElementById("mainBody").classList.add("selection:bg-orange-500");
-          document.getElementById("mainBody").classList.remove("selection:bg-purple-500");
-          
-          const setVal = (id, val, isHTML = false) => {
-            const el = document.getElementById(id);
-            if (el) { isHTML ? el.innerHTML = val : el.innerText = val; }
-          };
+  // 選取文字的顏色變成紅色
+  if (document.body) {
+    document.body.classList.add("selection:bg-red-500");
+    document.body.classList.remove("selection:bg-purple-500"); 
+  }
+  
+  const setVal = (id, val, isHTML = false) => {
+    const el = document.getElementById(id);
+    if (el) { isHTML ? el.innerHTML = val : el.innerText = val; }
+  };
 
-          const sb = document.getElementById("statusBadge");
-          if (sb) sb.className = "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200 text-orange-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
-          setVal("mainTitle", `휴가 취소 <span class="text-orange-600 font-light">최종 승인</span>`, true);
-          
-          const ua = document.getElementById("userAvatar");
-          if (ua) ua.className = "w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-red-400 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
-          
-          const ur = document.getElementById("userRank");
-          if (ur) ur.className = "text-sm font-bold text-orange-600 mb-0.5 transition-colors";
-          
-          const db = document.getElementById("daysBox");
-          if(db) db.className = "p-5 rounded-3xl bg-orange-50/50 border border-orange-100/50 flex flex-col justify-center items-end text-right transition-colors";
-          
-          const dl = document.getElementById("daysLabel");
-          if(dl) dl.className = "text-xs font-bold text-orange-500 mb-1 uppercase tracking-wider transition-colors";
-          
-          const td = document.getElementById("totalDays");
-          if(td) td.className = "text-3xl font-black text-orange-600 transition-colors";
-          
-          const du = document.getElementById("daysUnit");
-          if(du) du.className = "text-sm font-bold text-orange-500 transition-colors";
+  const sb = document.getElementById("statusBadge");
+  if (sb) sb.className = "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100/50 border border-red-200 text-red-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
+  
+  setVal("mainTitle", `휴가 취소 <span class="text-red-600 font-light">최종 승인</span>`, true);
+  
+  // 頭像漸層改為紅到玫瑰色的漸層
+  const ua = document.getElementById("userAvatar");
+  if (ua) ua.className = "w-16 h-16 rounded-2xl bg-gradient-to-tr from-red-500 to-rose-600 shadow-lg shadow-red-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
+  
+  const ur = document.getElementById("userRank");
+  if (ur) ur.className = "text-sm font-bold text-red-600 mb-0.5 transition-colors";
+  
+  const db = document.getElementById("daysBox");
+  if(db) db.className = "p-5 rounded-3xl bg-red-50/50 border border-red-100/50 flex flex-col justify-center items-end text-right transition-colors";
+  
+  const dl = document.getElementById("daysLabel");
+  if(dl) dl.className = "text-xs font-bold text-red-500 mb-1 uppercase tracking-wider transition-colors";
+  
+  const td = document.getElementById("totalDays");
+  if(td) td.className = "text-3xl font-black text-red-600 transition-colors";
+  
+  const du = document.getElementById("daysUnit");
+  if(du) du.className = "text-sm font-bold text-red-500 transition-colors";
 
-          setVal("rejectBtn", "취소 거절 (휴가유지)");
-          const rBtn = document.getElementById("rejectBtn");
-          if (rBtn) rBtn.className = "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
+  setVal("rejectBtn", "취소 거절 (휴가 유지)");
+  const rBtn = document.getElementById("rejectBtn");
+  if (rBtn) rBtn.className = "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
 
-          const aBtn = document.getElementById("approveBtn");
-          if (aBtn) aBtn.className = "flex-[2] py-4 rounded-2xl bg-orange-600 text-white font-bold text-base shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all flex justify-center items-center gap-2";
-          setVal("approveText", "취소 최종 승인 (일수 반환)");
-          
-          const aIcon = document.getElementById("approveIcon");
-          if (aIcon) aIcon.className = "fa-solid fa-file-excel";
+  // 最終確認按鈕變成強烈的紅色
+  const aBtn = document.getElementById("approveBtn");
+  if (aBtn) aBtn.className = "flex-[2] py-4 rounded-2xl bg-red-600 text-white font-bold text-base shadow-xl shadow-red-600/20 hover:bg-red-700 transition-all flex justify-center items-center gap-2";
+  
+  setVal("approveText", "취소 최종 승인 (일수 반환)");
+  
+  const aIcon = document.getElementById("approveIcon");
+  if (aIcon) aIcon.className = "fa-solid fa-file-excel";
 
-          const es = document.getElementById("evidenceSection");
-          if (es) {
-            es.classList.remove("bg-slate-50", "border-slate-100");
-            es.classList.add("bg-orange-50/50", "border-orange-100/50");
-          }
-        }
+  const es = document.getElementById("evidenceSection");
+  if (es) {
+    es.classList.remove("bg-slate-50", "border-slate-100");
+    es.classList.add("bg-red-50/50", "border-red-100/50");
+  }
+}
 
         window.initApprovePage = async function() {
           const token = localStorage.getItem("token");

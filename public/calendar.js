@@ -184,16 +184,35 @@ function updateModeUI() {
 }
 
 async function batchApprovePhase1() {
-  if (!confirm("현재 월력에 표시된 [정규 편성(정원 내)] 인원만 일괄 승인/검토완료 처리하시겠습니까?\n(후보 인원은 제외됩니다)")) return;
+  const isApprover = ["approver", "superadmin"].includes(currentUserRole);
+  
+  // 依據身分給予不同的提示訊息 (核准者不再看到候補警告)
+  const confirmMsg = isApprover 
+    ? "현재 월력에 표시된 모든 대기 인원을 일괄 '최종 승인' 하시겠습니까?" 
+    : "현재 월력에 표시된 [정규 편성(정원 내)] 인원만 일괄 '검토 완료' 처리하시겠습니까?\n(⚠️ 출타율을 초과한 '후보' 인원은 자동으로 제외됩니다.)";
+
+  if (!confirm(confirmMsg)) return;
+
   try {
     const res = await fetch(`/leaves/approve-calendar-phase1`, {
       method: "POST",
       headers: { Authorization: `Bearer ${currentToken}` },
     });
     const data = await res.json();
-    alert(data.message || data.error);
+    
     if (data.success) {
-      await refreshCalendarData();
+        let alertMsg = data.message;
+        // 只有 Reviewer 才需要顯示候補被跳過的警告
+        if (data.skippedCount > 0 && !data.isApprover) {
+            alertMsg += `\n\n🚨 주의: ${data.skippedCount}건의 '후보' 상태인 휴가는 출타율 초과 방지를 위해 제외되었습니다. 수동으로 확인해주세요.`;
+        }
+        alert(alertMsg);
+        
+        // 🔥 核准後，同時刷新月曆與右上角的小鈴鐺！
+        await refreshCalendarData();
+        if (typeof checkPendingLeaves === "function") checkPendingLeaves();
+    } else {
+        alert(data.error);
     }
   } catch (e) {
     alert("오류가 발생했습니다.");
