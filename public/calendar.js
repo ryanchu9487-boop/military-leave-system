@@ -165,9 +165,13 @@ function updateModeUI() {
 
   const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole);
 
+  // 🔥 關鍵修改：加上 currentCalendarMode !== "personal" 條件
   if (settingsModalBtn) {
-    if (isManager) settingsModalBtn.classList.remove("hidden");
-    else settingsModalBtn.classList.add("hidden");
+    if (isManager && currentCalendarMode !== "personal") {
+      settingsModalBtn.classList.remove("hidden");
+    } else {
+      settingsModalBtn.classList.add("hidden");
+    }
   }
 
   if (batchApproveBtn) {

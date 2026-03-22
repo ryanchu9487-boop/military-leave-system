@@ -52,6 +52,7 @@ window.spaNavigate = async function (urlPath) {
     // 3. 替換內容與執行腳本
     const newContent = doc.getElementById("page-wrapper");
     if (newContent) {
+      wrapper.className = newContent.className;
       wrapper.innerHTML = newContent.innerHTML;
 
       const scripts = Array.from(newContent.querySelectorAll("script"));

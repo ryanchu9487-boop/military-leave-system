@@ -28,21 +28,17 @@ window.fetchUsers = async function() {
     });
   }
 
-  await loadPendingUsers();
-  await loadUsers();
+  await window.loadPendingUsers();
+  await window.loadUsers();
 };
 
 // 🔹 기존 새로고침(F5) 대응 및 SPA 호출 대비
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", window.fetchUsers);
-} else {
-  // 이미 로드된 상태라면 즉시 실행하지 않고, 
-  // SPA 엔진(adduser.ejs 하단의 setTimeout)이 호출할 때까지 기다립니다.
-  // 이렇게 해야 DOM이 완전히 준비된 상태에서만 데이터를 그림.
 }
 
 // 🔹 1. 승인 대기 인원 불러오기
-async function loadPendingUsers() {
+window.loadPendingUsers = async function() {
   const token = localStorage.getItem("token");
   try {
     const res = await fetch("/pending-users", {
@@ -53,7 +49,7 @@ async function loadPendingUsers() {
   } catch (err) {
     console.error("대기 인원 로딩 오류:", err);
   }
-}
+};
 
 // 🔹 2. 승인 대기 인원 화면 출력
 function renderPending(users) {
@@ -92,10 +88,10 @@ function renderPending(users) {
           </div>
         </div>
         <div class="flex gap-2">
-          <button onclick="approveUser('${
+          <button onclick="window.approveUser('${
             user._id
           }')" class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded hover:bg-indigo-700 transition shadow-sm">승인</button>
-          <button onclick="rejectUser('${
+          <button onclick="window.rejectUser('${
             user._id
           }')" class="px-3 py-1.5 bg-red-100 text-red-600 text-xs font-bold rounded hover:bg-red-200 transition">거절</button>
         </div>
@@ -105,7 +101,7 @@ function renderPending(users) {
 }
 
 // 🔹 3. 승인/거절 처리
-async function approveUser(userId) {
+window.approveUser = async function(userId) {
   const token = localStorage.getItem("token");
   if (!confirm("해당 인원의 가입을 승인하시겠습니까?")) return;
   try {
@@ -115,15 +111,14 @@ async function approveUser(userId) {
     });
     const data = await res.json();
     if (data.error) return alert(data.error);
-    loadPendingUsers();
-    loadUsers();
+    window.loadPendingUsers();
+    window.loadUsers();
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
   }
-}
+};
 
-// 중복된 rejectUser를 병합하여 올바른 HTTP Method(DELETE)로 수정
-async function rejectUser(userId) {
+window.rejectUser = async function(userId) {
   const token = localStorage.getItem("token");
   if (!confirm("해당 인원의 가입을 거절하시겠습니까?")) return;
   try {
@@ -133,14 +128,14 @@ async function rejectUser(userId) {
     });
     const data = await res.json();
     if (data.error) return alert(data.error);
-    loadPendingUsers();
+    window.loadPendingUsers();
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
   }
-}
+};
 
 // 🔹 4. 기존 부대원 불러오기
-async function loadUsers() {
+window.loadUsers = async function() {
   const token = localStorage.getItem("token");
   try {
     const res = await fetch("/users/org-members", {
@@ -166,7 +161,7 @@ async function loadUsers() {
   } catch (err) {
     console.error("부대원 로딩 오류:", err);
   }
-}
+};
 
 // 🔹 6. 부대원 출력
 function renderUsers(users) {
@@ -184,28 +179,29 @@ function renderUsers(users) {
 
   users.forEach((user) => {
     let roleHtml = "";
-    const canDelete = user.role !== "reviewer" && user.role !== "approver";
+    // 🔥 確保自己不能降級自己 (這裡假設 superadmin 不能被降級)
+    const canDelete = user.role !== "superadmin";
 
     if (!canDelete) {
-      const roleText = user.role === "reviewer" ? "검토자 (檢討者)" : "승인자 (批准者)";
-      const bgClass = user.role === "reviewer" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-emerald-50 text-emerald-700 border-emerald-200";
+      const roleText = "최고 관리자 (管理者)";
+      const bgClass = "bg-purple-50 text-purple-700 border-purple-200";
       roleHtml = `<span class="px-3 py-1.5 ${bgClass} border rounded-lg font-bold text-xs shadow-sm inline-block min-w-[100px] text-center">${roleText}</span>`;
     } else {
       roleHtml = `
-        <select onchange="changeUserRole('${
+        <select onchange="window.changeUserRole('${
           user._id
         }', this.value)" class="text-xs font-bold text-gray-700 border border-gray-300 rounded-lg px-2 py-1.5 bg-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-sm hover:bg-gray-50 transition-colors">
           <option value="soldier" ${
             user.role === "soldier" ? "selected" : ""
           }>용사 (勇士)</option>
           <option value="officer" ${
-            user.role === "officer" ? "selected" : ""
+            (user.role === "officer" || user.role === "reviewer" || user.role === "approver") ? "selected" : ""
           }>간부 (幹部)</option>
         </select>`;
     }
 
     const deleteBtn = canDelete
-      ? `<button onclick="dischargeUser('${user._id}', '${user.name}')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200" title="전역/삭제">
+      ? `<button onclick="window.dischargeUser('${user._id}', '${user.name}')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200" title="전역/삭제">
           <i class="fa-solid fa-trash-can"></i>
         </button>`
       : `<div class="w-8 h-8"></div>`;
@@ -213,7 +209,7 @@ function renderUsers(users) {
     const displayRank = user.currentRank || user.rank || "계급없음";
 
     const hrBtn = user.role === "soldier" && user.enlistmentDate
-        ? `<button onclick='openHrModal(${JSON.stringify(user).replace(
+        ? `<button onclick='window.openHrModal(${JSON.stringify(user).replace(
             /'/g,
             "&#39;"
           )})' class="ml-2 px-3 py-1.5 bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-50 text-xs font-bold rounded-lg shadow-sm transition flex items-center gap-1.5" title="인사 관리">
@@ -248,7 +244,7 @@ function renderUsers(users) {
 }
 
 // 🔹 7. 삭제(전역) 처리
-async function dischargeUser(userId, userName) {
+window.dischargeUser = async function(userId, userName) {
   const token = localStorage.getItem("token");
   if (!confirm(`정말로 ${userName} 인원을 삭제(전역) 처리하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
   try {
@@ -258,14 +254,14 @@ async function dischargeUser(userId, userName) {
     });
     const data = await res.json();
     if (data.error) return alert(data.error);
-    loadUsers();
+    window.loadUsers();
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
   }
-}
+};
 
 // 🔹 8. 권한 변경 처리
-async function changeUserRole(userId, newRole) {
+window.changeUserRole = async function(userId, newRole) {
   const token = localStorage.getItem("token");
   let newRank = newRole === "officer" ? "간부" : "용사";
   try {
@@ -281,7 +277,7 @@ async function changeUserRole(userId, newRole) {
 
     if (data.error) {
       alert(data.error);
-      loadUsers();
+      window.loadUsers();
     } else {
       const toast = document.createElement("div");
       toast.className =
@@ -292,53 +288,16 @@ async function changeUserRole(userId, newRole) {
         toast.style.opacity = "0";
         setTimeout(() => toast.remove(), 300);
       }, 2000);
-      loadUsers();
+      window.loadUsers();
     }
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
-    loadUsers();
+    window.loadUsers();
   }
-}
-
-// 🔹 9. 새 부대원 수동 추가 (🔥 누락되었던 기능 복원)
-async function addUser() {
-  const token = localStorage.getItem("token");
-  const name = document.getElementById("newUserName").value;
-  const serviceNumber = document.getElementById("newUserServiceNumber").value;
-  const email = document.getElementById("newUserGmail").value;
-
-  if (!name || !serviceNumber || !email) {
-    alert("모든 정보를 입력해주세요.");
-    return;
-  }
-
-  try {
-    const res = await fetch("/api/members", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ name, serviceNumber, email, role: "soldier" }),
-    });
-    const result = await res.json();
-    if (result.success) {
-      alert("부대원이 성공적으로 추가되었습니다.");
-      document.getElementById("newUserName").value = "";
-      document.getElementById("newUserServiceNumber").value = "";
-      document.getElementById("newUserGmail").value = "";
-      if (typeof closeModal === "function") closeModal("userModal");
-      loadUsers();
-    } else {
-      alert(result.error || "추가에 실패했습니다.");
-    }
-  } catch (err) {
-    alert("서버 통신 오류가 발생했습니다.");
-  }
-}
+};
 
 // 🚀 ==========================================
-// 🔥 HR 인사 관리 모달 로직
+// 🔥 HR 인사 관리 모달 로직 (완벽 수정본)
 // ==============================================
 
 function formatDate(dateString) {
@@ -347,64 +306,109 @@ function formatDate(dateString) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
-function openHrModal(user) {
+window.openHrModal = function(user) {
   document.getElementById("currentHrUserId").value = user._id;
-  document.getElementById("hrName").innerText = `${user.name} 용사`;
-  document.getElementById("hrRankBadge").innerText = user.currentRank || "이병";
-  document.getElementById("hrServiceNum").innerText = user.serviceNumber;
-  document.getElementById("hrEnlistDate").innerText = formatDate(user.enlistmentDate);
-  document.getElementById("hrDischargeDate").innerText = formatDate(user.dischargeDate);
+  
+  const nameEl = document.getElementById("hrName");
+  if (nameEl) nameEl.innerText = `${user.name} 용사`;
+  
+  const rankEl = document.getElementById("hrRankBadge");
+  if (rankEl) rankEl.innerText = user.currentRank || "이병";
+  
+  const numEl = document.getElementById("hrServiceNum");
+  if (numEl) numEl.innerText = user.serviceNumber;
 
-  renderHrTimeline(user);
-  document.getElementById("hrModal").classList.remove("hidden");
-}
+  // 🔥 방어 코드: 화면에 없으면 값을 넣지 않음 (여기서 에러가 나면 창이 안 켜짐)
+  const enlistEl = document.getElementById("hrEnlistDate");
+  if (enlistEl) enlistEl.innerText = formatDate(user.enlistmentDate);
+  
+  const dischargeEl = document.getElementById("hrDischargeDate");
+  if (dischargeEl) dischargeEl.innerText = formatDate(user.dischargeDate);
 
-function renderHrTimeline(user) {
+  window.renderHrTimeline(user);
+  
+  const modal = document.getElementById("hrModal");
+  if (modal) modal.classList.remove("hidden");
+};
+
+window.renderHrTimeline = function(user) {
   const container = document.getElementById("hrTimelineContainer");
+  if (!container) return;
   const today = new Date();
 
   const milestones = [
-    { rank: "일병", date: user.promoToIlbyung, icon: "fa-angles-up", color: "blue", canAdjust: false },
-    { rank: "상병", date: user.promoToSangbyung, icon: "fa-angles-up", color: "indigo", canAdjust: true },
-    { rank: "병장", date: user.promoToByungjang, icon: "fa-star", color: "purple", canAdjust: true },
+    {
+      rank: "병장", date: user.promoToByungjang, canAdjust: true, icon: "fa-star",
+      bgActive: "bg-purple-500", textActive: "text-purple-700", borderActive: "border-purple-200", 
+      shadowActive: "shadow-purple-500/30", badgeBg: "bg-purple-50", badgeText: "text-purple-600", 
+      badgeBorder: "border-purple-100", barGradient: "from-purple-400 to-purple-300", ringClass: "ring-purple-50"
+    },
+    {
+      rank: "상병", date: user.promoToSangbyung, canAdjust: true, icon: "fa-angles-up",
+      bgActive: "bg-indigo-500", textActive: "text-indigo-700", borderActive: "border-indigo-200", 
+      shadowActive: "shadow-indigo-500/30", badgeBg: "bg-indigo-50", badgeText: "text-indigo-600", 
+      badgeBorder: "border-indigo-100", barGradient: "from-indigo-400 to-indigo-300", ringClass: "ring-indigo-50"
+    },
+    {
+      rank: "일병", date: user.promoToIlbyung, canAdjust: false, icon: "fa-angles-up",
+      bgActive: "bg-blue-500", textActive: "text-blue-700", borderActive: "border-blue-200", 
+      shadowActive: "shadow-blue-500/30", badgeBg: "bg-blue-50", badgeText: "text-blue-600", 
+      badgeBorder: "border-blue-100", barGradient: "from-blue-400 to-blue-300", ringClass: "ring-blue-50"
+    },
+    {
+      rank: "이병 (입대)", date: user.enlistmentDate, canAdjust: false, icon: "fa-person-military-pointing",
+      bgActive: "bg-slate-500", textActive: "text-slate-700", borderActive: "border-slate-200", 
+      shadowActive: "shadow-slate-500/30", badgeBg: "bg-slate-50", badgeText: "text-slate-600", 
+      badgeBorder: "border-slate-100", barGradient: "from-slate-400 to-slate-300", ringClass: "ring-slate-50"
+    },
   ];
 
-  let html = "";
+  let html = `<div class="relative pl-1 py-2">`;
+  html += `<div class="absolute left-[1.6rem] top-8 bottom-8 w-1 bg-gray-100 rounded-full z-0"></div>`;
 
   milestones.forEach((m) => {
     if (!m.date) return;
     const targetDate = new Date(m.date);
     const isPassed = today >= targetDate;
 
-    const bgClass = isPassed ? `bg-${m.color}-500` : `bg-gray-200`;
-    const textClass = isPassed ? `text-${m.color}-600` : `text-gray-400`;
-    const borderClass = isPassed ? `border-${m.color}-200` : `border-gray-200`;
+    const nodeClass = isPassed 
+        ? `${m.bgActive} text-white shadow-md ${m.shadowActive} ring-4 ${m.ringClass}` 
+        : `bg-white text-gray-300 border-2 border-dashed border-gray-300 ring-4 ring-white`;
+    
+    const cardBorder = isPassed ? `${m.borderActive} bg-white` : `border-gray-100 bg-gray-50/50 opacity-80`;
+    const textClass = isPassed ? m.textActive : `text-gray-400`;
 
     let actionButtons = "";
-    if (m.canAdjust) {
+    // 🔥 修改點：只有「尚未晉升」且「設定為可調整」的階級才顯示按鈕
+    if (m.canAdjust && !isPassed) {
       actionButtons = `
-        <div class="flex items-center gap-1 mt-2">
-            <button onclick="adjustPromotion('${user._id}', '${m.rank}', -1)" class="px-2 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-600 hover:text-indigo-600 hover:border-indigo-200 transition shadow-sm" title="진급일을 1개월 앞당깁니다.">[-] 조기진급</button>
-            <button onclick="adjustPromotion('${user._id}', '${m.rank}', 1)" class="px-2 py-1 bg-white border border-gray-200 rounded text-[10px] font-bold text-gray-600 hover:text-red-600 hover:border-red-200 transition shadow-sm" title="진급일을 1개월 미룹니다.">[+] 진급누락</button>
+        <div class="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100/80">
+            <button onclick="window.adjustPromotion('${user._id}', '${m.rank}', -1)" class="flex-1 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-bold text-gray-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition shadow-sm">
+              <i class="fa-solid fa-arrow-left text-[10px] mr-1 text-indigo-400"></i> 조기진급
+            </button>
+            <button onclick="window.adjustPromotion('${user._id}', '${m.rank}', 1)" class="flex-1 py-1.5 bg-white border border-gray-200 rounded-md text-[11px] font-bold text-gray-600 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition shadow-sm">
+              진급누락 <i class="fa-solid fa-arrow-right text-[10px] ml-1 text-rose-400"></i>
+            </button>
         </div>
       `;
     }
 
     html += `
-        <div class="relative flex items-start gap-4 z-10">
-            <div class="w-8 h-8 rounded-full ${bgClass} text-white flex items-center justify-center shadow-sm ring-4 ring-white z-10 mt-1 transition-colors duration-500">
-                <i class="fa-solid ${m.icon} text-xs"></i>
+        <div class="relative flex items-start gap-4 mb-6 z-10 group">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10 transition-all duration-300 group-hover:scale-110 mt-1 ${nodeClass}">
+                <i class="fa-solid ${m.icon} text-sm"></i>
             </div>
-            <div class="flex-1 bg-white rounded-xl p-3 border ${borderClass} shadow-sm transition-colors duration-500">
+            <div class="flex-1 rounded-2xl p-4 border ${cardBorder} shadow-sm transition-all duration-300 group-hover:shadow-md relative overflow-hidden">
+                ${isPassed ? `<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${m.barGradient}"></div>` : ''}
                 <div class="flex justify-between items-start">
                     <div>
-                        <p class="text-sm font-black ${textClass} mb-0.5">${m.rank} 진급</p>
-                        <p class="font-mono text-sm font-bold text-gray-800">${formatDate(m.date)}</p>
+                        <p class="text-sm font-black ${textClass} mb-1 tracking-tight">${m.rank} ${m.rank.includes("입대") ? "" : "진급"}</p>
+                        <p class="font-mono text-sm font-bold ${isPassed ? 'text-gray-800' : 'text-gray-400'}">${formatDate(m.date)}</p>
                     </div>
                     ${
                       isPassed
-                        ? '<span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">완료됨</span>'
-                        : '<span class="text-[10px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded font-bold">예정</span>'
+                        ? `<span class="text-[10px] ${m.badgeBg} ${m.badgeText} px-2 py-1 rounded-md font-black shadow-sm border ${m.badgeBorder} flex items-center"><i class="fa-solid fa-check mr-1 opacity-70"></i> 달성</span>`
+                        : `<span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-md font-bold border border-gray-200 flex items-center"><i class="fa-solid fa-lock mr-1 opacity-50"></i> 예정</span>`
                     }
                 </div>
                 ${actionButtons}
@@ -413,10 +417,11 @@ function renderHrTimeline(user) {
     `;
   });
 
+  html += `</div>`;
   container.innerHTML = html;
-}
+};
 
-async function adjustPromotion(userId, targetRank, months) {
+window.adjustPromotion = async function(userId, targetRank, months) {
   const token = localStorage.getItem("token");
   const actionName = months < 0 ? "조기진급(1개월 앞당김)" : "진급누락(1개월 미룸)";
   if (!confirm(`${targetRank} 진급일을 ${actionName} 처리하시겠습니까?`)) return;
@@ -434,11 +439,11 @@ async function adjustPromotion(userId, targetRank, months) {
 
     if (data.success) {
       alert(data.message);
-      await loadUsers();
+      await window.loadUsers();
       const updatedUser = window.allActiveUsers.find((u) => u._id === userId);
       if (updatedUser) {
         document.getElementById("hrRankBadge").innerText = updatedUser.currentRank;
-        renderHrTimeline(updatedUser);
+        window.renderHrTimeline(updatedUser);
       }
     } else {
       alert(data.error);
@@ -446,4 +451,4 @@ async function adjustPromotion(userId, targetRank, months) {
   } catch (e) {
     alert("서버 통신 오류");
   }
-}
+};

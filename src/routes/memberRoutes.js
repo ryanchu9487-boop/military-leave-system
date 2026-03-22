@@ -46,6 +46,7 @@ router.get("/users/org-members", authMiddleware, async (req, res) => {
 
 /**
  * 2. 晉升日手動微調 API (조기진급 / 진급누락)
+ * 🔥 修改點：增加日期檢查，禁止修改已經過去的晉升日
  */
 router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
   try {
@@ -57,13 +58,26 @@ router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
 
     const { targetRank, monthsToAdjust } = req.body;
     const targetUser = await User.findById(req.params.id);
+    const today = new Date();
 
     if (!targetUser)
       return res.status(404).json({ error: "해당 용사를 찾을 수 없습니다." });
+    
     if (targetUser.role !== "soldier")
       return res
         .status(400)
         .json({ error: "간부의 진급일은 조정할 수 없습니다." });
+
+    // 🔥 [核心防護邏輯]：檢查目標晉升日期是否已經小於等於今天（代表已晉升）
+    let currentPromoDate = null;
+    if (targetRank === "상병") currentPromoDate = targetUser.promoToSangbyung;
+    if (targetRank === "병장") currentPromoDate = targetUser.promoToByungjang;
+
+    if (currentPromoDate && new Date(currentPromoDate) <= today) {
+      return res
+        .status(400)
+        .json({ error: `해당 용사는 이미 ${targetRank}입니다. 이미 달성된 진급일은 수정할 수 없습니다.` });
+    }
 
     let dateToModify = null;
 
@@ -79,6 +93,7 @@ router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
       return res.status(400).json({ error: "잘못된 진급 조정 요청입니다." });
     }
 
+    // 基本日期先後邏輯檢查
     if (targetUser.promoToSangbyung <= targetUser.promoToIlbyung) {
       return res
         .status(400)
@@ -108,7 +123,6 @@ router.put("/users/:id/promotion-adjust", authMiddleware, async (req, res) => {
 // =========================================================================
 router.delete("/members/:id", authMiddleware, async (req, res) => {
   try {
-    // 只有幹部可以刪除
     if (
       !["reviewer", "approver", "admin", "superadmin"].includes(req.user.role)
     ) {
@@ -122,12 +136,10 @@ router.delete("/members/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "해당 인원을 찾을 수 없습니다." });
     }
 
-    // 🧹 為了保持資料庫乾淨，刪除人員前，連帶把他的「所有休假紀錄」一併刪除！
     if (typeof Leave !== "undefined") {
       await Leave.deleteMany({ userId: targetUserId });
     }
 
-    // 刪除使用者
     await User.findByIdAndDelete(targetUserId);
 
     res.json({
@@ -145,8 +157,7 @@ router.delete("/members/:id", authMiddleware, async (req, res) => {
 // =========================================================================
 router.put("/members/:id/role", authMiddleware, async (req, res) => {
   try {
-    // 只有最高批准者或管理員可以更改別人的權限
-    if (!["approver", "admin", "superadmin"].includes(req.user.role)) {
+    if (!["reviewer", "approver", "admin", "superadmin"].includes(req.user.role)) {
       return res
         .status(403)
         .json({ error: "권한을 변경할 수 있는 자격이 없습니다." });
@@ -160,18 +171,13 @@ router.put("/members/:id/role", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
     }
 
-    // 🌟 [神級防呆 1] 權限映射：
-    // 前端選單傳來的是 "officer" (一般幹部)，我們在後端自動將他賦予 "reviewer" (檢核者) 的權限
-    // 這樣他一登入就能看到小鈴鐺，也能立刻開始批准假單！
     if (role === "officer") {
       role = "reviewer";
     }
 
     let updateData = { role: role, rank: rank };
 
-    // 🌟 [神級防呆 2] 日期與時間軸重置：
     if (role === "soldier" && targetUser.enlistmentDate) {
-      // 【幹部 -> 勇士】：自動幫他把失去的 18 個月退伍日和所有晉升日「重新算回來」
       const eDate = new Date(targetUser.enlistmentDate);
 
       const dDate = new Date(eDate);
@@ -190,14 +196,11 @@ router.put("/members/:id/role", authMiddleware, async (req, res) => {
       updateData.promoToSangbyung = getPromoDate(9);
       updateData.promoToByungjang = getPromoDate(15);
     } else if (role !== "soldier") {
-      // 【勇士 -> 幹部】：無情抹除他的晉升紀錄，因為長官不需要升上兵或兵長
-      // 退伍日保留讓他自己手動改，或者維持現狀
       updateData.promoToIlbyung = null;
       updateData.promoToSangbyung = null;
       updateData.promoToByungjang = null;
     }
 
-    // 執行更新
     await User.findByIdAndUpdate(targetUserId, updateData, { new: true });
 
     res.json({

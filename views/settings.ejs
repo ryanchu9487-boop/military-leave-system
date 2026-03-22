@@ -17,7 +17,7 @@
         .glass-card { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05); border-radius: 1.5rem; }
     </style>
 </head>
-<body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative">
+<body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
 
     <%- include('partials/sidebar') %>
     <%- include('partials/header') %>
@@ -90,6 +90,18 @@
                 await loadSettingsProfileData();
             };
 
+            // 🔥 [核心神技] 前端動態階級計算機
+            function getDisplayRank(user) {
+                if (user.role !== "soldier" || !user.promoToIlbyung) {
+                    return user.rank || "계급없음";
+                }
+                const today = new Date();
+                if (today >= new Date(user.promoToByungjang)) return "병장";
+                if (today >= new Date(user.promoToSangbyung)) return "상병";
+                if (today >= new Date(user.promoToIlbyung)) return "일병";
+                return "이병";
+            }
+
             async function loadSettingsProfileData() {
                 const token = localStorage.getItem("token");
                 if (!token) return;
@@ -98,14 +110,22 @@
                     const data = await res.json();
                     if (data.user) {
                         const u = data.user;
-                        const roleLocal = { soldier: "용사", officer: "간부", reviewer: "검토자", approver: "승인자" }[u.role] || u.role;
+                        
+                        // 1. 處理顯示名稱與頭像
                         document.getElementById("profileName").innerText = u.name || "알 수 없음";
                         document.getElementById("profileInitial").innerText = (u.name || "U").charAt(0);
                         document.getElementById("profileServiceNum").innerText = u.serviceNumber || "-";
-                        document.getElementById("profileRank").innerText = u.rank || "계급없음";
-                        document.getElementById("profileRole").innerText = roleLocal;
                         document.getElementById("profileUnit").innerText = u.orgName || "소속 부대 없음";
+
+                        // 2. 🔥 修正：動態計算正確階級，不再死板顯示 "용사"
+                        document.getElementById("profileRank").innerText = getDisplayRank(u);
+
+                        // 3. 處理角色文字
+                        const roleLocal = { soldier: "용사", officer: "간부", reviewer: "검토자", approver: "승인자" }[u.role] || u.role;
+                        document.getElementById("profileRole").innerText = roleLocal;
+
                         if (u.forceChangePassword) document.getElementById("forceChangeWarning").classList.remove("hidden");
+                        
                         if (u.role === "soldier") {
                             document.getElementById("ddaySection").classList.remove("hidden");
                             calculateDdays(u);
@@ -117,7 +137,6 @@
             function calculateDdays(user) {
                 const today = new Date(); today.setHours(0, 0, 0, 0);
                 
-                // 1. 處理退伍日計算
                 if (user.enlistmentDate && user.dischargeDate) {
                     const enlist = new Date(user.enlistmentDate);
                     const discharge = new Date(user.dischargeDate);
@@ -151,7 +170,6 @@
                     }
                 }
 
-                // 2. 處理晉升目標
                 const promoTargets = [
                     { rank: "일병", date: user.promoToIlbyung },
                     { rank: "상병", date: user.promoToSangbyung },
