@@ -201,110 +201,101 @@ app.get("/users", authMiddleware, async (req, res) => {
   }
 });
 
+// ==========================================
+// 👤 [修復版] 小鈴鐺通知 (直接在 server.js 修改)
+// ==========================================
 app.get("/leaves/notifications", authMiddleware, async (req, res) => {
+  // 強制不緩存，解決 304 問題
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   try {
-    // 從 authMiddleware 解析出來的 user 資料中取得 userId 與 role
+    const mongoose = require("mongoose");
     const userId = req.user.userId || req.user._id;
     const orgId = req.user.orgId;
     const role = req.user.role;
 
-    // 1. 抓取當前使用者資訊 (為了顯示右上角的姓名與階級)
-    const currentUser = await User.findById(userId).populate("organizationId");
-    if (!currentUser) {
-      return res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
-    }
+    // 1. 強制轉型，防止查詢失敗
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const orgObjectId = new mongoose.Types.ObjectId(orgId);
+
+    // 2. 抓取當前使用者 (Header 顯示用)
+    const currentUser = await User.findById(userObjectId).populate("organizationId");
+    
+    // 🛡️ 防呆：如果抓不到人，給個預設值，防止 Header 壞掉
+    const safeUserInfo = {
+      name: currentUser?.name || "사용자",
+      role: currentUser?.role || role,
+      unitName: currentUser?.organizationId?.name || "소속 없음"
+    };
 
     let notifications = [];
 
-    // ==========================================
-    // 🟢 2. 休假申請 & 取消審核通知 (原本的)
-    // ==========================================
-   if (role === "reviewer") {
+    // 3. 根據角色抓取通知
+    if (role === "reviewer" || role === "officer") {
       const leaves = await Leave.find({
-        organizationId: orgId,
+        organizationId: orgObjectId,
         status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
-      })
-        .populate("userId", "name rank serviceNumber") // ✅ 加上 rank 和 serviceNumber
-        .lean();
+      }).populate("userId", "name rank").lean();
       notifications.push(...leaves);
-    } else if (role === "approver" || role === "superadmin") {
+    } 
+    else if (role === "approver" || role === "superadmin") {
       const leaves = await Leave.find({
-        organizationId: orgId,
+        organizationId: orgObjectId,
         status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
-      })
-        .populate("userId", "name rank serviceNumber") // ✅ 加上 rank 和 serviceNumber
-        .lean();
+      }).populate("userId", "name rank").lean();
       notifications.push(...leaves);
-    } else if (role === "soldier") {
+    } 
+    else if (role === "soldier") {
+      // 🔥 關鍵修正：這裡一定要包含 CANCEL_APPROVED
       const leaves = await Leave.find({
-        userId: userId,
-        status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL"] },
-      })
-        .populate("userId", "name rank serviceNumber") // ✅ 加上 rank 和 serviceNumber
-        .lean();
+        userId: userObjectId,
+        status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL", "CANCEL_APPROVED"] },
+      }).populate("userId", "name rank").lean();
       notifications.push(...leaves);
     }
 
-    // ==========================================
-    // 🟡 3. 新兵審核 & 退伍老兵 通知 (新功能)
-    // ==========================================
-    if (["reviewer", "approver", "admin", "superadmin"].includes(role)) {
-      // A. 新兵待審核
-      const pendingUsers = await User.find({
-        organizationId: orgId,
-        status: "pending",
-      }).lean();
-      pendingUsers.forEach((pu) => {
-        notifications.push({
-          _id: pu._id,
-          status: "NEW_MEMBER_PENDING",
-          reason: "신규 부대원 가입 승인 대기",
-          userId: { name: pu.name },
-          createdAt: pu.createdAt,
-        });
-      });
+    // 4. 長官額外通知 (新兵、退伍)
+    if (["reviewer", "approver", "admin", "superadmin", "officer"].includes(role)) {
+      const [pendingUsers, dischargingUsers] = await Promise.all([
+        User.find({ organizationId: orgObjectId, status: "pending" }).lean(),
+        User.find({
+          organizationId: orgObjectId,
+          status: "approved",
+          dischargeDate: { 
+            $gte: new Date(new Date().setHours(0,0,0,0)), 
+            $lt: new Date(new Date().setHours(23,59,59,999)) 
+          }
+        }).lean()
+      ]);
 
-      // B. 今日退伍
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const dischargingUsers = await User.find({
-        organizationId: orgId,
-        status: "approved",
-        dischargeDate: { $gte: today, $lt: tomorrow },
-      }).lean();
-
-      dischargingUsers.forEach((du) => {
-        notifications.push({
-          _id: du._id,
-          status: "DISCHARGE_TODAY",
-          reason: "오늘 전역 예정입니다. 전역 처리를 진행해주세요.",
-          userId: { name: du.name },
-          createdAt: new Date(), // 給定一個當下時間來排序
-        });
-      });
+      pendingUsers.forEach(pu => notifications.push({
+        _id: pu._id, status: "NEW_MEMBER_PENDING", reason: "신규 가입 승인 대기", userId: { name: pu.name }, createdAt: pu.createdAt
+      }));
+      dischargingUsers.forEach(du => notifications.push({
+        _id: du._id, status: "DISCHARGE_TODAY", reason: "오늘 전역 예정", userId: { name: du.name }, createdAt: new Date()
+      }));
     }
 
-    // 4. 將所有通知依照時間排序 (最新的在最上面)
-    notifications.sort(
-      (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-    );
+    // 5. 排序：依照 updatedAt 或 createdAt
+    notifications.sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 
-    // 5. 完美回傳給前端
+    // 6. 回傳
     res.json({
       success: true,
-      userInfo: {
-        name: currentUser.name,
-        role: currentUser.role,
-        unitName: currentUser.organizationId?.name,
-      },
+      userInfo: safeUserInfo,
       notifications,
     });
+
   } catch (error) {
-    console.error("🔔 알림 API 오류:", error);
-    res.status(500).json({ error: "알림 정보를 불러오는데 실패했습니다." });
+    console.error("🔔 Notifications API Error:", error);
+    // 即使報錯也回傳基本的 userInfo，確保 Header 不會壞掉
+    res.status(500).json({ 
+      success: false, 
+      userInfo: { name: "오류", role: "error", unitName: "" },
+      error: "알림 정보를 불러오는데 실패했습니다." 
+    });
   }
 });
 
@@ -314,6 +305,9 @@ app.get("/leaves/notifications", authMiddleware, async (req, res) => {
 app.use("/", require("./src/routes/authRoutes"));
 app.use("/", require("./src/routes/leaveRoutes"));
 app.use("/", require("./src/routes/memberRoutes"));
+app.use("/", require("./src/routes/noticeRoutes"));
+app.use("/", require("./src/routes/galleryRoutes"));
+
 
 // ============================
 // 🔥 [新增] EJS 網頁渲染路由
@@ -325,6 +319,8 @@ app.get("/settings.html", (req, res) => res.render("settings"));
 app.get("/adduser.html", (req, res) => res.render("adduser"));
 app.get("/review.html", (req, res) => res.render("review"));
 app.get("/approve.html", (req, res) => res.render("approve"));
+app.get("/notice", (req, res) => res.render("notice"));
+app.get("/gallery", (req, res) => res.render("gallery"));
 
 // 渲染 1차 검토 (Review) 頁面
 app.get('/review', (req, res) => {

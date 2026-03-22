@@ -7,10 +7,59 @@
       <i class="fa-solid fa-xmark text-xl"></i>
     </button>
   </div>
-  <nav class="flex-1 p-4 space-y-2">
-    <a id="manageTeamSidebarBtn" href="/adduser.html" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group hidden">
-      <i class="fa-solid fa-user-plus text-lg text-gray-400 group-hover:text-indigo-600"></i>
-      <span class="font-medium">부대원 관리 (인원 추가)</span>
-    </a>
+  
+  <nav class="flex-1 p-4 space-y-6 overflow-y-auto">
+    <div class="space-y-1">
+      <a href="/" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group">
+        <i class="fa-solid fa-calendar-days text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
+        <span class="font-medium">휴가 월력</span>
+      </a>
+    </div>
+
+    <div class="space-y-1">
+      <p class="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">부대 생활</p>
+      
+      <a href="/notice" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group">
+        <i class="fa-solid fa-bullhorn text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
+        <span class="font-medium">공지사항</span>
+      </a>
+
+      <a href="/gallery" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group">
+        <i class="fa-solid fa-images text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
+        <span class="font-medium">사진첩</span>
+      </a>
+
+      <a href="#" onclick="openMindLetter()" class="flex items-center gap-3 p-3 rounded-lg hover:bg-rose-50 text-gray-700 hover:text-rose-600 transition group">
+        <i class="fa-solid fa-envelope-open-text text-lg text-gray-400 group-hover:text-rose-500 w-6 text-center"></i>
+        <span class="font-medium">마음의 편지</span>
+      </a>
+    </div>
+
+    <div id="adminMenuSection" class="space-y-1">
+      <p id="adminMenuLabel" class="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 hidden">관리자 메뉴</p>
+      
+      <a id="manageTeamSidebarBtn" href="/adduser.html" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group hidden">
+        <i class="fa-solid fa-user-plus text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
+        <span class="font-medium">부대원 관리 (인원 추가)</span>
+      </a>
+    </div>
   </nav>
 </aside>
+
+<script>
+  // 這段是為了當你有管理員權限打開 manageTeamSidebarBtn 時，順便把上面的 "관리자 메뉴" 標籤也顯示出來
+  // 你原本檢查身分的邏輯不用改，只要確保 Sidebar 展開時會觸發就好
+  function updateSidebarAdminLabel() {
+    const manageBtn = document.getElementById("manageTeamSidebarBtn");
+    const label = document.getElementById("adminMenuLabel");
+    if (manageBtn && label && !manageBtn.classList.contains("hidden")) {
+      label.classList.remove("hidden");
+    }
+  }
+  
+  // 假若你有原本寫好的 openSidebar() 函數，可以把 updateSidebarAdminLabel() 放在裡面呼叫。
+  function openMindLetter() {
+    // 之後放 Naver Form 的開啟邏輯
+    alert("마음의 편지 열기 (Naver Form)"); 
+  }
+</script>

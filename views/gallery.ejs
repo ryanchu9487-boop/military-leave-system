@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartMil - 사진첩</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+        body { font-family: "Pretendard", sans-serif; }
+        .mesh-bg { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1; overflow: hidden; background-color: #f8fafc; }
+        .blob { position: absolute; filter: blur(90px); opacity: 0.65; animation: float 12s infinite alternate ease-in-out; }
+        .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%); }
+        .blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0) 70%); animation-delay: -5s; }
+        @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 50px) scale(1.1); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05); border-radius: 1.5rem; }
+        .heart-pop { animation: pop 0.3s ease-in-out; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
+
+    <%- include('partials/sidebar') %>
+    <%- include('partials/header') %>
+
+    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-hidden flex flex-col transition-opacity duration-300">
+        
+        <div class="mesh-bg">
+            <div class="blob blob-1"></div>
+            <div class="blob blob-2"></div>
+        </div>
+
+        <div class="w-full max-w-5xl mx-auto px-4 pt-8 pb-4 flex justify-between items-center shrink-0 z-10">
+           <h2 class="text-2xl font-black text-slate-800 tracking-tight"><i class="fa-solid fa-images text-indigo-500 mr-2"></i>사진첩</h2>
+           <button onclick="openGalleryModal('uploadGalleryModal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2">
+            <i class="fa-solid fa-camera"></i> 사진 올리기
+          </button>
+        </div>
+
+        <main class="flex-1 overflow-y-auto custom-scrollbar pb-20 z-10 px-4">
+          <div id="galleryGrid" class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            </div>
+        </main>
+
+        <div id="uploadGalleryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex justify-center items-center opacity-0 transition-opacity">
+          <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform" id="uploadGalleryModalContent">
+            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h2 class="text-lg font-black text-slate-800">새 사진 올리기</h2>
+              <button onclick="closeGalleryModal('uploadGalleryModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="galleryForm" class="p-6 flex flex-col gap-4" onsubmit="submitGallery(event)">
+              
+              <div class="relative w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group cursor-pointer" onclick="document.getElementById('galleryImageInput').click()">
+                <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" />
+                <div id="uploadPlaceholder" class="flex flex-col items-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+                    <i class="fa-solid fa-cloud-arrow-up text-4xl mb-2"></i>
+                    <span class="text-sm font-bold">클릭하여 사진 선택</span>
+                </div>
+                <input type="file" id="galleryImageInput" accept="image/*" class="hidden" onchange="previewImage(this)">
+              </div>
+
+              <textarea id="galleryDescInput" rows="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all" placeholder="사진에 대한 설명을 남겨주세요..."></textarea>
+              
+              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md">업로드하기</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="viewGalleryModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md hidden z-[100] flex justify-center items-center opacity-0 transition-opacity p-4 md:p-8">
+            <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-full transform scale-95 transition-transform relative" id="viewGalleryModalContent">
+                <button onclick="closeGalleryModal('viewGalleryModal')" class="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
+                
+                <div class="md:w-3/5 bg-black flex items-center justify-center min-h-[300px] md:min-h-[500px]">
+                    <img id="viewGalleryImg" src="" class="max-w-full max-h-[70vh] md:max-h-[85vh] object-contain" />
+                </div>
+                
+                <div class="md:w-2/5 flex flex-col bg-white h-[400px] md:h-auto">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-black" id="viewGalleryAvatar"></div>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-black text-slate-800" id="viewGalleryAuthor"></span>
+                                <span class="text-[11px] text-slate-400 font-bold" id="viewGalleryDate"></span>
+                            </div>
+                        </div>
+                        <button id="deleteGalleryBtn" class="text-slate-300 hover:text-red-500 hidden"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 shrink-0"></div> <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed flex-1" id="viewGalleryDesc"></p>
+                        </div>
+                        <hr class="border-slate-50">
+                        <div id="viewGalleryComments" class="flex flex-col gap-3"></div>
+                    </div>
+
+                    <div class="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50">
+                        <div class="flex items-center gap-3 mb-2">
+                            <button id="likeGalleryBtn" class="text-2xl focus:outline-none transition-transform flex items-center gap-2 group">
+                                <i class="fa-regular fa-heart text-slate-400 group-hover:text-rose-500" id="likeGalleryIcon"></i>
+                            </button>
+                            <span class="text-[12px] font-black text-slate-800 cursor-help relative group">
+                                좋아요 <span id="viewGalleryLikesCount">0</span>개
+                                <div id="viewGalleryLikesTooltip" class="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-slate-800/95 text-white text-[11px] font-bold px-3 py-2 rounded-lg shadow-xl w-max max-w-[200px] max-h-[150px] overflow-y-auto custom-scrollbar pointer-events-none z-20"></div>
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-3">
+                            <input type="text" id="galleryCommentInput" class="flex-1 text-sm outline-none placeholder-slate-400 bg-transparent font-medium border border-slate-200 rounded-full px-4 py-2 focus:border-indigo-400 focus:bg-white transition-colors" placeholder="댓글 달기..." onkeypress="handleGalleryCommentEnter(event)">
+                            <button onclick="postGalleryComment()" class="text-indigo-600 text-sm font-black hover:text-indigo-800 px-2">게시</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+          var currentRole = "soldier";
+          var currentUserId = "";
+          var currentViewPhotoId = null; 
+
+          // 圖片預覽功能
+          function previewImage(input) {
+            if (input.files && input.files[0]) {
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').src = e.target.result;
+                    document.getElementById('imagePreview').classList.remove('hidden');
+                    document.getElementById('uploadPlaceholder').classList.add('hidden');
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+          }
+
+          async function fetchGallery() {
+            var token = localStorage.getItem("token");
+            if (!token) return window.location.href = "/login.html";
+
+            try {
+              var res = await fetch("/api/gallery", { headers: { Authorization: `Bearer ${token}` } });
+              var data = await res.json();
+              if (data.success) {
+                currentRole = data.role;
+                currentUserId = data.currentUserId;
+                renderGalleryGrid(data.photos);
+              }
+            } catch (e) { console.error(e); }
+          }
+
+          function renderGalleryGrid(photos) {
+            var grid = document.getElementById("galleryGrid");
+            if (photos.length === 0) {
+              grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-20"><i class="fa-solid fa-camera-retro text-4xl mb-4 text-slate-300"></i><p class="font-bold">첫 번째 사진을 올려보세요!</p></div>`;
+              return;
+            }
+
+            grid.innerHTML = photos.map(p => {
+              var isLiked = p.likes.some(u => (u._id || u).toString() === currentUserId.toString());
+              var heartClass = isLiked ? 'fa-solid text-rose-500' : 'fa-regular text-white/80';
+              // 將整個物件轉成字串傳給 Modal (注意跳脫字元)
+              var photoData = JSON.stringify(p).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+
+              return `
+                <div class="relative group aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300" onclick='openPhotoModal(${photoData})'>
+                    <img src="${p.imageUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-6 text-white font-bold text-lg">
+                        <span class="flex items-center gap-2"><i class="${heartClass}"></i> ${p.likes.length}</span>
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-comment text-white/80"></i> ${p.comments.length}</span>
+                    </div>
+                </div>
+              `;
+            }).join("");
+          }
+
+          // 開啟詳細觀看 Modal
+          function openPhotoModal(p) {
+            currentViewPhotoId = p._id;
+            document.getElementById('viewGalleryImg').src = p.imageUrl;
+            document.getElementById('viewGalleryAvatar').innerText = (p.uploaderId?.name || '관').charAt(0);
+            document.getElementById('viewGalleryAuthor').innerText = `${p.uploaderId?.rank || ''} ${p.uploaderId?.name || '관리자'}`;
+            document.getElementById('viewGalleryDate').innerText = new Date(p.createdAt).toLocaleDateString();
+            document.getElementById('viewGalleryDesc').innerText = p.description || "";
+            
+            // 判斷刪除權限
+            var isUploader = p.uploaderId?._id === currentUserId || p.uploaderId === currentUserId;
+            var isAdmin = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
+            var delBtn = document.getElementById('deleteGalleryBtn');
+            if(isUploader || isAdmin) {
+                delBtn.classList.remove('hidden');
+                delBtn.onclick = () => deletePhoto(p._id);
+            } else { delBtn.classList.add('hidden'); }
+
+            // 按讚狀態
+            var isLiked = p.likes.some(u => (u._id || u).toString() === currentUserId.toString());
+            var icon = document.getElementById('likeGalleryIcon');
+            icon.className = isLiked ? 'fa-solid fa-heart text-rose-500 heart-pop' : 'fa-regular fa-heart text-slate-400 group-hover:text-rose-500 transition-colors';
+            document.getElementById('viewGalleryLikesCount').innerText = p.likes.length;
+            document.getElementById('likeGalleryBtn').onclick = () => toggleGalleryLike(p._id, icon);
+
+            // 按讚名單 Tooltip
+            var tooltip = document.getElementById('viewGalleryLikesTooltip');
+            if(p.likes.length > 0) tooltip.innerHTML = p.likes.map(u => `${u.rank || ''} ${u.name || '알수없음'}`).join("<br>");
+            else tooltip.innerHTML = "아직 좋아요가 없습니다";
+
+            // 留言列表
+            var commentsHtml = p.comments.map(c => `
+                <div class="flex gap-3 text-[13px] leading-snug">
+                    <span class="font-black text-slate-800 whitespace-nowrap">${c.userId?.rank || ''} ${c.userId?.name || '익명'}</span>
+                    <span class="text-slate-600 break-words flex-1">${c.text}</span>
+                </div>
+            `).join("");
+            document.getElementById('viewGalleryComments').innerHTML = commentsHtml || `<div class="text-center text-slate-400 text-xs py-4">첫 번째 댓글을 남겨보세요!</div>`;
+
+            openGalleryModal('viewGalleryModal');
+          }
+
+          async function submitGallery(e) {
+            e.preventDefault();
+            var token = localStorage.getItem("token");
+            var formData = new FormData();
+            formData.append("description", document.getElementById("galleryDescInput").value);
+            var file = document.getElementById("galleryImageInput").files[0];
+            if(!file) return alert("사진을 선택해주세요!");
+            formData.append("image", file);
+
+            try {
+              var res = await fetch("/api/gallery", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+              if ((await res.json()).success) {
+                closeGalleryModal("uploadGalleryModal");
+                document.getElementById("galleryForm").reset();
+                document.getElementById('imagePreview').classList.add('hidden');
+                document.getElementById('uploadPlaceholder').classList.remove('hidden');
+                fetchGallery();
+              }
+            } catch (err) { alert("업로드 실패"); }
+          }
+
+          async function toggleGalleryLike(id, iconEl) {
+            var token = localStorage.getItem("token");
+            var countEl = document.getElementById('viewGalleryLikesCount');
+            var isLiked = iconEl.classList.contains('fa-solid');
+            var count = parseInt(countEl.innerText);
+
+            if(isLiked) {
+              iconEl.className = 'fa-regular fa-heart text-slate-400 group-hover:text-rose-500 transition-colors';
+              countEl.innerText = count - 1;
+            } else {
+              iconEl.className = 'fa-solid fa-heart text-rose-500 heart-pop';
+              countEl.innerText = count + 1;
+            }
+
+            try { 
+                await fetch(`/api/gallery/${id}/like`, { method: "POST", headers: { Authorization: `Bearer ${token}` }});
+                fetchGallery(); // 背後刷新網格數據
+            } catch(e) {}
+          }
+
+          async function postGalleryComment() {
+            var input = document.getElementById('galleryCommentInput');
+            var text = input.value.trim();
+            if(!text || !currentViewPhotoId) return;
+            
+            try {
+              var res = await fetch(`/api/gallery/${currentViewPhotoId}/comment`, {
+                method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` }, body: JSON.stringify({ text })
+              });
+              if((await res.json()).success) { 
+                input.value = ""; 
+                // 為了不打斷觀看體驗，關閉 Modal 刷新後再打開是有點干擾的。
+                // 這裡最簡單的做法是直接關閉並重新刷新網格，使用者可以再次點開。
+                closeGalleryModal('viewGalleryModal');
+                fetchGallery(); 
+              }
+            } catch(e) {}
+          }
+
+          function handleGalleryCommentEnter(e) { if (e.key === 'Enter') postGalleryComment(); }
+
+          async function deletePhoto(id) {
+            if(!confirm("이 사진을 정말 삭제하시겠습니까?")) return;
+            try {
+              var res = await fetch(`/api/gallery/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }});
+              if((await res.json()).success) { 
+                  closeGalleryModal('viewGalleryModal');
+                  fetchGallery(); 
+              }
+            } catch(e) {}
+          }
+
+          function openGalleryModal(id) {
+            var el = document.getElementById(id);
+            var content = document.getElementById(id + "Content");
+            el.classList.remove("hidden");
+            setTimeout(() => { el.classList.remove("opacity-0"); content.classList.remove("scale-95"); }, 10);
+          }
+          function closeGalleryModal(id) {
+            var el = document.getElementById(id);
+            var content = document.getElementById(id + "Content");
+            el.classList.add("opacity-0");
+            content.classList.add("scale-95");
+            setTimeout(() => el.classList.add("hidden"), 300);
+            if(id === 'viewGalleryModal') currentViewPhotoId = null;
+          }
+
+          // 🔥 SPA 動態觸發：確保載入瞬間執行
+          setTimeout(() => { fetchGallery(); }, 50);
+
+        </script>
+    </div>
+    <script src="/common.js" onerror="console.log('common.js not found')"></script>
+</body>
+</html>
