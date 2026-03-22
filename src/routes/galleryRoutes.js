@@ -4,6 +4,16 @@ const Gallery = require("../../models/Gallery");
 const { authMiddleware } = require("../middlewares/authMiddleware");
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
+
+// ==========================================
+// 🔥 自動檢查並建立 uploads 資料夾 (防 500 崩潰)
+// ==========================================
+const uploadDir = path.join(__dirname, "../../public/uploads");
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log("📂 [系統] 已自動建立 uploads 資料夾！");
+}
 
 // 設定照片上傳 (存放在 public/uploads)
 const storage = multer.diskStorage({
@@ -33,19 +43,32 @@ router.get("/api/gallery", authMiddleware, async (req, res) => {
   } catch (error) { res.status(500).json({ error: "사진을 불러오는데 실패했습니다." }); }
 });
 
-// 2. 上傳新照片 (所有人都可以上傳，不限長官)
+// ==========================================
+// 🔥 2. 上傳新照片 (加入錯誤日誌，抓出真正死因)
+// ==========================================
 router.post("/api/gallery", authMiddleware, upload.single("image"), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: "이미지 파일이 필요합니다." });
+    if (!req.file) {
+      return res.status(400).json({ error: "이미지 파일이 필요합니다." });
+    }
+
     const { description } = req.body;
+    
+    // 儲存到資料庫
     const newPhoto = await Gallery.create({
       organizationId: req.user.orgId,
       uploaderId: req.user.userId || req.user._id,
-      imageUrl: `/uploads/${req.file.filename}`,
+      imageUrl: `/uploads/${req.file.filename}`, // 前端讀取的網址路徑
       description
     });
+    
     res.json({ success: true, photo: newPhoto });
-  } catch (error) { res.status(500).json({ error: "업로드 실패" }); }
+
+  } catch (error) {
+    // 🔥 這裡最重要：如果再報錯，你的伺服器終端機會印出紅色詳細原因！
+    console.error("📸 寫入資料庫或上傳失敗:", error);
+    res.status(500).json({ error: "업로드 중 서버 오류가 발생했습니다." });
+  }
 });
 
 // 3. 刪除照片 (上傳者本人 或 長官/管理員 可以刪除)

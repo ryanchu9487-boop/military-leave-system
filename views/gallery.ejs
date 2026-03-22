@@ -54,20 +54,20 @@
               <button onclick="closeGalleryModal('uploadGalleryModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             <form id="galleryForm" class="p-6 flex flex-col gap-4" onsubmit="submitGallery(event)">
-              
-              <div class="relative w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group cursor-pointer" onclick="document.getElementById('galleryImageInput').click()">
-                <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" />
-                <div id="uploadPlaceholder" class="flex flex-col items-center text-slate-400 group-hover:text-indigo-500 transition-colors">
-                    <i class="fa-solid fa-cloud-arrow-up text-4xl mb-2"></i>
-                    <span class="text-sm font-bold">클릭하여 사진 선택</span>
-                </div>
-                <input type="file" id="galleryImageInput" accept="image/*" class="hidden" onchange="previewImage(this)">
-              </div>
+  
+  <label for="galleryImageInput" class="relative w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group cursor-pointer">
+    <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" />
+    <div id="uploadPlaceholder" class="flex flex-col items-center text-slate-400 group-hover:text-indigo-500 transition-colors">
+        <i class="fa-solid fa-cloud-arrow-up text-4xl mb-2"></i>
+        <span class="text-sm font-bold">클릭하여 사진 선택</span>
+    </div>
+    <input type="file" id="galleryImageInput" accept="image/*" class="hidden" onchange="previewImage(this)">
+  </label>
 
-              <textarea id="galleryDescInput" rows="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all" placeholder="사진에 대한 설명을 남겨주세요..."></textarea>
-              
-              <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md">업로드하기</button>
-            </form>
+  <textarea id="galleryDescInput" rows="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all" placeholder="사진에 대한 설명을 남겨주세요..."></textarea>
+  
+  <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md">업로드하기</button>
+</form>
           </div>
         </div>
 
@@ -123,18 +123,23 @@
           var currentUserId = "";
           var currentViewPhotoId = null; 
 
-          // 圖片預覽功能
-          function previewImage(input) {
-            if (input.files && input.files[0]) {
-                var reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('imagePreview').src = e.target.result;
-                    document.getElementById('imagePreview').classList.remove('hidden');
-                    document.getElementById('uploadPlaceholder').classList.add('hidden');
-                }
-                reader.readAsDataURL(input.files[0]);
-            }
-          }
+          // 圖片預覽功能 (防呆強化版)
+function previewImage(input) {
+  if (input.files && input.files[0]) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+          document.getElementById('imagePreview').src = e.target.result;
+          document.getElementById('imagePreview').classList.remove('hidden');
+          document.getElementById('uploadPlaceholder').classList.add('hidden');
+      }
+      reader.readAsDataURL(input.files[0]);
+  } else {
+      // 如果使用者點了選擇檔案卻按「取消」，恢復預設畫面
+      document.getElementById('imagePreview').src = '';
+      document.getElementById('imagePreview').classList.add('hidden');
+      document.getElementById('uploadPlaceholder').classList.remove('hidden');
+  }
+}
 
           async function fetchGallery() {
             var token = localStorage.getItem("token");
@@ -218,26 +223,38 @@
             openGalleryModal('viewGalleryModal');
           }
 
-          async function submitGallery(e) {
-            e.preventDefault();
-            var token = localStorage.getItem("token");
-            var formData = new FormData();
-            formData.append("description", document.getElementById("galleryDescInput").value);
-            var file = document.getElementById("galleryImageInput").files[0];
-            if(!file) return alert("사진을 선택해주세요!");
-            formData.append("image", file);
+          // 送出表單 (精準抓取檔案版)
+async function submitGallery(e) {
+  e.preventDefault();
+  var token = localStorage.getItem("token");
+  var formData = new FormData();
+  
+  // 🔥 修正點：用 e.target 確保精準抓到這張表單裡的 input，不受 SPA 舊畫面干擾
+  var descInput = e.target.querySelector("#galleryDescInput").value;
+  var fileInput = e.target.querySelector("#galleryImageInput");
+  var file = fileInput.files[0];
+  
+  if(!file) return alert("사진을 선택해주세요!");
+  
+  formData.append("description", descInput);
+  formData.append("image", file);
 
-            try {
-              var res = await fetch("/api/gallery", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
-              if ((await res.json()).success) {
-                closeGalleryModal("uploadGalleryModal");
-                document.getElementById("galleryForm").reset();
-                document.getElementById('imagePreview').classList.add('hidden');
-                document.getElementById('uploadPlaceholder').classList.remove('hidden');
-                fetchGallery();
-              }
-            } catch (err) { alert("업로드 실패"); }
-          }
+  try {
+    var res = await fetch("/api/gallery", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+    var data = await res.json();
+    if (data.success) {
+      closeGalleryModal("uploadGalleryModal");
+      e.target.reset(); // 重置表單
+      // 恢復預覽區初始狀態
+      document.getElementById('imagePreview').classList.add('hidden');
+      document.getElementById('imagePreview').src = '';
+      document.getElementById('uploadPlaceholder').classList.remove('hidden');
+      fetchGallery(); // 刷新牆面
+    } else {
+      alert("업로드 실패: " + data.error);
+    }
+  } catch (err) { alert("업로드 중 오류가 발생했습니다."); }
+}
 
           async function toggleGalleryLike(id, iconEl) {
             var token = localStorage.getItem("token");
