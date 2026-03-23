@@ -10,10 +10,14 @@ const gallerySchema = new mongoose.Schema(
   {
     organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
     uploaderId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    imageUrl: { type: String, required: true }, // 儲存照片路徑
-    description: { type: String, default: "" }, // 照片說明
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-    comments: [galleryCommentSchema]
+    imageUrls: [{ type: String, required: true }], 
+    description: { type: String, default: "" },
+    category: { type: String, required: true, default: "일상" },
+    reactions: [{
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      type: { type: String, enum: ['heart', 'laugh', 'fire', 'clap', 'party'] }
+    }],
+    comments: [galleryCommentSchema] 
   },
   { timestamps: true }
 );

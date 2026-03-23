@@ -6,6 +6,7 @@
     <title>SmartMil - 사진첩</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
     <style>
         @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
         body { font-family: "Pretendard", sans-serif; }
@@ -14,13 +15,18 @@
         .blob-1 { top: -10%; left: -10%; width: 50vw; height: 50vw; background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, rgba(99, 102, 241, 0) 70%); }
         .blob-2 { bottom: -20%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0) 70%); animation-delay: -5s; }
         @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 50px) scale(1.1); } }
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.05); border-radius: 1.5rem; }
-        .heart-pop { animation: pop 0.3s ease-in-out; }
-        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .netflix-row::-webkit-scrollbar { height: 8px; }
+        .netflix-row::-webkit-scrollbar-track { background: transparent; }
+        .netflix-row::-webkit-scrollbar-thumb { background: rgba(203, 213, 225, 0.5); border-radius: 10px; }
+        .netflix-row:hover::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.8); }
+
+        .reaction-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
+        .drop-zone-active { border-color: #6366f1 !important; background-color: #f5f3ff !important; color: #6366f1 !important; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
@@ -35,82 +41,107 @@
             <div class="blob blob-2"></div>
         </div>
 
-        <div class="w-full max-w-5xl mx-auto px-4 pt-8 pb-4 flex justify-between items-center shrink-0 z-10">
-           <h2 class="text-2xl font-black text-slate-800 tracking-tight"><i class="fa-solid fa-images text-indigo-500 mr-2"></i>사진첩</h2>
-           <button onclick="openGalleryModal('uploadGalleryModal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2">
-            <i class="fa-solid fa-camera"></i> 사진 올리기
+        <div class="w-full max-w-[1400px] mx-auto px-6 pt-8 pb-4 flex justify-between items-center shrink-0 z-10">
+           <h2 class="text-2xl font-black text-slate-800 tracking-tight"><i class="fa-solid fa-camera-retro text-indigo-500 mr-2"></i>부대 갤러리</h2>
+           <button onclick="openUploadModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2">
+            <i class="fa-solid fa-cloud-arrow-up"></i> 사진 올리기
           </button>
         </div>
 
-        <main class="flex-1 overflow-y-auto custom-scrollbar pb-20 z-10 px-4">
-          <div id="galleryGrid" class="max-w-5xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <main class="flex-1 overflow-y-auto no-scrollbar pb-20 z-10">
+          <div id="galleryContainer" class="max-w-[1400px] mx-auto flex flex-col gap-10">
             </div>
         </main>
 
-        <div id="uploadGalleryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex justify-center items-center opacity-0 transition-opacity">
-          <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform" id="uploadGalleryModalContent">
-            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-              <h2 class="text-lg font-black text-slate-800">새 사진 올리기</h2>
+        <div id="uploadGalleryModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex justify-center items-center opacity-0 transition-opacity p-4">
+          <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform flex flex-col max-h-[90vh]" id="uploadGalleryModalContent">
+            
+            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+              <h2 class="text-lg font-black text-slate-800">추억 공유하기</h2>
               <button onclick="closeGalleryModal('uploadGalleryModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-            <form id="galleryForm" class="p-6 flex flex-col gap-4" onsubmit="submitGallery(event)">
-  
-  <label for="galleryImageInput" class="relative w-full aspect-square bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden group cursor-pointer">
-    <img id="imagePreview" class="absolute inset-0 w-full h-full object-cover hidden" />
-    <div id="uploadPlaceholder" class="flex flex-col items-center text-slate-400 group-hover:text-indigo-500 transition-colors">
-        <i class="fa-solid fa-cloud-arrow-up text-4xl mb-2"></i>
-        <span class="text-sm font-bold">클릭하여 사진 선택</span>
-    </div>
-    <input type="file" id="galleryImageInput" accept="image/*" class="hidden" onchange="previewImage(this)">
-  </label>
 
-  <textarea id="galleryDescInput" rows="3" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all" placeholder="사진에 대한 설명을 남겨주세요..."></textarea>
-  
-  <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition-all shadow-md">업로드하기</button>
-</form>
+            <form id="galleryForm" class="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-5" onsubmit="submitGallery(event)">
+              <div>
+                  <label class="block text-xs font-bold text-slate-500 mb-2">카테고리</label>
+                  <input type="text" id="galleryCategoryInput" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all placeholder-slate-400" placeholder="예: 훈련, 회식, 휴가...">
+                  
+                  <div class="flex gap-2 mt-2 overflow-x-auto no-scrollbar py-2 px-1 -mx-1">
+                      <button type="button" onclick="document.getElementById('galleryCategoryInput').value='🎯 훈련'" class="shrink-0 px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 text-xs font-bold rounded-lg transition-colors shadow-sm">🎯 훈련</button>
+                      <button type="button" onclick="document.getElementById('galleryCategoryInput').value='🎊 행사'" class="shrink-0 px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 text-xs font-bold rounded-lg transition-colors shadow-sm">🎊 행사</button>
+                      <button type="button" onclick="document.getElementById('galleryCategoryInput').value='✈️ 여행'" class="shrink-0 px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 text-xs font-bold rounded-lg transition-colors shadow-sm">✈️ 여행</button>
+                      <button type="button" onclick="document.getElementById('galleryCategoryInput').value='☕ 일상'" class="shrink-0 px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 text-xs font-bold rounded-lg transition-colors shadow-sm">☕ 일상</button>
+                  </div>
+              </div>
+
+              <div id="galleryDropZone" class="border-4 border-dashed border-slate-300 rounded-2xl min-h-[150px] flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-500 hover:bg-slate-50 transition-all cursor-pointer p-6 gap-2" onclick="document.getElementById('galleryImageInput').click()">
+                  <i class="fa-solid fa-images text-4xl mb-1"></i>
+                  <span class="text-sm font-bold text-center">사진을 드래그하거나 클릭하여 선택하세요.</span>
+                  <input type="file" id="galleryImageInput" accept="image/*" multiple class="hidden" onchange="handleFileSelect(this)">
+              </div>
+
+              <div id="selectedFilesContainer" class="hidden shrink-0 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <p class="text-xs font-black text-slate-500 mb-3 flex justify-between items-center">
+                    <span>업로드할 사진 (<span id="fileCountIndicator">0</span>/10)</span>
+                    <button type="button" onclick="removeAllFiles()" class="text-rose-500 hover:text-rose-700"><i class="fa-solid fa-trash-can"></i> 전체 비우기</button>
+                  </p>
+                  <div id="imagePreviewGrid" class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3"></div>
+              </div>
+
+              <textarea id="galleryDescInput" rows="3" class="w-full border border-slate-200 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all shrink-0" placeholder="이 순간에 대해 이야기해주세요..."></textarea>
+              
+              <button id="uploadSubmitBtn" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl text-base font-black transition-all shadow-md flex justify-center items-center gap-2 shrink-0">
+                <span>공유하기</span>
+              </button>
+            </form>
           </div>
         </div>
 
-        <div id="viewGalleryModal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-md hidden z-[100] flex justify-center items-center opacity-0 transition-opacity p-4 md:p-8">
-            <div class="bg-white w-full max-w-5xl rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-full transform scale-95 transition-transform relative" id="viewGalleryModalContent">
-                <button onclick="closeGalleryModal('viewGalleryModal')" class="absolute top-4 right-4 z-10 w-8 h-8 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-xmark"></i></button>
-                
-                <div class="md:w-3/5 bg-black flex items-center justify-center min-h-[300px] md:min-h-[500px]">
-                    <img id="viewGalleryImg" src="" class="max-w-full max-h-[70vh] md:max-h-[85vh] object-contain" />
+        <div id="cropModal" class="fixed inset-0 bg-slate-900/95 z-[200] hidden flex-col items-center justify-center p-4 md:p-8 opacity-0 transition-opacity">
+            <div class="w-full max-w-4xl h-[70vh] bg-black relative rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center">
+                <img id="cropperImage" class="max-w-full max-h-full block" />
+            </div>
+            <div class="mt-6 flex gap-4">
+                <button onclick="closeCropper()" class="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-colors">취소</button>
+                <button onclick="applyCrop()" class="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black shadow-lg transition-colors"><i class="fa-solid fa-check mr-2"></i>자르기 완료</button>
+            </div>
+        </div>
+
+        <div id="viewGalleryModal" class="fixed inset-0 bg-slate-900/90 backdrop-blur-md hidden z-[100] flex justify-center items-center opacity-0 transition-opacity p-4 md:p-8">
+            <button onclick="closeGalleryModal('viewGalleryModal')" class="fixed top-6 right-6 z-[110] w-12 h-12 text-white/70 hover:text-white hover:bg-white/10 rounded-full flex items-center justify-center transition-all text-3xl"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="bg-white w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-full transform scale-95 transition-transform" id="viewGalleryModalContent">
+                <div class="md:w-2/3 bg-black relative flex items-center justify-center min-h-[400px] md:min-h-[600px] group">
+                    <img id="viewGalleryImg" src="" class="max-w-full max-h-[70vh] md:max-h-[85vh] object-contain transition-opacity duration-300" />
+                    <button id="prevImgBtn" onclick="changeImage(-1)" class="absolute left-4 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hidden"><i class="fa-solid fa-chevron-left text-xl"></i></button>
+                    <button id="nextImgBtn" onclick="changeImage(1)" class="absolute right-4 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hidden"><i class="fa-solid fa-chevron-right text-xl"></i></button>
+                    <div id="imgIndicator" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs font-bold px-3 py-1 rounded-full hidden">1 / 1</div>
                 </div>
-                
-                <div class="md:w-2/5 flex flex-col bg-white h-[400px] md:h-auto">
-                    <div class="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div class="md:w-1/3 flex flex-col bg-white">
+                    <div class="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-xs font-black" id="viewGalleryAvatar"></div>
+                            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-black shadow-sm" id="viewGalleryAvatar"></div>
                             <div class="flex flex-col">
-                                <span class="text-sm font-black text-slate-800" id="viewGalleryAuthor"></span>
+                                <span class="text-[15px] font-black text-slate-800" id="viewGalleryAuthor"></span>
                                 <span class="text-[11px] text-slate-400 font-bold" id="viewGalleryDate"></span>
                             </div>
                         </div>
-                        <button id="deleteGalleryBtn" class="text-slate-300 hover:text-red-500 hidden"><i class="fa-solid fa-trash-can"></i></button>
+                        <button id="deleteGalleryBtn" class="text-slate-300 hover:text-red-500 p-2 hidden transition-colors"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
-
-                    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
-                        <div class="flex gap-3">
-                            <div class="w-8 h-8 shrink-0"></div> <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed flex-1" id="viewGalleryDesc"></p>
-                        </div>
-                        <hr class="border-slate-50">
+                    
+                    <div class="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-4">
+                        <p class="text-[15px] text-slate-700 whitespace-pre-wrap leading-relaxed" id="viewGalleryDesc"></p>
+                        <hr class="border-slate-50 border-dashed">
                         <div id="viewGalleryComments" class="flex flex-col gap-3"></div>
                     </div>
 
-                    <div class="p-4 border-t border-slate-100 shrink-0 bg-slate-50/50">
-                        <div class="flex items-center gap-3 mb-2">
-                            <button id="likeGalleryBtn" class="text-2xl focus:outline-none transition-transform flex items-center gap-2 group">
-                                <i class="fa-regular fa-heart text-slate-400 group-hover:text-rose-500" id="likeGalleryIcon"></i>
-                            </button>
-                            <span class="text-[12px] font-black text-slate-800 cursor-help relative group">
-                                좋아요 <span id="viewGalleryLikesCount">0</span>개
-                                <div id="viewGalleryLikesTooltip" class="absolute bottom-full left-0 mb-2 hidden group-hover:block bg-slate-800/95 text-white text-[11px] font-bold px-3 py-2 rounded-lg shadow-xl w-max max-w-[200px] max-h-[150px] overflow-y-auto custom-scrollbar pointer-events-none z-20"></div>
-                            </span>
+                    <div class="p-4 border-t border-slate-100 bg-slate-50/50 shrink-0">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-xs font-bold text-slate-400">리액션</span>
+                            <div class="flex gap-1.5" id="reactionButtonsContainer"></div>
                         </div>
-                        <div class="flex items-center gap-2 mt-3">
-                            <input type="text" id="galleryCommentInput" class="flex-1 text-sm outline-none placeholder-slate-400 bg-transparent font-medium border border-slate-200 rounded-full px-4 py-2 focus:border-indigo-400 focus:bg-white transition-colors" placeholder="댓글 달기..." onkeypress="handleGalleryCommentEnter(event)">
+                        <div class="flex items-center gap-2 mt-2">
+                            <input type="text" id="galleryCommentInput" class="flex-1 text-sm outline-none placeholder-slate-400 bg-white border border-slate-200 rounded-full px-4 py-2 focus:border-indigo-400 transition-colors" placeholder="댓글 달기..." onkeypress="handleGalleryCommentEnter(event)">
                             <button onclick="postGalleryComment()" class="text-indigo-600 text-sm font-black hover:text-indigo-800 px-2">게시</button>
                         </div>
                     </div>
@@ -118,80 +149,208 @@
             </div>
         </div>
 
+        <div id="toastAlert" class="fixed top-20 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur-sm text-white px-8 py-4 rounded-full font-black shadow-2xl z-[200] transform -translate-y-20 opacity-0 transition-all duration-500 flex items-center gap-3 pointer-events-none">
+            <div class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shadow-lg"><i class="fa-solid fa-check text-base"></i></div>
+            <span class="tracking-tight">추억을 성공적으로 공유했습니다!</span>
+        </div>
+
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
         <script>
           var currentRole = "soldier";
           var currentUserId = "";
-          var currentViewPhotoId = null; 
+          var currentViewPhoto = null; 
+          var currentImageIndex = 0;
+          var selectedGalleryFiles = []; 
+          var reactionTypes = [{id:'heart',emoji:'❤️'},{id:'laugh',emoji:'😂'},{id:'fire',emoji:'🔥'},{id:'clap',emoji:'👏'},{id:'party',emoji:'🎉'}];
 
-          // 圖片預覽功能 (防呆強化版)
-function previewImage(input) {
-  if (input.files && input.files[0]) {
-      var reader = new FileReader();
-      reader.onload = function(e) {
-          document.getElementById('imagePreview').src = e.target.result;
-          document.getElementById('imagePreview').classList.remove('hidden');
-          document.getElementById('uploadPlaceholder').classList.add('hidden');
-      }
-      reader.readAsDataURL(input.files[0]);
-  } else {
-      // 如果使用者點了選擇檔案卻按「取消」，恢復預設畫面
-      document.getElementById('imagePreview').src = '';
-      document.getElementById('imagePreview').classList.add('hidden');
-      document.getElementById('uploadPlaceholder').classList.remove('hidden');
-  }
-}
+          var cropper = null;
+          var currentCropIndex = -1;
+
+          // ... (Cropper及上傳表單相關函數不變) ...
+          function openCropper(index) {
+              currentCropIndex = index;
+              var file = selectedGalleryFiles[index];
+              var reader = new FileReader();
+              reader.onload = function(e) {
+                  var image = document.getElementById('cropperImage');
+                  image.src = e.target.result;
+                  var modal = document.getElementById('cropModal');
+                  modal.classList.remove('hidden');
+                  modal.classList.add('flex');
+                  setTimeout(() => modal.classList.remove('opacity-0'), 10);
+                  if(cropper) cropper.destroy();
+                  cropper = new Cropper(image, { viewMode: 1, background: false, zoomable: true });
+              }
+              reader.readAsDataURL(file);
+          }
+          function closeCropper() {
+              var modal = document.getElementById('cropModal');
+              modal.classList.add('opacity-0');
+              setTimeout(() => {
+                  modal.classList.add('hidden'); modal.classList.remove('flex');
+                  if(cropper) cropper.destroy(); cropper = null; currentCropIndex = -1;
+              }, 300);
+          }
+          function applyCrop() {
+              if(!cropper) return;
+              cropper.getCroppedCanvas({ maxWidth: 2048, maxHeight: 2048, fillColor: '#fff' }).toBlob(function(blob) {
+                  var originalFile = selectedGalleryFiles[currentCropIndex];
+                  var newFile = new File([blob], originalFile.name, { type: 'image/jpeg', lastModified: Date.now() });
+                  selectedGalleryFiles[currentCropIndex] = newFile; 
+                  closeCropper(); updateFilePreviews(); 
+              }, 'image/jpeg', 0.9);
+          }
+          function initDragAndDrop() {
+              var dropZone = document.getElementById('galleryDropZone');
+              ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                  dropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+              });
+              ['dragenter', 'dragover'].forEach(eventName => { dropZone.addEventListener(eventName, () => dropZone.classList.add('drop-zone-active'), false); });
+              ['dragleave', 'drop'].forEach(eventName => { dropZone.addEventListener(eventName, () => dropZone.classList.remove('drop-zone-active'), false); });
+              dropZone.addEventListener('drop', e => { addFiles(e.dataTransfer.files); }, false);
+          }
+          function handleFileSelect(input) { if (input.files) { addFiles(input.files); input.value = ""; } }
+          function addFiles(files) {
+              var validImages = Array.from(files).filter(file => file.type.startsWith('image/'));
+              if(validImages.length === 0) { alert("이미지 파일만 추가할 수 있습니다."); return; }
+              if (selectedGalleryFiles.length + validImages.length > 10) {
+                  alert("최대 10장까지만 업로드 가능합니다.");
+                  validImages = validImages.slice(0, 10 - selectedGalleryFiles.length);
+              }
+              selectedGalleryFiles = selectedGalleryFiles.concat(validImages);
+              updateFilePreviews();
+          }
+          function updateFilePreviews() {
+              var container = document.getElementById('selectedFilesContainer');
+              var grid = document.getElementById('imagePreviewGrid');
+              var indicator = document.getElementById('fileCountIndicator');
+              var submitBtn = document.getElementById('uploadSubmitBtn');
+
+              grid.innerHTML = ''; indicator.innerText = selectedGalleryFiles.length;
+
+              if(selectedGalleryFiles.length > 0) {
+                  container.classList.remove('hidden'); submitBtn.disabled = false; submitBtn.classList.replace('bg-indigo-300', 'bg-indigo-600');
+                  selectedGalleryFiles.forEach((file, index) => {
+                      var reader = new FileReader();
+                      reader.onload = function(e) {
+                          var div = document.createElement('div');
+                          div.className = "relative aspect-square rounded-xl overflow-hidden shadow-sm group border border-slate-200 bg-white";
+                          div.innerHTML = `
+                              <img src="${e.target.result}" class="w-full h-full object-cover" />
+                              <button type="button" onclick="openCropper(${index})" title="사진 자르기" class="absolute top-1.5 right-9 w-7 h-7 bg-indigo-500 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10"><i class="fa-solid fa-crop-simple text-xs"></i></button>
+                              <button type="button" onclick="removeSingleFile(${index})" title="사진 삭제" class="absolute top-1.5 right-1.5 w-7 h-7 bg-rose-500 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10"><i class="fa-solid fa-xmark text-xs"></i></button>
+                          `;
+                          grid.appendChild(div);
+                      }
+                      reader.readAsDataURL(file);
+                  });
+              } else {
+                  container.classList.add('hidden'); submitBtn.disabled = true; submitBtn.classList.replace('bg-indigo-600', 'bg-indigo-300');
+              }
+          }
+          function removeSingleFile(index) { selectedGalleryFiles.splice(index, 1); updateFilePreviews(); }
+          function removeAllFiles() { selectedGalleryFiles = []; updateFilePreviews(); }
+          function openUploadModal() {
+              selectedGalleryFiles = []; updateFilePreviews(); initDragAndDrop(); openGalleryModal('uploadGalleryModal');
+          }
 
           async function fetchGallery() {
             var token = localStorage.getItem("token");
             if (!token) return window.location.href = "/login.html";
-
             try {
               var res = await fetch("/api/gallery", { headers: { Authorization: `Bearer ${token}` } });
               var data = await res.json();
               if (data.success) {
                 currentRole = data.role;
                 currentUserId = data.currentUserId;
-                renderGalleryGrid(data.photos);
+                renderNetflixGrid(data.photos);
               }
-            } catch (e) { console.error(e); }
+            } catch (e) {}
           }
 
-          function renderGalleryGrid(photos) {
-            var grid = document.getElementById("galleryGrid");
+          // 🔥 修改 renderNetflixGrid 裡面的這段 sectionHtml
+          function renderNetflixGrid(photos) {
+            var container = document.getElementById("galleryContainer");
             if (photos.length === 0) {
-              grid.innerHTML = `<div class="col-span-full text-center text-slate-400 py-20"><i class="fa-solid fa-camera-retro text-4xl mb-4 text-slate-300"></i><p class="font-bold">첫 번째 사진을 올려보세요!</p></div>`;
+              container.innerHTML = `<div class="text-center text-slate-400 py-32"><i class="fa-solid fa-camera-retro text-5xl mb-4 text-slate-300"></i><p class="font-bold text-lg">첫 번째 추억을 공유해보세요!</p></div>`;
               return;
             }
 
-            grid.innerHTML = photos.map(p => {
-              var isLiked = p.likes.some(u => (u._id || u).toString() === currentUserId.toString());
-              var heartClass = isLiked ? 'fa-solid text-rose-500' : 'fa-regular text-white/80';
-              // 將整個物件轉成字串傳給 Modal (注意跳脫字元)
-              var photoData = JSON.stringify(p).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+            container.innerHTML = ""; 
+
+            var uniqueCategories = [...new Set(photos.map(p => p.category || '기타'))];
+
+            uniqueCategories.forEach(cat => {
+                var catPhotos = photos.filter(p => (p.category || '기타') === cat);
+                if(catPhotos.length > 0) {
+                    var sectionHtml = `
+                        <div class="w-full relative">
+                            <h3 class="text-xl font-black text-slate-800 mb-4 px-6 md:px-8">${cat} <span class="text-sm font-bold text-slate-400 ml-2">${catPhotos.length}</span></h3>
+                            
+                            <div class="flex overflow-x-auto gap-4 px-6 md:px-8 pb-6 snap-x scroll-pl-6 md:scroll-pl-8 netflix-row" id="row-${cat}">
+                                ${catPhotos.map(p => createNetflixCard(p)).join('')}
+                                <div class="w-2 md:w-4 shrink-0"></div>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += sectionHtml;
+                }
+            });
+          }
+
+          // 🔥 終極安全防護：把整個 JSON 編碼起來，絕對不怕換行或引號破壞 HTML
+          function createNetflixCard(p) {
+              if(!p) return ''; 
+              // 兼容舊資料：沒有 imageUrls 就抓 imageUrl
+              var images = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+              if (images.length === 0) return ''; 
+              
+              var photoDataStr = encodeURIComponent(JSON.stringify(p));
+              var totalReactions = (p.reactions || []).length;
+              var multipleIcon = images.length > 1 ? `<div class="absolute top-3 right-3 bg-gray-950/60 backdrop-blur-sm text-white/90 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-xl"><i class="fa-solid fa-clone text-xs"></i></div>` : '';
+
+              var uName = p.uploaderId?.name || '알수없음';
+              var uRank = p.uploaderId?.rank || '';
 
               return `
-                <div class="relative group aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300" onclick='openPhotoModal(${photoData})'>
-                    <img src="${p.imageUrl}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-                    <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-6 text-white font-bold text-lg">
-                        <span class="flex items-center gap-2"><i class="${heartClass}"></i> ${p.likes.length}</span>
-                        <span class="flex items-center gap-2"><i class="fa-solid fa-comment text-white/80"></i> ${p.comments.length}</span>
+                <div class="w-64 md:w-72 shrink-0 snap-start relative group rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-300 bg-white" onclick="openPhotoModal(JSON.parse(decodeURIComponent('${photoDataStr}')))">
+                    <div class="w-full aspect-square relative overflow-hidden bg-slate-100">
+                        <img src="${images[0]}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" onerror="this.src='/img/fallback.png'" />
+                        ${multipleIcon}
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    </div>
+                    <div class="p-4 bg-white border-t border-slate-50 flex items-center justify-between">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <div class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold shrink-0">${uName.charAt(0)}</div>
+                            <span class="text-sm font-black text-slate-800 truncate">${uRank} ${uName}</span>
+                        </div>
+                        <span class="flex items-center gap-1.5 shrink-0 bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-face-smile"></i> ${totalReactions}</span>
                     </div>
                 </div>
               `;
-            }).join("");
           }
 
-          // 開啟詳細觀看 Modal
           function openPhotoModal(p) {
-            currentViewPhotoId = p._id;
-            document.getElementById('viewGalleryImg').src = p.imageUrl;
-            document.getElementById('viewGalleryAvatar').innerText = (p.uploaderId?.name || '관').charAt(0);
-            document.getElementById('viewGalleryAuthor').innerText = `${p.uploaderId?.rank || ''} ${p.uploaderId?.name || '관리자'}`;
+            // 🔥 確保舊資料即使缺少欄位也不會崩潰
+            p.imageUrls = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
+            p.reactions = p.reactions || [];
+            p.comments = p.comments || [];
+            
+            currentViewPhoto = p;
+            currentImageIndex = 0;
+            updateModalImage(); // 現在不怕黑畫面了！
+
+            var uploader = p.uploaderId || {};
+            var uName = uploader.name || '알수없음';
+            var uRank = uploader.rank || '';
+
+            document.getElementById('viewGalleryAvatar').innerText = uName.charAt(0);
+            document.getElementById('viewGalleryAuthor').innerText = `${uRank} ${uName}`;
             document.getElementById('viewGalleryDate').innerText = new Date(p.createdAt).toLocaleDateString();
             document.getElementById('viewGalleryDesc').innerText = p.description || "";
             
-            // 判斷刪除權限
-            var isUploader = p.uploaderId?._id === currentUserId || p.uploaderId === currentUserId;
+            var isUploader = (uploader._id || uploader) === currentUserId;
             var isAdmin = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
             var delBtn = document.getElementById('deleteGalleryBtn');
             if(isUploader || isAdmin) {
@@ -199,135 +358,187 @@ function previewImage(input) {
                 delBtn.onclick = () => deletePhoto(p._id);
             } else { delBtn.classList.add('hidden'); }
 
-            // 按讚狀態
-            var isLiked = p.likes.some(u => (u._id || u).toString() === currentUserId.toString());
-            var icon = document.getElementById('likeGalleryIcon');
-            icon.className = isLiked ? 'fa-solid fa-heart text-rose-500 heart-pop' : 'fa-regular fa-heart text-slate-400 group-hover:text-rose-500 transition-colors';
-            document.getElementById('viewGalleryLikesCount').innerText = p.likes.length;
-            document.getElementById('likeGalleryBtn').onclick = () => toggleGalleryLike(p._id, icon);
-
-            // 按讚名單 Tooltip
-            var tooltip = document.getElementById('viewGalleryLikesTooltip');
-            if(p.likes.length > 0) tooltip.innerHTML = p.likes.map(u => `${u.rank || ''} ${u.name || '알수없음'}`).join("<br>");
-            else tooltip.innerHTML = "아직 좋아요가 없습니다";
-
-            // 留言列表
-            var commentsHtml = p.comments.map(c => `
-                <div class="flex gap-3 text-[13px] leading-snug">
-                    <span class="font-black text-slate-800 whitespace-nowrap">${c.userId?.rank || ''} ${c.userId?.name || '익명'}</span>
+            var commentsHtml = p.comments.map(c => {
+                var cUploader = c.userId || {};
+                return `
+                <div class="flex gap-2 text-[13px] leading-snug">
+                    <span class="font-black text-slate-800 whitespace-nowrap">${cUploader.rank || ''} ${cUploader.name || '익명'}</span>
                     <span class="text-slate-600 break-words flex-1">${c.text}</span>
                 </div>
-            `).join("");
-            document.getElementById('viewGalleryComments').innerHTML = commentsHtml || `<div class="text-center text-slate-400 text-xs py-4">첫 번째 댓글을 남겨보세요!</div>`;
+            `}).join("");
+            document.getElementById('viewGalleryComments').innerHTML = commentsHtml || `<div class="text-center text-slate-400 text-xs py-2">아직 댓글이 없습니다.</div>`;
 
+            renderReactions(p);
             openGalleryModal('viewGalleryModal');
           }
 
-          // 送出表單 (精準抓取檔案版)
-async function submitGallery(e) {
-  e.preventDefault();
-  var token = localStorage.getItem("token");
-  var formData = new FormData();
-  
-  // 🔥 修正點：用 e.target 確保精準抓到這張表單裡的 input，不受 SPA 舊畫面干擾
-  var descInput = e.target.querySelector("#galleryDescInput").value;
-  var fileInput = e.target.querySelector("#galleryImageInput");
-  var file = fileInput.files[0];
-  
-  if(!file) return alert("사진을 선택해주세요!");
-  
-  formData.append("description", descInput);
-  formData.append("image", file);
+          // 🔥 改良版圖片載入，絕對不卡黑底
+          function updateModalImage() {
+              var imgEl = document.getElementById('viewGalleryImg');
+              imgEl.style.opacity = '0'; 
+              
+              setTimeout(() => {
+                  imgEl.src = currentViewPhoto.imageUrls[currentImageIndex];
+                  
+                  var showImg = () => { imgEl.style.opacity = '1'; };
+                  
+                  if (imgEl.complete) { showImg(); } 
+                  else { 
+                      imgEl.onload = showImg; 
+                      imgEl.onerror = showImg; // 避免圖片死結
+                      setTimeout(showImg, 300); // 保底強制顯示
+                  }
+              }, 150); 
 
-  try {
-    var res = await fetch("/api/gallery", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
-    var data = await res.json();
-    if (data.success) {
-      closeGalleryModal("uploadGalleryModal");
-      e.target.reset(); // 重置表單
-      // 恢復預覽區初始狀態
-      document.getElementById('imagePreview').classList.add('hidden');
-      document.getElementById('imagePreview').src = '';
-      document.getElementById('uploadPlaceholder').classList.remove('hidden');
-      fetchGallery(); // 刷新牆面
-    } else {
-      alert("업로드 실패: " + data.error);
-    }
-  } catch (err) { alert("업로드 중 오류가 발생했습니다."); }
-}
+              var total = currentViewPhoto.imageUrls.length;
+              var prevBtn = document.getElementById('prevImgBtn');
+              var nextBtn = document.getElementById('nextImgBtn');
+              var indicator = document.getElementById('imgIndicator');
 
-          async function toggleGalleryLike(id, iconEl) {
-            var token = localStorage.getItem("token");
-            var countEl = document.getElementById('viewGalleryLikesCount');
-            var isLiked = iconEl.classList.contains('fa-solid');
-            var count = parseInt(countEl.innerText);
+              if(total > 1) {
+                  prevBtn.classList.remove('hidden'); nextBtn.classList.remove('hidden');
+                  indicator.classList.remove('hidden'); indicator.innerText = `${currentImageIndex + 1} / ${total}`;
+              } else {
+                  prevBtn.classList.add('hidden'); nextBtn.classList.add('hidden'); indicator.classList.add('hidden');
+              }
+          }
 
-            if(isLiked) {
-              iconEl.className = 'fa-regular fa-heart text-slate-400 group-hover:text-rose-500 transition-colors';
-              countEl.innerText = count - 1;
-            } else {
-              iconEl.className = 'fa-solid fa-heart text-rose-500 heart-pop';
-              countEl.innerText = count + 1;
-            }
+          function changeImage(dir) {
+              var total = currentViewPhoto.imageUrls.length;
+              currentImageIndex += dir;
+              if (currentImageIndex < 0) currentImageIndex = total - 1;
+              if (currentImageIndex >= total) currentImageIndex = 0;
+              updateModalImage();
+          }
 
-            try { 
-                await fetch(`/api/gallery/${id}/like`, { method: "POST", headers: { Authorization: `Bearer ${token}` }});
-                fetchGallery(); // 背後刷新網格數據
-            } catch(e) {}
+          function renderReactions(p) {
+              var container = document.getElementById('reactionButtonsContainer');
+              var reactions = p.reactions || [];
+              container.innerHTML = reactionTypes.map(rt => {
+                  var count = reactions.filter(r => r.type === rt.id).length;
+                  // 檢查本人是否有按
+                  var hasReacted = reactions.some(r => {
+                      var uIdStr = (r.userId && r.userId._id) ? r.userId._id.toString() : (r.userId ? r.userId.toString() : '');
+                      return uIdStr === currentUserId.toString() && r.type === rt.id;
+                  });
+                  var activeClass = hasReacted ? 'bg-indigo-100 border-indigo-300 scale-110 shadow-sm ring-2 ring-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50 grayscale hover:grayscale-0 opacity-70 hover:opacity-100';
+                  
+                  return `
+                      <button onclick="toggleReaction('${p._id}', '${rt.id}')" class="flex items-center justify-center gap-1 px-2 py-1 rounded-lg border transition-all duration-300 ${activeClass} focus:outline-none reaction-btn">
+                          <span class="text-sm">${rt.emoji}</span>
+                          ${count > 0 ? `<span class="text-[10px] font-black ${hasReacted ? 'text-indigo-600' : 'text-slate-400'}">${count}</span>` : ''}
+                      </button>
+                  `;
+              }).join('');
+          }
+
+          async function toggleReaction(photoId, type) {
+              var token = localStorage.getItem("token");
+              currentViewPhoto.reactions = currentViewPhoto.reactions || [];
+              
+              // 單一表情切換邏輯
+              var existingIdx = currentViewPhoto.reactions.findIndex(r => {
+                  var uIdStr = (r.userId && r.userId._id) ? r.userId._id.toString() : (r.userId ? r.userId.toString() : '');
+                  return uIdStr === currentUserId.toString();
+              });
+              
+              if (existingIdx > -1) {
+                  if (currentViewPhoto.reactions[existingIdx].type === type) currentViewPhoto.reactions.splice(existingIdx, 1);
+                  else currentViewPhoto.reactions[existingIdx].type = type;
+              } else {
+                  currentViewPhoto.reactions.push({ userId: { _id: currentUserId }, type: type });
+              }
+              renderReactions(currentViewPhoto);
+
+              try {
+                  await fetch(`/api/gallery/${photoId}/react`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ type }) });
+                  fetchGallery(); 
+              } catch(e) {}
           }
 
           async function postGalleryComment() {
             var input = document.getElementById('galleryCommentInput');
             var text = input.value.trim();
-            if(!text || !currentViewPhotoId) return;
+            if(!text || !currentViewPhoto) return;
             
             try {
-              var res = await fetch(`/api/gallery/${currentViewPhotoId}/comment`, {
+              var res = await fetch(`/api/gallery/${currentViewPhoto._id}/comment`, {
                 method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("token")}` }, body: JSON.stringify({ text })
               });
               if((await res.json()).success) { 
                 input.value = ""; 
-                // 為了不打斷觀看體驗，關閉 Modal 刷新後再打開是有點干擾的。
-                // 這裡最簡單的做法是直接關閉並重新刷新網格，使用者可以再次點開。
-                closeGalleryModal('viewGalleryModal');
-                fetchGallery(); 
+                fetchGallery();
+                document.getElementById('viewGalleryComments').innerHTML += `
+                    <div class="flex gap-2 text-[13px] leading-snug animate-pulse">
+                        <span class="font-black text-indigo-600 whitespace-nowrap">방금 전</span>
+                        <span class="text-slate-800 break-words flex-1">${text}</span>
+                    </div>`;
               }
             } catch(e) {}
           }
-
           function handleGalleryCommentEnter(e) { if (e.key === 'Enter') postGalleryComment(); }
+
+          async function submitGallery(e) {
+            e.preventDefault();
+            var token = localStorage.getItem("token");
+            var formData = new FormData();
+            var btn = document.getElementById('uploadSubmitBtn');
+            var desc = document.getElementById("galleryDescInput").value;
+            var category = document.getElementById("galleryCategoryInput").value;
+            
+            if(selectedGalleryFiles.length === 0) { alert("사진을 선택해주세요!"); return; }
+
+            formData.append("description", desc);
+            formData.append("category", category);
+            selectedGalleryFiles.forEach(f => formData.append("images", f));
+
+            btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-xl"></i>`; btn.classList.replace('bg-indigo-600', 'bg-indigo-400');
+
+            try {
+              var res = await fetch("/api/gallery", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+              var data = await res.json();
+              if (data.success) {
+                closeGalleryModal("uploadGalleryModal");
+                e.target.reset();
+                selectedGalleryFiles = []; 
+                updateFilePreviews(); 
+                showToast(); 
+                fetchGallery(); 
+              } else { alert(data.error); }
+            } catch (err) { alert("업로드 실패"); }
+            finally {
+              btn.disabled = false; btn.innerHTML = `공유하기`; btn.classList.replace('bg-indigo-400', 'bg-indigo-600');
+            }
+          }
 
           async function deletePhoto(id) {
             if(!confirm("이 사진을 정말 삭제하시겠습니까?")) return;
             try {
               var res = await fetch(`/api/gallery/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }});
-              if((await res.json()).success) { 
-                  closeGalleryModal('viewGalleryModal');
-                  fetchGallery(); 
-              }
+              if((await res.json()).success) { closeGalleryModal('viewGalleryModal'); fetchGallery(); }
             } catch(e) {}
           }
 
-          function openGalleryModal(id) {
-            var el = document.getElementById(id);
-            var content = document.getElementById(id + "Content");
-            el.classList.remove("hidden");
-            setTimeout(() => { el.classList.remove("opacity-0"); content.classList.remove("scale-95"); }, 10);
-          }
-          function closeGalleryModal(id) {
-            var el = document.getElementById(id);
-            var content = document.getElementById(id + "Content");
-            el.classList.add("opacity-0");
-            content.classList.add("scale-95");
-            setTimeout(() => el.classList.add("hidden"), 300);
-            if(id === 'viewGalleryModal') currentViewPhotoId = null;
+          function showToast() {
+              var toast = document.getElementById('toastAlert');
+              toast.classList.remove('-translate-y-20', 'opacity-0'); toast.classList.add('translate-y-0', 'opacity-100');
+              setTimeout(() => { toast.classList.remove('translate-y-0', 'opacity-100'); toast.classList.add('-translate-y-20', 'opacity-0'); }, 4000);
           }
 
-          // 🔥 SPA 動態觸發：確保載入瞬間執行
+          function openGalleryModal(id) {
+            var el = document.getElementById(id); var content = document.getElementById(id + "Content");
+            el.classList.remove("hidden"); setTimeout(() => { el.classList.remove("opacity-0"); content.classList.remove("scale-95"); }, 10);
+          }
+          function closeGalleryModal(id) {
+            var el = document.getElementById(id); var content = document.getElementById(id + "Content");
+            el.classList.add("opacity-0"); content.classList.add("scale-95"); setTimeout(() => el.classList.add("hidden"), 300);
+          }
+
           setTimeout(() => { fetchGallery(); }, 50);
 
         </script>
     </div>
+
     <script src="/common.js" onerror="console.log('common.js not found')"></script>
 </body>
 </html>

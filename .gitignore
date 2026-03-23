@@ -1,1 +1,3 @@
 node_modules
+# 忽略使用者上傳的檔案
+public/uploads/
