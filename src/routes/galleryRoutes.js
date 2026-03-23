@@ -26,9 +26,10 @@ const upload = multer({
 router.get("/api/gallery", authMiddleware, async (req, res) => {
   try {
     const photos = await Gallery.find({ organizationId: req.user.orgId })
-      .populate("uploaderId", "name rank")
-      .populate("reactions.userId", "name rank")
-      .populate("comments.userId", "name rank")
+      // 🔥 修改點：加上晉升日期，供前端動態計算階級
+      .populate("uploaderId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
+      .populate("reactions.userId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
+      .populate("comments.userId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
       .sort({ createdAt: -1 })
       .lean();
     res.json({ success: true, photos, role: req.user.role, currentUserId: req.user.userId || req.user._id });
@@ -50,9 +51,10 @@ router.post("/api/gallery", authMiddleware, upload.array("images", 10), async (r
     });
 
     const newPhotoPopulated = await Gallery.findById(newPhotoData._id)
-        .populate("uploaderId", "name rank")
-        .populate("reactions.userId", "name rank")
-        .populate("comments.userId", "name rank")
+        // 🔥 修改點：這裡也要加上晉升日期
+        .populate("uploaderId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
+        .populate("reactions.userId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
+        .populate("comments.userId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
         .lean();
 
     res.json({ success: true, photo: newPhotoPopulated });

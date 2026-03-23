@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>SmartMil - 공지사항</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -45,50 +45,139 @@
           </button>
         </div>
 
-        <main class="flex-1 overflow-y-auto no-scrollbar pb-20 z-10">
-          <div id="feedContainer" class="max-w-2xl mx-auto px-4 flex flex-col gap-6">
+        <main class="flex-1 overflow-y-auto no-scrollbar pb-24 z-10" id="mainScrollArea">
+          <div id="feedContainer" class="max-w-2xl mx-auto px-4 flex flex-col gap-6 pb-20">
             </div>
         </main>
 
-        <div id="createModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex justify-center items-center opacity-0 transition-opacity">
-          <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform" id="createModalContent">
-            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+        <div id="createModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex justify-center items-center opacity-0 transition-opacity p-4">
+          <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform flex flex-col max-h-[90vh]" id="createModalContent">
+            
+            <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
               <h2 class="text-lg font-black text-slate-800">새 공지 작성</h2>
               <button onclick="closeModal('createModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
-            <form id="noticeForm" class="p-6 flex flex-col gap-4" onsubmit="submitNotice(event)">
-              <input type="text" id="titleInput" required class="w-full font-bold text-lg border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none px-4 py-3 placeholder-slate-300 transition-all" placeholder="공지 제목">
+            
+            <form id="noticeForm" class="p-6 flex flex-col gap-4 overflow-y-auto custom-scrollbar flex-1" onsubmit="submitNotice(event)">
+              <input type="text" id="titleInput" required class="w-full font-bold text-lg border border-slate-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none px-4 py-3 placeholder-slate-300 transition-all shrink-0" placeholder="공지 제목">
               
-              <textarea id="contentInput" required rows="6" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all" placeholder="전파할 내용을 작성해주세요..."></textarea>
+              <textarea id="contentInput" required rows="5" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all shrink-0" placeholder="전파할 내용을 작성해주세요..."></textarea>
               
-              <div class="border border-dashed border-slate-300 rounded-xl p-4 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative mt-1">
-                <input type="file" id="fileInput" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="updateFileCount()">
-                <div class="flex items-center justify-center gap-3 text-slate-500 text-sm font-bold">
-                  <i class="fa-solid fa-cloud-arrow-up text-indigo-400 text-xl"></i>
-                  <span id="fileCountText">클릭하여 첨부파일 업로드 (최대 5개)</span>
-                </div>
+              <div class="shrink-0">
+                  <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative flex flex-col items-center justify-center gap-2" onclick="document.getElementById('fileInput').click()">
+                    <i class="fa-solid fa-images text-indigo-400 text-2xl"></i>
+                    <span id="fileCountText" class="text-slate-500 text-sm font-bold text-center">클릭하여 사진/파일 업로드<br><span class="text-xs text-slate-400">(여러 번 나누어 선택 가능, 최대 5개)</span></span>
+                    <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleNoticeFileSelect(this)">
+                  </div>
+                  
+                  <div id="noticeSelectedFilesBox" class="mt-2 hidden">
+                      <p class="text-xs font-bold text-slate-500 mb-1.5 flex justify-between">
+                          <span>첨부 대기열 (<span id="noticeFileIndicator">0</span>/5)</span>
+                          <button type="button" onclick="removeAllNoticeFiles()" class="text-rose-500 hover:underline">전체 삭제</button>
+                      </p>
+                      <div id="noticeFilePreviewList" class="flex flex-col gap-1.5"></div>
+                  </div>
               </div>
 
-              <div class="flex items-center justify-between mt-2">
+              <div id="keyboardSpacer" class="w-full h-0 shrink-0 transition-all duration-300"></div>
+
+              <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 shrink-0">
                 <div class="flex items-center gap-2 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
                   <input type="checkbox" id="importantCheck" class="w-4 h-4 text-red-500 rounded border-slate-300 focus:ring-red-500">
                   <label for="importantCheck" class="text-xs font-bold text-red-600 cursor-pointer">필독 공지</label>
                 </div>
-                <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md">공유하기</button>
+                <button type="submit" id="submitNoticeBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all shadow-md flex items-center gap-2">
+                    공유하기
+                </button>
               </div>
             </form>
+
           </div>
         </div>
 
         <script>
           var currentRole = "soldier";
           var currentUserId = "";
+          
+          // 🔥 動態階級計算機 (精準算出 일병, 상병 등)
+          function getDisplayRank(user) {
+              if (!user) return "";
+              if (user.role !== "soldier" || !user.promoToIlbyung) {
+                  let fallback = user.rank || "";
+                  if(!fallback && user.role === 'soldier') return '용사';
+                  if(!fallback && user.role === 'officer') return '간부';
+                  return fallback;
+              }
+              const today = new Date();
+              if (today >= new Date(user.promoToByungjang)) return "병장";
+              if (today >= new Date(user.promoToSangbyung)) return "상병";
+              if (today >= new Date(user.promoToIlbyung)) return "일병";
+              return "이병";
+          }
 
-          function updateFileCount() {
-            const files = document.getElementById("fileInput").files;
-            const text = document.getElementById("fileCountText");
-            if(files.length > 0) text.innerText = `${files.length}개의 파일이 선택되었습니다.`;
-            else text.innerText = "클릭하여 첨부파일 업로드 (최대 5개)";
+          var selectedNoticeFiles = [];
+
+          function handleNoticeFileSelect(input) {
+              if (input.files && input.files.length > 0) {
+                  const newFiles = Array.from(input.files);
+                  
+                  if (selectedNoticeFiles.length + newFiles.length > 5) {
+                      alert("첨부파일은 최대 5개까지만 업로드 가능합니다.");
+                      const allowedCount = 5 - selectedNoticeFiles.length;
+                      selectedNoticeFiles = selectedNoticeFiles.concat(newFiles.slice(0, allowedCount));
+                  } else {
+                      selectedNoticeFiles = selectedNoticeFiles.concat(newFiles);
+                  }
+                  
+                  input.value = ""; 
+                  updateNoticeFileUI();
+              }
+          }
+
+          function removeNoticeFile(index) {
+              selectedNoticeFiles.splice(index, 1);
+              updateNoticeFileUI();
+          }
+
+          function removeAllNoticeFiles() {
+              selectedNoticeFiles = [];
+              updateNoticeFileUI();
+          }
+
+          function updateNoticeFileUI() {
+              const box = document.getElementById('noticeSelectedFilesBox');
+              const list = document.getElementById('noticeFilePreviewList');
+              const indicator = document.getElementById('noticeFileIndicator');
+              
+              list.innerHTML = '';
+              indicator.innerText = selectedNoticeFiles.length;
+
+              if (selectedNoticeFiles.length > 0) {
+                  box.classList.remove('hidden');
+                  
+                  selectedNoticeFiles.forEach((file, index) => {
+                      const div = document.createElement('div');
+                      div.className = "flex justify-between items-center bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm";
+                      
+                      let icon = '<i class="fa-solid fa-file text-slate-400"></i>';
+                      if (file.type.startsWith('image/')) {
+                          icon = '<i class="fa-solid fa-image text-indigo-400"></i>';
+                      }
+                      
+                      div.innerHTML = `
+                          <div class="flex items-center gap-2 overflow-hidden text-sm">
+                              ${icon}
+                              <span class="truncate text-slate-700 font-medium">${file.name}</span>
+                          </div>
+                          <button type="button" onclick="removeNoticeFile(${index})" class="text-slate-300 hover:text-rose-500 ml-2">
+                              <i class="fa-solid fa-xmark"></i>
+                          </button>
+                      `;
+                      list.appendChild(div);
+                  });
+              } else {
+                  box.classList.add('hidden');
+              }
           }
 
           async function fetchNotices() {
@@ -112,11 +201,10 @@
             } catch (e) { console.error("Error:", e); }
           }
 
-          // 🔥 升級版 IG 風格動態牆
 function renderFeed(notices) {
   const container = document.getElementById("feedContainer");
   if (notices.length === 0) {
-    container.innerHTML = `<div class="text-center text-slate-400 py-20"><i class="fa-solid fa-folder-open text-4xl mb-4 text-slate-300"></i><p class="font-bold">등록된 공지사항이 없습니다.</p></div>`;
+    container.innerHTML = `<div class="text-center text-slate-400 py-20"><i class="fa-solid fa-folder-open text-4xl mb-4 text-slate-300"></i><p class="font-bold text-base md:text-lg">등록된 공지사항이 없습니다.</p></div>`;
     return;
   }
 
@@ -125,112 +213,110 @@ function renderFeed(notices) {
     const diffDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
     const timeAgo = diffDays === 0 ? '오늘' : (diffDays < 30 ? `${diffDays}일 전` : date.toLocaleDateString());
 
-    // 1. 判斷是否按讚
     const isLiked = n.likes.some(u => (u._id || u).toString() === currentUserId.toString());
     const heartClass = isLiked ? 'fa-solid text-rose-500 heart-pop' : 'fa-regular text-slate-400 hover:text-slate-600';
     
-    // 2. 準備按讚名單文字 (Tooltip用)
     let likesListText = "아직 좋아요가 없습니다";
     if (n.likes.length > 0) {
-        likesListText = n.likes.map(u => `${u.rank || ''} ${u.name || '알수없음'}`).join("<br>");
+        // 🔥 套用計算機，精準顯示按讚者階級
+        likesListText = n.likes.map(u => `${getDisplayRank(u)} ${u.name || '알수없음'}`.trim()).join("<br>");
     }
 
-    // 3. 留言區
-    const commentsHtml = n.comments.map(c => `
-      <div class="text-[13px] leading-relaxed flex items-start gap-2 mb-1.5">
-        <span class="font-black text-slate-800 whitespace-nowrap">${c.userId?.rank || ''} ${c.userId?.name || '익명'}</span>
-        <span class="text-slate-600 break-words flex-1">${c.text}</span>
-      </div>
-    `).join("");
+    // 🔥 套用計算機，精準顯示留言者階級
+    const commentsHtml = n.comments.map(c => {
+        let cRank = getDisplayRank(c.userId);
+        return `
+          <div class="text-[13px] md:text-[15px] leading-relaxed flex items-start gap-1.5 md:gap-2 mb-1.5">
+            <span class="font-black text-slate-800 whitespace-nowrap">${cRank} ${c.userId?.name || '익명'}</span>
+            <span class="text-slate-600 break-words flex-1">${c.text}</span>
+          </div>
+        `;
+    }).join("");
 
-    // 🔥 4. 智慧判斷：分離圖片與一般文件
     let imagesHtml = "";
     let filesHtml = "";
     if (n.attachedFiles && n.attachedFiles.length > 0) {
-      
-      // 用副檔名判斷是不是圖片
       const images = n.attachedFiles.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
       const docs = n.attachedFiles.filter(f => !f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
 
-      // 如果有圖片，直接顯示大圖 (如果超過一張，自動變成雙排網格)
       if (images.length > 0) {
         const gridClass = images.length > 1 ? 'grid-cols-2' : 'grid-cols-1';
-        imagesHtml = `<div class="mt-4 grid ${gridClass} gap-2">` + 
-          images.map(img => `<img src="${img}" class="w-full h-auto max-h-80 object-cover rounded-xl border border-slate-100 shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onclick="window.open('${img}', '_blank')" />`).join('') + 
+        imagesHtml = `<div class="mt-3 md:mt-4 grid ${gridClass} gap-1.5 md:gap-2">` + 
+          images.map(img => `<img src="${img}" class="w-full h-auto max-h-60 md:max-h-80 object-cover rounded-lg md:rounded-xl border border-slate-100 shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onclick="window.open('${img}', '_blank')" />`).join('') + 
         `</div>`;
       }
 
-      // 如果有文件，維持原本的下載按鈕 (換成 file-arrow-down 圖示更直覺)
       if (docs.length > 0) {
-        filesHtml = `<div class="mt-3 flex flex-wrap gap-2">` + 
+        filesHtml = `<div class="mt-2.5 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">` + 
           docs.map(f => {
             const rawName = f.split('/').pop();
             const displayName = rawName.substring(rawName.indexOf('-') + 1) || "첨부파일";
-            return `<a href="${f}" target="_blank" class="inline-flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition shadow-sm"><i class="fa-solid fa-file-arrow-down"></i> ${displayName}</a>`;
+            return `<a href="${f}" target="_blank" class="inline-flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition shadow-sm"><i class="fa-solid fa-file-arrow-down"></i> ${displayName}</a>`;
           }).join("") + `</div>`;
       }
     }
 
     const isAuthorControl = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
+    
+    // 🔥 套用計算機，精準顯示發文者階級
+    let authorRank = getDisplayRank(n.authorId);
 
     return `
-      <article class="glass-card overflow-hidden flex flex-col max-h-[750px]"> 
-        <div class="p-5 border-b border-slate-100/50 shrink-0">
-          <div class="flex justify-between items-start mb-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm font-black shadow-md">
+      <article class="glass-card overflow-hidden flex flex-col max-h-[750px] mb-2 md:mb-0"> 
+        <div class="p-4 md:p-5 border-b border-slate-100/50 shrink-0">
+          <div class="flex justify-between items-start mb-2.5 md:mb-3">
+            <div class="flex items-center gap-2.5 md:gap-3">
+              <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm md:text-base font-black shadow-md">
                 ${(n.authorId?.name || '관').charAt(0)}
               </div>
               <div class="flex flex-col">
-                <span class="text-[14px] font-black text-slate-800">${n.authorId?.rank || ''} ${n.authorId?.name || '관리자'}</span>
-                <span class="text-[11px] text-slate-400 font-bold tracking-wide">${timeAgo}</span>
+                <span class="text-sm md:text-base font-black text-slate-800">${authorRank} ${n.authorId?.name || '관리자'}</span>
+                <span class="text-xs md:text-sm text-slate-400 font-bold tracking-wide">${timeAgo}</span>
               </div>
             </div>
             <div class="flex items-center gap-2">
-              ${n.isImportant ? `<span class="bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded text-[10px] font-black tracking-wider shadow-sm">필독</span>` : ''}
-              ${isAuthorControl ? `<button onclick="deleteNotice('${n._id}')" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+              ${n.isImportant ? `<span class="bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 md:px-2.5 md:py-1 rounded text-[11px] md:text-xs font-black tracking-wider shadow-sm">필독</span>` : ''}
+              ${isAuthorControl ? `<button onclick="deleteNotice('${n._id}')" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-base md:text-lg"></i></button>` : ''}
             </div>
           </div>
           
-          <h3 class="font-black text-lg text-slate-800 mb-2 leading-tight">${n.title}</h3>
+          <h3 class="font-black text-lg md:text-xl text-slate-800 mb-1.5 md:mb-2 leading-tight">${n.title}</h3>
           
-          <div class="max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-            <p class="text-[14px] text-slate-600 whitespace-pre-wrap leading-relaxed">${n.content}</p>
+          <div class="max-h-[150px] md:max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+            <p class="text-[15px] md:text-base text-slate-700 whitespace-pre-wrap leading-relaxed">${n.content}</p>
           </div>
           
           ${imagesHtml}
-          
           ${filesHtml}
         </div>
 
-        <div class="px-5 py-3 flex items-center gap-4 shrink-0">
-          <button onclick="toggleLike('${n._id}', this)" class="text-2xl focus:outline-none transition-transform flex items-center gap-2 group">
+        <div class="px-4 py-2.5 md:px-5 md:py-3 flex items-center gap-3.5 md:gap-4 shrink-0">
+          <button onclick="toggleLike('${n._id}', this)" class="text-xl md:text-2xl focus:outline-none transition-transform flex items-center gap-2 group">
             <i class="${heartClass} heart-icon fa-heart"></i>
           </button>
-          <button onclick="document.getElementById('comment-${n._id}').focus()" class="text-2xl text-slate-400 hover:text-indigo-500 transition-colors focus:outline-none">
+          <button onclick="focusCommentInput('${n._id}')" class="text-xl md:text-2xl text-slate-400 hover:text-indigo-500 transition-colors focus:outline-none">
             <i class="fa-regular fa-comment"></i>
           </button>
         </div>
 
-        <div class="px-5 pb-1 relative group w-max cursor-help shrink-0">
-          <span class="text-[12px] font-black text-slate-800 likes-count">좋아요 ${n.likes.length}개</span>
-          
-          <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-slate-800/95 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-2.5 rounded-lg shadow-xl z-20 pointer-events-none max-w-[200px] max-h-[150px] overflow-y-auto custom-scrollbar">
+        <div class="px-4 md:px-5 pb-1 relative group w-max cursor-help shrink-0">
+          <span class="text-xs md:text-sm font-black text-slate-800 likes-count">좋아요 ${n.likes.length}개</span>
+          <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-slate-800/95 backdrop-blur-sm text-white text-xs font-bold px-3 py-2 md:py-2.5 rounded-lg shadow-xl z-20 pointer-events-none max-w-[200px] max-h-[150px] overflow-y-auto custom-scrollbar">
             ${likesListText}
           </div>
         </div>
 
-        <div class="px-5 pt-2 flex items-center justify-between shrink-0">
-            <span class="text-[11px] font-bold text-slate-400">댓글 ${n.comments.length}개</span>
+        <div class="px-4 md:px-5 pt-1 md:pt-2 flex items-center justify-between shrink-0">
+            <span class="text-xs md:text-sm font-bold text-slate-400">댓글 ${n.comments.length}개</span>
         </div>
 
-        <div class="px-5 pb-2 mt-2 overflow-y-auto custom-scrollbar flex-1 min-h-[50px] max-h-[180px]" id="comment-list-${n._id}">
+        <div class="px-4 md:px-5 pb-2 mt-1.5 md:mt-2 overflow-y-auto custom-scrollbar flex-1 min-h-[50px] max-h-[150px] md:max-h-[180px]" id="comment-list-${n._id}">
           ${commentsHtml}
         </div>
 
-        <div class="px-5 py-3 border-t border-slate-100/50 flex items-center gap-3 bg-white/50 shrink-0">
-          <input type="text" id="comment-${n._id}" class="flex-1 text-sm outline-none placeholder-slate-400 bg-transparent font-medium" placeholder="댓글 달기..." onkeypress="handleCommentEnter(event, '${n._id}')">
-          <button onclick="postComment('${n._id}')" class="text-indigo-600 text-sm font-black hover:text-indigo-800 transition-colors">게시</button>
+        <div class="px-4 py-2.5 md:px-5 md:py-3 border-t border-slate-100/50 flex items-center gap-2.5 md:gap-3 bg-white/50 shrink-0">
+          <input type="text" id="comment-${n._id}" class="flex-1 text-[14px] md:text-[15px] outline-none placeholder-slate-400 bg-transparent font-medium mobile-input" placeholder="댓글 달기..." onkeypress="handleCommentEnter(event, '${n._id}')">
+          <button onclick="postComment('${n._id}')" class="text-indigo-600 text-[14px] md:text-[15px] font-black hover:text-indigo-800 transition-colors">게시</button>
         </div>
       </article>
     `;
@@ -240,22 +326,33 @@ function renderFeed(notices) {
           async function submitNotice(e) {
             e.preventDefault();
             const token = localStorage.getItem("token");
+            const btn = document.getElementById("submitNoticeBtn");
             const formData = new FormData();
+            
             formData.append("title", document.getElementById("titleInput").value);
             formData.append("content", document.getElementById("contentInput").value);
             formData.append("isImportant", document.getElementById("importantCheck").checked);
-            const files = document.getElementById("fileInput").files;
-            for(let i = 0; i < files.length; i++) formData.append("files", files[i]);
+            
+            for(let i = 0; i < selectedNoticeFiles.length; i++) {
+                formData.append("files", selectedNoticeFiles[i]);
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 전송 중...`;
 
             try {
               const res = await fetch("/api/notices", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
               if ((await res.json()).success) {
                 closeModal("createModal");
                 document.getElementById("noticeForm").reset();
-                document.getElementById("fileCountText").innerText = "클릭하여 첨부파일 업로드 (최대 5개)";
+                removeAllNoticeFiles(); 
                 fetchNotices();
               }
             } catch (err) { alert("오류 발생"); }
+            finally {
+              btn.disabled = false;
+              btn.innerHTML = `공유하기`;
+            }
           }
 
           async function toggleLike(id, btnEl) {
@@ -287,6 +384,7 @@ function renderFeed(notices) {
               if((await res.json()).success) { input.value = ""; fetchNotices(); }
             } catch(e) {}
           }
+          
           function handleCommentEnter(e, id) { if (e.key === 'Enter') postComment(id); }
 
           async function deleteNotice(id) {
@@ -301,22 +399,70 @@ function renderFeed(notices) {
             const el = document.getElementById(id);
             const content = document.getElementById(id + "Content");
             el.classList.remove("hidden");
+            el.classList.add("flex");
             setTimeout(() => { el.classList.remove("opacity-0"); content.classList.remove("scale-95"); }, 10);
           }
+          
           function closeModal(id) {
             const el = document.getElementById(id);
             const content = document.getElementById(id + "Content");
             el.classList.add("opacity-0");
             content.classList.add("scale-95");
-            setTimeout(() => el.classList.add("hidden"), 300);
+            setTimeout(() => { el.classList.add("hidden"); el.classList.remove("flex"); }, 300);
           }
-          function openCreateModal() { showModal("createModal"); }
+          
+          function openCreateModal() { 
+              removeAllNoticeFiles(); 
+              showModal("createModal"); 
+          }
 
-          // 🔥 修改點 3：無論是 F5 進入還是 SPA 動態載入，直接觸發函式！
-          // 因為 SPA 載入腳本時 window.onload 早就失效了
+          // 🔥 終極手機防擋鍵盤：Spacer 頂高法
+          function handleMobileFocus(inputEl) {
+              const spacer = document.getElementById('keyboardSpacer');
+              if(spacer && window.innerWidth < 768) { // 只在手機版生效
+                  spacer.style.height = '40vh'; // 強行撐開空間
+                  setTimeout(() => {
+                      inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 300);
+              }
+          }
+
+          function handleMobileBlur() {
+              const spacer = document.getElementById('keyboardSpacer');
+              if(spacer) {
+                  spacer.style.height = '0px'; // 縮回空間
+              }
+          }
+
+          function focusCommentInput(id) {
+              const input = document.getElementById(`comment-${id}`);
+              if(input) {
+                  input.focus();
+              }
+          }
+
+          // 初始化綁定防擋鍵盤事件
+          document.addEventListener('DOMContentLoaded', () => {
+              // 1. 綁定發文表單的輸入框
+              const formInputs = ['titleInput', 'contentInput'];
+              formInputs.forEach(id => {
+                  const el = document.getElementById(id);
+                  if(el) {
+                      el.addEventListener('focus', function() { handleMobileFocus(this); });
+                      el.addEventListener('blur', handleMobileBlur);
+                  }
+              });
+
+              // 2. 綁定留言區的輸入框 (動態生成的，使用事件委派)
+              document.body.addEventListener('focus', (e) => {
+                  if (e.target && e.target.classList.contains('mobile-input')) {
+                      setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+                  }
+              }, true);
+          });
+
           setTimeout(() => {
             fetchNotices();
-            // 如果你的系統有抓取 Header 鈴鐺數量的函數，在這裡一起呼叫
             if(typeof fetchNotifications === "function") fetchNotifications(); 
           }, 50);
 

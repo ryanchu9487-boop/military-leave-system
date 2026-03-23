@@ -21,12 +21,17 @@ const upload = multer({ storage });
 router.get("/api/notices", authMiddleware, async (req, res) => {
   try {
     const notices = await Notice.find({ organizationId: req.user.orgId })
-      .populate("authorId", "name rank")
-      .populate("comments.userId", "name rank")
-      .populate("likes", "name rank") // 🔥 新增這行：把按讚的人的名字與階級抓出來
-      .sort({ isImportant: -1, createdAt: -1 })
+      // 🔥 終極解法：把晉升日期一起抓出來，讓前端可以動態計算階級！
+      .populate("authorId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
+      .populate("comments.userId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
+      .populate("likes", "name rank role promoToIlbyung promoToSangbyung promoToByungjang") 
+      // 🔥 改用 _id: -1 排序，絕對保證最新文章在最上面！
+      .sort({ isImportant: -1, _id: -1 })
       .lean();
     
+    // 💡 照妖鏡：把它印在終端機 (Terminal) 裡檢查！
+    console.log("🔥 檢查第一個公告的作者資料：", notices[0]?.authorId);
+
     res.json({ success: true, notices, role: req.user.role, currentUserId: req.user.userId || req.user._id });
   } catch (error) {
     res.status(500).json({ error: "공지사항을 불러오는데 실패했습니다." });

@@ -1,4 +1,4 @@
-<div id="sidebarOverlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-[80] hidden transition-opacity duration-300 opacity-0"></div>
+<div id="sidebarOverlay" onclick="closeSidebar()" class="fixed inset-0 bg-black/50 z-[80] hidden opacity-0 transition-opacity duration-300 ease-in-out backdrop-blur-sm cursor-pointer"></div>
 
 <aside id="sidebar" class="fixed top-0 left-0 h-full w-64 bg-white z-[90] shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
   <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-indigo-50">
@@ -9,10 +9,15 @@
   </div>
   
   <nav class="flex-1 p-4 space-y-6 overflow-y-auto">
-    <div class="space-y-1">
+    <div class="space-y-1 relative">
       <a href="/" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group">
         <i class="fa-solid fa-calendar-days text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
         <span class="font-medium">휴가 월력</span>
+      </a>
+
+      <a id="manageTeamSidebarBtn" href="/adduser.html" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group hidden">
+        <i class="fa-solid fa-users-gear text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
+        <span class="font-medium">부대원 관리</span>
       </a>
     </div>
 
@@ -29,37 +34,45 @@
         <span class="font-medium">사진첩</span>
       </a>
 
-      <a href="#" onclick="openMindLetter()" class="flex items-center gap-3 p-3 rounded-lg hover:bg-rose-50 text-gray-700 hover:text-rose-600 transition group">
+      <a href="/letter" class="flex items-center gap-3 p-3 rounded-lg hover:bg-rose-50 text-gray-700 hover:text-rose-600 transition group">
         <i class="fa-solid fa-envelope-open-text text-lg text-gray-400 group-hover:text-rose-500 w-6 text-center"></i>
         <span class="font-medium">마음의 편지</span>
-      </a>
-    </div>
-
-    <div id="adminMenuSection" class="space-y-1">
-      <p id="adminMenuLabel" class="px-3 text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 hidden">관리자 메뉴</p>
-      
-      <a id="manageTeamSidebarBtn" href="/adduser.html" class="flex items-center gap-3 p-3 rounded-lg hover:bg-indigo-50 text-gray-700 hover:text-indigo-700 transition group hidden">
-        <i class="fa-solid fa-user-plus text-lg text-gray-400 group-hover:text-indigo-600 w-6 text-center"></i>
-        <span class="font-medium">부대원 관리 (인원 추가)</span>
       </a>
     </div>
   </nav>
 </aside>
 
 <script>
-  // 這段是為了當你有管理員權限打開 manageTeamSidebarBtn 時，順便把上面的 "관리자 메뉴" 標籤也顯示出來
-  // 你原本檢查身分的邏輯不用改，只要確保 Sidebar 展開時會觸發就好
-  function updateSidebarAdminLabel() {
-    const manageBtn = document.getElementById("manageTeamSidebarBtn");
-    const label = document.getElementById("adminMenuLabel");
-    if (manageBtn && label && !manageBtn.classList.contains("hidden")) {
-      label.classList.remove("hidden");
-    }
-  }
-  
-  // ✅ 這是升級後的新代碼 (直接無縫跳轉)
-  function openMindLetter() {
-    // 直接跳轉到我們做好的專屬心靈信箱頁面
-    window.location.href = "/letter"; 
-  }
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('sidebarOverlay');
+    const sidebar = document.getElementById('sidebar');
+
+    // 攔截並強化你原本的 openSidebar
+    const originalOpen = window.openSidebar;
+    window.openSidebar = function() {
+      if (originalOpen) originalOpen();
+      // 如果你原本的沒有打開 sidebar，這裡強制幫你打開
+      if(sidebar) sidebar.classList.remove('-translate-x-full');
+      
+      // 顯示黑色遮罩
+      if (overlay) {
+        overlay.classList.remove('hidden');
+        setTimeout(() => overlay.classList.remove('opacity-0'), 10);
+      }
+    };
+
+    // 攔截並強化你原本的 closeSidebar
+    const originalClose = window.closeSidebar;
+    window.closeSidebar = function() {
+      if (originalClose) originalClose();
+      // 如果你原本的沒有關閉 sidebar，這裡強制幫你關閉
+      if(sidebar) sidebar.classList.add('-translate-x-full');
+      
+      // 隱藏黑色遮罩
+      if (overlay) {
+        overlay.classList.add('opacity-0');
+        setTimeout(() => overlay.classList.add('hidden'), 300);
+      }
+    };
+  });
 </script>

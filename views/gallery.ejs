@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>SmartMil - 사진첩</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
@@ -27,6 +27,9 @@
         .reaction-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.4); } 100% { transform: scale(1); } }
         .drop-zone-active { border-color: #6366f1 !important; background-color: #f5f3ff !important; color: #6366f1 !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-50 text-slate-800 overflow-hidden h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
@@ -61,7 +64,7 @@
               <button onclick="closeGalleryModal('uploadGalleryModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
-            <form id="galleryForm" class="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col gap-5" onsubmit="submitGallery(event)">
+            <form id="galleryForm" class="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-5" onsubmit="submitGallery(event)">
               <div>
                   <label class="block text-xs font-bold text-slate-500 mb-2">카테고리</label>
                   <input type="text" id="galleryCategoryInput" required class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none transition-all placeholder-slate-400" placeholder="예: 훈련, 회식, 휴가...">
@@ -90,6 +93,8 @@
 
               <textarea id="galleryDescInput" rows="3" class="w-full border border-slate-200 rounded-2xl px-5 py-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none placeholder-slate-400 transition-all shrink-0" placeholder="이 순간에 대해 이야기해주세요..."></textarea>
               
+              <div id="galleryKeyboardSpacer" class="w-full h-0 shrink-0 transition-all duration-300"></div>
+
               <button id="uploadSubmitBtn" type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl text-base font-black transition-all shadow-md flex justify-center items-center gap-2 shrink-0">
                 <span>공유하기</span>
               </button>
@@ -98,12 +103,20 @@
         </div>
 
         <div id="cropModal" class="fixed inset-0 bg-slate-900/95 z-[200] hidden flex-col items-center justify-center p-4 md:p-8 opacity-0 transition-opacity">
-            <div class="w-full max-w-4xl h-[70vh] bg-black relative rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center">
-                <img id="cropperImage" class="max-w-full max-h-full block" />
-            </div>
-            <div class="mt-6 flex gap-4">
-                <button onclick="closeCropper()" class="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl font-bold transition-colors">취소</button>
-                <button onclick="applyCrop()" class="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black shadow-lg transition-colors"><i class="fa-solid fa-check mr-2"></i>자르기 완료</button>
+            <div class="w-full max-w-3xl bg-black rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+                <div class="px-4 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                    <h3 class="text-white font-bold text-sm"><i class="fa-solid fa-crop-simple mr-2"></i>사진 자르기</h3>
+                    <button onclick="closeCropper()" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-lg"></i></button>
+                </div>
+                
+                <div style="width: 100%; height: 60vh; position: relative; background-color: #000;">
+                    <img id="cropperImage" style="display: block; max-width: 100%;" />
+                </div>
+                
+                <div class="p-4 bg-slate-900 flex justify-end gap-3">
+                    <button onclick="closeCropper()" class="px-5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-sm font-bold transition-colors">취소</button>
+                    <button onclick="applyCrop()" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-black shadow-lg transition-colors"><i class="fa-solid fa-check mr-2"></i>완료</button>
+                </div>
             </div>
         </div>
 
@@ -113,7 +126,6 @@
             <div class="bg-white w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-full transform scale-95 transition-transform" id="viewGalleryModalContent">
                 
                 <div class="md:w-2/3 bg-black relative flex items-center justify-center min-h-[400px] md:h-[80vh] group">
-                    
                     <img id="viewGalleryImg" src="" class="w-full h-full object-contain transition-opacity duration-300" />
                     
                     <button id="prevImgBtn" onclick="changeImage(-1)" class="absolute left-4 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hidden"><i class="fa-solid fa-chevron-left text-xl"></i></button>
@@ -145,7 +157,7 @@
                             <div class="flex gap-1.5" id="reactionButtonsContainer"></div>
                         </div>
                         <div class="flex items-center gap-2 mt-2">
-                            <input type="text" id="galleryCommentInput" class="flex-1 text-sm outline-none placeholder-slate-400 bg-white border border-slate-200 rounded-full px-4 py-2 focus:border-indigo-400 transition-colors" placeholder="댓글 달기..." onkeypress="handleGalleryCommentEnter(event)">
+                            <input type="text" id="galleryCommentInput" class="flex-1 text-sm outline-none placeholder-slate-400 bg-white border border-slate-200 rounded-full px-4 py-2 focus:border-indigo-400 transition-colors gallery-mobile-input" placeholder="댓글 달기..." onkeypress="handleGalleryCommentEnter(event)">
                             <button onclick="postGalleryComment()" class="text-indigo-600 text-sm font-black hover:text-indigo-800 px-2">게시</button>
                         </div>
                     </div>
@@ -167,9 +179,24 @@
           var currentImageIndex = 0;
           var selectedGalleryFiles = []; 
           var reactionTypes = [{id:'heart',emoji:'❤️'},{id:'laugh',emoji:'😂'},{id:'fire',emoji:'🔥'},{id:'clap',emoji:'👏'},{id:'party',emoji:'🎉'}];
-
           var cropper = null;
           var currentCropIndex = -1;
+
+          // 🔥 動態階級計算機
+          function getDisplayRank(user) {
+              if (!user) return "";
+              if (user.role !== "soldier" || !user.promoToIlbyung) {
+                  let fallback = user.rank || "";
+                  if(!fallback && user.role === 'soldier') return '용사';
+                  if(!fallback && user.role === 'officer') return '간부';
+                  return fallback;
+              }
+              const today = new Date();
+              if (today >= new Date(user.promoToByungjang)) return "병장";
+              if (today >= new Date(user.promoToSangbyung)) return "상병";
+              if (today >= new Date(user.promoToIlbyung)) return "일병";
+              return "이병";
+          }
 
           function openCropper(index) {
               currentCropIndex = index;
@@ -178,28 +205,29 @@
               
               reader.onload = function(e) {
                   var image = document.getElementById('cropperImage');
-                  
                   var modal = document.getElementById('cropModal');
+                  
+                  if(cropper) { cropper.destroy(); cropper = null; }
+                  
+                  image.src = e.target.result;
                   modal.classList.remove('hidden');
                   modal.classList.add('flex');
-                  setTimeout(() => modal.classList.remove('opacity-0'), 10);
-
-                  if(cropper) cropper.destroy();
+                  void modal.offsetWidth; 
+                  modal.classList.remove('opacity-0');
 
                   image.onload = function() {
                       setTimeout(() => {
                           cropper = new Cropper(image, { 
-                              viewMode: 1, 
-                              background: false, 
-                              zoomable: true 
+                              viewMode: 1, dragMode: 'move', autoCropArea: 0.8, restore: false,
+                              guides: true, center: true, highlight: false, cropBoxMovable: true,
+                              cropBoxResizable: true, toggleDragModeOnDblclick: false,
                           });
-                      }, 50);
+                      }, 300);
                   };
-                  
-                  image.src = e.target.result;
               }
               reader.readAsDataURL(file);
           }
+
           function closeCropper() {
               var modal = document.getElementById('cropModal');
               modal.classList.add('opacity-0');
@@ -208,36 +236,22 @@
                   if(cropper) cropper.destroy(); cropper = null; currentCropIndex = -1;
               }, 300);
           }
+
           function applyCrop() {
               if(!cropper) return;
-              
-              var canvas = cropper.getCroppedCanvas({
-                  maxWidth: 2048,
-                  maxHeight: 2048,
-                  fillColor: '#fff' 
-              });
-
-              if (!canvas) {
-                  alert("이미지를 자를 수 없는 상태입니다. 다시 시도해주세요.");
-                  closeCropper();
-                  return;
-              }
+              var canvas = cropper.getCroppedCanvas({ maxWidth: 2048, maxHeight: 2048, fillColor: '#fff' });
+              if (!canvas) { alert("이미지를 자를 수 없는 상태입니다. 다시 시도해주세요."); closeCropper(); return; }
 
               canvas.toBlob(function(blob) {
-                  if (!blob) {
-                      alert("이미지 처리에 실패했습니다.");
-                      closeCropper();
-                      return;
-                  }
-
+                  if (!blob) { alert("이미지 처리에 실패했습니다."); closeCropper(); return; }
                   var originalFile = selectedGalleryFiles[currentCropIndex];
                   var newFile = new File([blob], originalFile.name || 'cropped-image.jpg', { type: 'image/jpeg', lastModified: Date.now() });
-                  
                   selectedGalleryFiles[currentCropIndex] = newFile; 
                   closeCropper();
                   updateFilePreviews(); 
               }, 'image/jpeg', 0.9);
           }
+
           function initDragAndDrop() {
               var dropZone = document.getElementById('galleryDropZone');
               ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -247,7 +261,9 @@
               ['dragleave', 'drop'].forEach(eventName => { dropZone.addEventListener(eventName, () => dropZone.classList.remove('drop-zone-active'), false); });
               dropZone.addEventListener('drop', e => { addFiles(e.dataTransfer.files); }, false);
           }
+
           function handleFileSelect(input) { if (input.files) { addFiles(input.files); input.value = ""; } }
+
           function addFiles(files) {
               var validImages = Array.from(files).filter(file => file.type.startsWith('image/'));
               if(validImages.length === 0) { alert("이미지 파일만 추가할 수 있습니다."); return; }
@@ -258,6 +274,7 @@
               selectedGalleryFiles = selectedGalleryFiles.concat(validImages);
               updateFilePreviews();
           }
+
           function updateFilePreviews() {
               var container = document.getElementById('selectedFilesContainer');
               var grid = document.getElementById('imagePreviewGrid');
@@ -276,15 +293,14 @@
                       var reader = new FileReader();
                       reader.onload = function(e) {
                           if (!e.target.result) return; 
-
                           var div = document.createElement('div');
                           div.className = "relative aspect-square rounded-xl overflow-hidden shadow-sm group border border-slate-200 bg-white";
                           div.innerHTML = `
                               <img src="${e.target.result}" class="w-full h-full object-cover" />
-                              <button type="button" onclick="openCropper(${index})" title="사진 자르기" class="absolute top-1.5 right-9 w-7 h-7 bg-indigo-500 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10">
+                              <button type="button" onclick="openCropper(${index})" title="사진 자르기" class="absolute top-1.5 right-10 w-7 h-7 bg-indigo-500 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                                 <i class="fa-solid fa-crop-simple text-xs"></i>
                               </button>
-                              <button type="button" onclick="removeSingleFile(${index})" title="사진 삭제" class="absolute top-1.5 right-1.5 w-7 h-7 bg-rose-500 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10">
+                              <button type="button" onclick="removeSingleFile(${index})" title="사진 삭제" class="absolute top-1.5 right-1.5 w-7 h-7 bg-rose-500 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-lg transition-all z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100">
                                 <i class="fa-solid fa-xmark text-xs"></i>
                               </button>
                           `;
@@ -298,11 +314,10 @@
                   submitBtn.classList.replace('bg-indigo-600', 'bg-indigo-300');
               }
           }
+
           function removeSingleFile(index) { selectedGalleryFiles.splice(index, 1); updateFilePreviews(); }
           function removeAllFiles() { selectedGalleryFiles = []; updateFilePreviews(); }
-          function openUploadModal() {
-              selectedGalleryFiles = []; updateFilePreviews(); initDragAndDrop(); openGalleryModal('uploadGalleryModal');
-          }
+          function openUploadModal() { selectedGalleryFiles = []; updateFilePreviews(); initDragAndDrop(); openGalleryModal('uploadGalleryModal'); }
 
           async function fetchGallery() {
             var token = localStorage.getItem("token");
@@ -326,7 +341,6 @@
             }
 
             container.innerHTML = ""; 
-
             var uniqueCategories = [...new Set(photos.map(p => p.category || '기타'))];
 
             uniqueCategories.forEach(cat => {
@@ -335,7 +349,6 @@
                     var sectionHtml = `
                         <div class="w-full relative">
                             <h3 class="text-xl font-black text-slate-800 mb-4 px-6 md:px-8">${cat} <span class="text-sm font-bold text-slate-400 ml-2">${catPhotos.length}</span></h3>
-                            
                             <div class="flex overflow-x-auto gap-4 px-6 md:px-8 pb-6 snap-x scroll-pl-6 md:scroll-pl-8 netflix-row" id="row-${cat}">
                                 ${catPhotos.map(p => createNetflixCard(p)).join('')}
                                 <div class="w-2 md:w-4 shrink-0"></div>
@@ -357,21 +370,22 @@
               var multipleIcon = images.length > 1 ? `<div class="absolute top-3 right-3 bg-gray-950/60 backdrop-blur-sm text-white/90 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-xl"><i class="fa-solid fa-clone text-xs"></i></div>` : '';
 
               var uName = p.uploaderId?.name || '알수없음';
-              var uRank = p.uploaderId?.rank || '';
+              // 🔥 套用動態階級計算機
+              var uRank = getDisplayRank(p.uploaderId);
 
               return `
-                <div class="w-64 md:w-72 shrink-0 snap-start relative group rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-300 bg-white" onclick="openPhotoModal(JSON.parse(decodeURIComponent('${photoDataStr}')))">
+                <div class="w-40 md:w-72 shrink-0 snap-start relative group rounded-xl md:rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-300 bg-white" onclick="openPhotoModal(JSON.parse(decodeURIComponent('${photoDataStr}')))">
                     <div class="w-full aspect-square relative overflow-hidden bg-slate-100">
                         <img src="${images[0]}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />
                         ${multipleIcon}
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
-                    <div class="p-4 bg-white border-t border-slate-50 flex items-center justify-between">
-                        <div class="flex items-center gap-2 overflow-hidden">
-                            <div class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] font-bold shrink-0">${uName.charAt(0)}</div>
-                            <span class="text-sm font-black text-slate-800 truncate">${uRank} ${uName}</span>
+                    <div class="p-2.5 md:p-4 bg-white border-t border-slate-50 flex items-center justify-between">
+                        <div class="flex items-center gap-1.5 md:gap-2 overflow-hidden">
+                            <div class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-[9px] md:text-[10px] font-bold shrink-0">${uName.charAt(0)}</div>
+                            <span class="text-xs md:text-sm font-black text-slate-800 truncate">${uRank} ${uName}</span>
                         </div>
-                        <span class="flex items-center gap-1.5 shrink-0 bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-xs font-bold"><i class="fa-solid fa-face-smile"></i> ${totalReactions}</span>
+                        <span class="flex items-center gap-1 md:gap-1.5 shrink-0 bg-slate-100 text-slate-600 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md md:rounded-lg text-[10px] md:text-xs font-bold"><i class="fa-solid fa-face-smile"></i> ${totalReactions}</span>
                     </div>
                 </div>
               `;
@@ -388,7 +402,8 @@
 
             var uploader = p.uploaderId || {};
             var uName = uploader.name || '알수없음';
-            var uRank = uploader.rank || '';
+            // 🔥 發文者：套用動態階級計算機
+            var uRank = getDisplayRank(uploader);
 
             document.getElementById('viewGalleryAvatar').innerText = uName.charAt(0);
             document.getElementById('viewGalleryAuthor').innerText = `${uRank} ${uName}`;
@@ -405,12 +420,16 @@
 
             var commentsHtml = p.comments.map(c => {
                 var cUploader = c.userId || {};
+                // 🔥 留言者：套用動態階級計算機
+                var cRank = getDisplayRank(cUploader);
+
                 return `
-                <div class="flex gap-2 text-[13px] leading-snug">
-                    <span class="font-black text-slate-800 whitespace-nowrap">${cUploader.rank || ''} ${cUploader.name || '익명'}</span>
+                <div class="flex gap-1.5 md:gap-2 text-xs md:text-[13px] leading-snug">
+                    <span class="font-black text-slate-800 whitespace-nowrap">${cRank} ${cUploader.name || '익명'}</span>
                     <span class="text-slate-600 break-words flex-1">${c.text}</span>
                 </div>
             `}).join("");
+            
             document.getElementById('viewGalleryComments').innerHTML = commentsHtml || `<div class="text-center text-slate-400 text-xs py-2">아직 댓글이 없습니다.</div>`;
 
             renderReactions(p);
@@ -423,15 +442,9 @@
               
               setTimeout(() => {
                   imgEl.src = currentViewPhoto.imageUrls[currentImageIndex];
-                  
                   var showImg = () => { imgEl.style.opacity = '1'; };
-                  
                   if (imgEl.complete) { showImg(); } 
-                  else { 
-                      imgEl.onload = showImg; 
-                      imgEl.onerror = showImg; 
-                      setTimeout(showImg, 300); 
-                  }
+                  else { imgEl.onload = showImg; imgEl.onerror = showImg; setTimeout(showImg, 300); }
               }, 150); 
 
               var total = currentViewPhoto.imageUrls.length;
@@ -575,6 +588,37 @@
             var el = document.getElementById(id); var content = document.getElementById(id + "Content");
             el.classList.add("opacity-0"); content.classList.add("scale-95"); setTimeout(() => el.classList.add("hidden"), 300);
           }
+
+          // 🔥 終極手機防擋鍵盤 Spacer 魔法
+          function setupMobileKeyboardSpacer() {
+              // 處理發文 Modal 裡的輸入框
+              const formInputs = ['galleryCategoryInput', 'galleryDescInput'];
+              formInputs.forEach(id => {
+                  const el = document.getElementById(id);
+                  if(el) {
+                      el.addEventListener('focus', function() {
+                          const spacer = document.getElementById('galleryKeyboardSpacer');
+                          if(spacer && window.innerWidth < 768) {
+                              spacer.style.height = '40vh'; // 強制撐開表單底部空間
+                              setTimeout(() => { this.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+                          }
+                      });
+                      el.addEventListener('blur', function() {
+                          const spacer = document.getElementById('galleryKeyboardSpacer');
+                          if(spacer) spacer.style.height = '0px';
+                      });
+                  }
+              });
+
+              // 處理留言 Modal 裡的輸入框 (使用事件委派)
+              document.body.addEventListener('focus', (e) => {
+                  if (e.target && e.target.classList.contains('gallery-mobile-input')) {
+                      setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
+                  }
+              }, true);
+          }
+
+          document.addEventListener('DOMContentLoaded', setupMobileKeyboardSpacer);
 
           setTimeout(() => { fetchGallery(); }, 50);
 

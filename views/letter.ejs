@@ -135,12 +135,12 @@
         <div id="adminView" class="w-full max-w-5xl hidden flex-col px-4 pt-12">
             <div class="flex items-center justify-between mb-8 px-2">
                 <div>
-                    <h2 class="text-2xl font-black text-slate-800 tracking-tight"><i class="fa-solid fa-inbox text-indigo-500 mr-2"></i>마음의 편지 수신함</h2>
-                    <p class="text-slate-500 text-sm font-bold mt-1">간부, 검토자, 승인자 전용 열람 페이지입니다.</p>
-                </div>
-                <div class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-bold text-sm shadow-sm">
-                    총 <span id="adminLetterCount">0</span>건의 편지
-                </div>
+        <h2 class="text-xl md:text-2xl font-black text-slate-800 tracking-tight"><i class="fa-solid fa-inbox text-indigo-500 mr-2"></i>마음의 편지 수신함</h2>
+        <p class="text-slate-500 text-xs md:text-sm font-bold mt-1">간부, 검토자, 승인자 전용 열람 페이지입니다.</p>
+    </div>
+    <div class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-xl font-bold text-xs md:text-sm shadow-sm shrink-0">
+        총 <span id="adminLetterCount">0</span>건
+    </div>
             </div>
             <div id="lettersList" class="flex flex-col gap-6"></div>
         </div>
@@ -187,7 +187,6 @@
                 }
             }
 
-            // (長官收件匣邏輯維持不變)
             function renderAdminDashboard(letters) {
                 const container = document.getElementById('lettersList');
                 document.getElementById('adminLetterCount').innerText = letters.length;
@@ -199,27 +198,29 @@
 
                 container.innerHTML = letters.map(letter => {
                     const dateStr = new Date(letter.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    
+                    // 🔥 加入 md:p-8, md:gap-4, md:text-sm 讓電腦版放大
                     return `
-                        <div class="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-shadow">
-                            <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                        <div class="bg-white rounded-2xl md:rounded-3xl p-4 md:p-8 shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-shadow">
+                            <div class="absolute top-0 left-0 w-1 md:w-1.5 h-full bg-indigo-500"></div>
                             
-                            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                            <div class="flex justify-between items-center mb-3 md:mb-6 border-b border-slate-100 pb-3 md:pb-4">
                                 <div>
-                                    <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-xs font-black"><i class="fa-solid fa-user-secret mr-1"></i> 익명 제보</span>
-                                    <span class="text-slate-400 text-xs font-bold ml-2"><i class="fa-regular fa-clock mr-1"></i> ${dateStr}</span>
+                                    <span class="bg-slate-100 text-slate-600 px-2.5 md:px-3 py-1 rounded-lg text-[11px] md:text-xs font-black"><i class="fa-solid fa-user-secret mr-1"></i> 익명</span>
+                                    <span class="text-slate-400 text-[11px] md:text-xs font-bold ml-2">${dateStr}</span>
                                 </div>
-                                <button onclick="deleteLetter('${letter._id}')" class="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-all" title="처리 완료 및 삭제">
-                                    <i class="fa-solid fa-trash-can text-lg"></i>
+                                <button onclick="deleteLetter('${letter._id}')" class="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-1.5 md:p-2 rounded-lg transition-all" title="처리 완료">
+                                    <i class="fa-solid fa-trash-can text-base md:text-lg"></i>
                                 </button>
                             </div>
                             
-                            <div class="flex flex-col gap-4 text-sm">
-                                ${renderAdminQ("1. 부조리 여부", letter.q1_absurdity, letter.q2_absurdityDetail)}
-                                ${renderAdminQ("3. 가혹행위 여부", letter.q3_abuse, letter.q4_abuseDetail)}
-                                ${renderAdminQ("5. 성관련 위반 여부", letter.q5_sexual, letter.q6_sexualDetail)}
-                                ${renderAdminQ("7. 금전거래 여부", letter.q7_money, letter.q8_moneyDetail)}
-                                ${letter.q9_praise ? `<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100"><span class="font-black text-indigo-700 block mb-1">9. 칭찬합시다</span><p class="text-slate-700 whitespace-pre-wrap">${letter.q9_praise}</p></div>` : ''}
-                                ${letter.q10_suggestion ? `<div class="bg-slate-50 p-4 rounded-xl border border-slate-200"><span class="font-black text-slate-700 block mb-1">10. 건의/애로사항</span><p class="text-slate-700 whitespace-pre-wrap">${letter.q10_suggestion}</p></div>` : ''}
+                            <div class="flex flex-col gap-2.5 md:gap-4 text-[13px] md:text-sm">
+                                ${renderAdminQ("1. 부조리", letter.q1_absurdity, letter.q2_absurdityDetail)}
+                                ${renderAdminQ("3. 가혹행위", letter.q3_abuse, letter.q4_abuseDetail)}
+                                ${renderAdminQ("5. 성관련", letter.q5_sexual, letter.q6_sexualDetail)}
+                                ${renderAdminQ("7. 금전거래", letter.q7_money, letter.q8_moneyDetail)}
+                                ${letter.q9_praise ? `<div class="bg-indigo-50/50 p-3 md:p-4 rounded-xl border border-indigo-100"><span class="font-black text-indigo-700 block text-[13px] md:text-[14px] mb-1">9. 칭찬합시다</span><p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">${letter.q9_praise}</p></div>` : ''}
+                                ${letter.q10_suggestion ? `<div class="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-200"><span class="font-black text-slate-700 block text-[13px] md:text-[14px] mb-1">10. 건의사항</span><p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">${letter.q10_suggestion}</p></div>` : ''}
                             </div>
                         </div>
                     `;
@@ -248,12 +249,13 @@
                 }
             }
 
+            // 💡 修正 3：縮小題目方塊的 padding 和字體，讓畫面更緊湊
             function renderAdminQ(title, choice, detail) {
-                const color = choice === '있다' ? 'text-rose-500' : 'text-slate-500';
-                const detailHtml = detail ? `<p class="mt-2 text-slate-600 bg-white p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">${detail}</p>` : '';
+                const color = choice === '있다' ? 'text-rose-500' : 'text-slate-400';
+                const detailHtml = detail ? `<p class="mt-2 text-sm text-slate-600 bg-white p-2.5 md:p-3 rounded-lg border border-slate-100 whitespace-pre-wrap leading-relaxed">${detail}</p>` : '';
                 return `
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <div class="flex justify-between items-center font-black">
+                    <div class="bg-slate-50 p-3 md:p-4 rounded-xl border border-slate-100">
+                        <div class="flex justify-between items-center font-black text-[13px] md:text-[15px]">
                             <span class="text-slate-700">${title}</span>
                             <span class="${color}">${choice}</span>
                         </div>
