@@ -6,7 +6,7 @@
     <title>SmartMil - 사진첩</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.css" />
     <style>
         @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
         body { font-family: "Pretendard", sans-serif; }
@@ -111,12 +111,16 @@
             <button onclick="closeGalleryModal('viewGalleryModal')" class="fixed top-6 right-6 z-[110] w-12 h-12 text-white/70 hover:text-white hover:bg-white/10 rounded-full flex items-center justify-center transition-all text-3xl"><i class="fa-solid fa-xmark"></i></button>
             
             <div class="bg-white w-full max-w-6xl rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-full transform scale-95 transition-transform" id="viewGalleryModalContent">
-                <div class="md:w-2/3 bg-black relative flex items-center justify-center min-h-[400px] md:min-h-[600px] group">
-                    <img id="viewGalleryImg" src="" class="max-w-full max-h-[70vh] md:max-h-[85vh] object-contain transition-opacity duration-300" />
+                
+                <div class="md:w-2/3 bg-black relative flex items-center justify-center min-h-[400px] md:h-[80vh] group">
+                    
+                    <img id="viewGalleryImg" src="" class="w-full h-full object-contain transition-opacity duration-300" />
+                    
                     <button id="prevImgBtn" onclick="changeImage(-1)" class="absolute left-4 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hidden"><i class="fa-solid fa-chevron-left text-xl"></i></button>
                     <button id="nextImgBtn" onclick="changeImage(1)" class="absolute right-4 w-12 h-12 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hidden"><i class="fa-solid fa-chevron-right text-xl"></i></button>
                     <div id="imgIndicator" class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs font-bold px-3 py-1 rounded-full hidden">1 / 1</div>
                 </div>
+                
                 <div class="md:w-1/3 flex flex-col bg-white">
                     <div class="p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
                         <div class="flex items-center gap-3">
@@ -154,7 +158,7 @@
             <span class="tracking-tight">추억을 성공적으로 공유했습니다!</span>
         </div>
 
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
 
         <script>
           var currentRole = "soldier";
@@ -167,20 +171,32 @@
           var cropper = null;
           var currentCropIndex = -1;
 
-          // ... (Cropper及上傳表單相關函數不變) ...
           function openCropper(index) {
               currentCropIndex = index;
               var file = selectedGalleryFiles[index];
               var reader = new FileReader();
+              
               reader.onload = function(e) {
                   var image = document.getElementById('cropperImage');
-                  image.src = e.target.result;
+                  
                   var modal = document.getElementById('cropModal');
                   modal.classList.remove('hidden');
                   modal.classList.add('flex');
                   setTimeout(() => modal.classList.remove('opacity-0'), 10);
+
                   if(cropper) cropper.destroy();
-                  cropper = new Cropper(image, { viewMode: 1, background: false, zoomable: true });
+
+                  image.onload = function() {
+                      setTimeout(() => {
+                          cropper = new Cropper(image, { 
+                              viewMode: 1, 
+                              background: false, 
+                              zoomable: true 
+                          });
+                      }, 50);
+                  };
+                  
+                  image.src = e.target.result;
               }
               reader.readAsDataURL(file);
           }
@@ -194,11 +210,32 @@
           }
           function applyCrop() {
               if(!cropper) return;
-              cropper.getCroppedCanvas({ maxWidth: 2048, maxHeight: 2048, fillColor: '#fff' }).toBlob(function(blob) {
+              
+              var canvas = cropper.getCroppedCanvas({
+                  maxWidth: 2048,
+                  maxHeight: 2048,
+                  fillColor: '#fff' 
+              });
+
+              if (!canvas) {
+                  alert("이미지를 자를 수 없는 상태입니다. 다시 시도해주세요.");
+                  closeCropper();
+                  return;
+              }
+
+              canvas.toBlob(function(blob) {
+                  if (!blob) {
+                      alert("이미지 처리에 실패했습니다.");
+                      closeCropper();
+                      return;
+                  }
+
                   var originalFile = selectedGalleryFiles[currentCropIndex];
-                  var newFile = new File([blob], originalFile.name, { type: 'image/jpeg', lastModified: Date.now() });
+                  var newFile = new File([blob], originalFile.name || 'cropped-image.jpg', { type: 'image/jpeg', lastModified: Date.now() });
+                  
                   selectedGalleryFiles[currentCropIndex] = newFile; 
-                  closeCropper(); updateFilePreviews(); 
+                  closeCropper();
+                  updateFilePreviews(); 
               }, 'image/jpeg', 0.9);
           }
           function initDragAndDrop() {
@@ -227,26 +264,38 @@
               var indicator = document.getElementById('fileCountIndicator');
               var submitBtn = document.getElementById('uploadSubmitBtn');
 
-              grid.innerHTML = ''; indicator.innerText = selectedGalleryFiles.length;
+              grid.innerHTML = '';
+              indicator.innerText = selectedGalleryFiles.length;
 
               if(selectedGalleryFiles.length > 0) {
-                  container.classList.remove('hidden'); submitBtn.disabled = false; submitBtn.classList.replace('bg-indigo-300', 'bg-indigo-600');
+                  container.classList.remove('hidden');
+                  submitBtn.disabled = false;
+                  submitBtn.classList.replace('bg-indigo-300', 'bg-indigo-600');
+
                   selectedGalleryFiles.forEach((file, index) => {
                       var reader = new FileReader();
                       reader.onload = function(e) {
+                          if (!e.target.result) return; 
+
                           var div = document.createElement('div');
                           div.className = "relative aspect-square rounded-xl overflow-hidden shadow-sm group border border-slate-200 bg-white";
                           div.innerHTML = `
                               <img src="${e.target.result}" class="w-full h-full object-cover" />
-                              <button type="button" onclick="openCropper(${index})" title="사진 자르기" class="absolute top-1.5 right-9 w-7 h-7 bg-indigo-500 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10"><i class="fa-solid fa-crop-simple text-xs"></i></button>
-                              <button type="button" onclick="removeSingleFile(${index})" title="사진 삭제" class="absolute top-1.5 right-1.5 w-7 h-7 bg-rose-500 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10"><i class="fa-solid fa-xmark text-xs"></i></button>
+                              <button type="button" onclick="openCropper(${index})" title="사진 자르기" class="absolute top-1.5 right-9 w-7 h-7 bg-indigo-500 hover:bg-indigo-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10">
+                                <i class="fa-solid fa-crop-simple text-xs"></i>
+                              </button>
+                              <button type="button" onclick="removeSingleFile(${index})" title="사진 삭제" class="absolute top-1.5 right-1.5 w-7 h-7 bg-rose-500 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-lg transition-colors scale-0 group-hover:scale-100 z-10">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                              </button>
                           `;
                           grid.appendChild(div);
                       }
                       reader.readAsDataURL(file);
                   });
               } else {
-                  container.classList.add('hidden'); submitBtn.disabled = true; submitBtn.classList.replace('bg-indigo-600', 'bg-indigo-300');
+                  container.classList.add('hidden');
+                  submitBtn.disabled = true; 
+                  submitBtn.classList.replace('bg-indigo-600', 'bg-indigo-300');
               }
           }
           function removeSingleFile(index) { selectedGalleryFiles.splice(index, 1); updateFilePreviews(); }
@@ -269,7 +318,6 @@
             } catch (e) {}
           }
 
-          // 🔥 修改 renderNetflixGrid 裡面的這段 sectionHtml
           function renderNetflixGrid(photos) {
             var container = document.getElementById("galleryContainer");
             if (photos.length === 0) {
@@ -299,10 +347,8 @@
             });
           }
 
-          // 🔥 終極安全防護：把整個 JSON 編碼起來，絕對不怕換行或引號破壞 HTML
           function createNetflixCard(p) {
               if(!p) return ''; 
-              // 兼容舊資料：沒有 imageUrls 就抓 imageUrl
               var images = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
               if (images.length === 0) return ''; 
               
@@ -316,7 +362,7 @@
               return `
                 <div class="w-64 md:w-72 shrink-0 snap-start relative group rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-300 bg-white" onclick="openPhotoModal(JSON.parse(decodeURIComponent('${photoDataStr}')))">
                     <div class="w-full aspect-square relative overflow-hidden bg-slate-100">
-                        <img src="${images[0]}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" onerror="this.src='/img/fallback.png'" />
+                        <img src="${images[0]}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />
                         ${multipleIcon}
                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
@@ -332,14 +378,13 @@
           }
 
           function openPhotoModal(p) {
-            // 🔥 確保舊資料即使缺少欄位也不會崩潰
             p.imageUrls = p.imageUrls && p.imageUrls.length > 0 ? p.imageUrls : (p.imageUrl ? [p.imageUrl] : []);
             p.reactions = p.reactions || [];
             p.comments = p.comments || [];
             
             currentViewPhoto = p;
             currentImageIndex = 0;
-            updateModalImage(); // 現在不怕黑畫面了！
+            updateModalImage(); 
 
             var uploader = p.uploaderId || {};
             var uName = uploader.name || '알수없음';
@@ -372,7 +417,6 @@
             openGalleryModal('viewGalleryModal');
           }
 
-          // 🔥 改良版圖片載入，絕對不卡黑底
           function updateModalImage() {
               var imgEl = document.getElementById('viewGalleryImg');
               imgEl.style.opacity = '0'; 
@@ -385,8 +429,8 @@
                   if (imgEl.complete) { showImg(); } 
                   else { 
                       imgEl.onload = showImg; 
-                      imgEl.onerror = showImg; // 避免圖片死結
-                      setTimeout(showImg, 300); // 保底強制顯示
+                      imgEl.onerror = showImg; 
+                      setTimeout(showImg, 300); 
                   }
               }, 150); 
 
@@ -416,7 +460,6 @@
               var reactions = p.reactions || [];
               container.innerHTML = reactionTypes.map(rt => {
                   var count = reactions.filter(r => r.type === rt.id).length;
-                  // 檢查本人是否有按
                   var hasReacted = reactions.some(r => {
                       var uIdStr = (r.userId && r.userId._id) ? r.userId._id.toString() : (r.userId ? r.userId.toString() : '');
                       return uIdStr === currentUserId.toString() && r.type === rt.id;
@@ -436,7 +479,6 @@
               var token = localStorage.getItem("token");
               currentViewPhoto.reactions = currentViewPhoto.reactions || [];
               
-              // 單一表情切換邏輯
               var existingIdx = currentViewPhoto.reactions.findIndex(r => {
                   var uIdStr = (r.userId && r.userId._id) ? r.userId._id.toString() : (r.userId ? r.userId.toString() : '');
                   return uIdStr === currentUserId.toString();

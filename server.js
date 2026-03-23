@@ -307,6 +307,7 @@ app.use("/", require("./src/routes/leaveRoutes"));
 app.use("/", require("./src/routes/memberRoutes"));
 app.use("/", require("./src/routes/noticeRoutes"));
 app.use("/", require("./src/routes/galleryRoutes"));
+app.use(require('./src/routes/letterRoutes'));
 
 
 // ============================
@@ -321,6 +322,7 @@ app.get("/review.html", (req, res) => res.render("review"));
 app.get("/approve.html", (req, res) => res.render("approve"));
 app.get("/notice", (req, res) => res.render("notice"));
 app.get("/gallery", (req, res) => res.render("gallery"));
+app.get("/letter", (req, res) => {res.render("letter");});
 
 // 渲染 1차 검토 (Review) 頁面
 app.get('/review', (req, res) => {

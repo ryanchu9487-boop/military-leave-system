@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartMil - 마음의 편지</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+        body { font-family: "Pretendard", sans-serif; background-color: #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
+        /* 🔥 SPA 風格：動態滑動展開特效 */
+        .slide-down { max-height: 0; opacity: 0; overflow: hidden; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .slide-down.open { max-height: 500px; opacity: 1; margin-top: 1rem; border-top: 1px solid #f1f5f9; padding-top: 1rem; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col relative selection:bg-indigo-500 selection:text-white">
+
+    <%- include('partials/sidebar') %>
+    <%- include('partials/header') %>
+
+    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-y-auto custom-scrollbar flex flex-col items-center pb-24 transition-opacity duration-300">
+        
+        <div id="loadingView" class="w-full h-full flex items-center justify-center flex-col text-slate-400">
+            <i class="fa-solid fa-circle-notch fa-spin text-4xl mb-3 text-indigo-500"></i>
+            <p class="font-bold">데이터를 불러오는 중입니다...</p>
+        </div>
+
+        <div id="yongsaView" class="w-full max-w-3xl hidden flex-col gap-6 px-4 pt-12">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl p-8 shadow-2xl relative overflow-hidden mb-6">
+                <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-500 opacity-20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+                <div class="relative z-10">
+                    <span class="inline-block bg-indigo-500/20 text-indigo-300 text-xs font-black px-3 py-1 rounded-full mb-4 border border-indigo-400/30 tracking-wider">포병대 용사</span>
+                    <h1 class="text-3xl font-black text-white mb-2 tracking-tight">쌍호여단 마음의 편지</h1>
+                    <p class="text-slate-300 text-sm font-medium leading-relaxed mt-4">
+                        본 설문은 여단 주관으로 실시하는 설문이며, <strong class="text-white bg-indigo-500/30 px-1 rounded">익명이 철저히 보장되는 설문</strong>입니다.<br>
+                        설문 결과는 <span class="text-rose-400 font-bold">여단장, 여단 인사과장 2명만 확인 가능</span>합니다.
+                    </p>
+                </div>
+            </div>
+
+            <form id="letterForm" class="flex flex-col gap-6" onsubmit="submitLetter(event)">
+                
+                <div class="p-6 md:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/60">
+                    <h3 class="text-[15px] font-black text-slate-800 mb-4 leading-snug"><span class="text-indigo-500 mr-1">1.</span> 부대 내 병영생활 부조리가 있습니까? <span class="text-rose-500 ml-1">*</span></h3>
+                    <div class="flex gap-4">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q1" value="있다" class="peer hidden" required onchange="toggleDetail('q2_block', true)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">있다</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q1" value="없다" class="peer hidden" required onchange="toggleDetail('q2_block', false)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">없다</div>
+                        </label>
+                    </div>
+                    <div id="q2_block" class="slide-down">
+                        <h3 class="text-[14px] font-bold text-indigo-600 mb-2.5"><i class="fa-solid fa-arrow-right mr-1.5 text-xs"></i><span class="mr-1">2.</span> 있다면 당시 상황을 구체적으로 기술하시오.</h3>
+                        <textarea id="q2" rows="3" class="w-full border border-slate-200 rounded-xl p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none bg-slate-50 placeholder-slate-400" placeholder="육하원칙에 따라 자세히 적어주세요."></textarea>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/60">
+                    <h3 class="text-[15px] font-black text-slate-800 mb-4 leading-snug"><span class="text-indigo-500 mr-1">3.</span> 간부, 선임, 동기, 후임에 의한 구타 및 가혹행위 또는 폭언, 욕설, 인격모독을 당하거나 그런 사실을 목격한 적이 있습니까? <span class="text-rose-500 ml-1">*</span></h3>
+                    <div class="flex gap-4">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q3" value="있다" class="peer hidden" required onchange="toggleDetail('q4_block', true)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">있다</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q3" value="없다" class="peer hidden" required onchange="toggleDetail('q4_block', false)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">없다</div>
+                        </label>
+                    </div>
+                    <div id="q4_block" class="slide-down">
+                        <h3 class="text-[14px] font-bold text-indigo-600 mb-2.5"><i class="fa-solid fa-arrow-right mr-1.5 text-xs"></i><span class="mr-1">4.</span> 있다면 당시 상황을 구체적으로 기술하시오.</h3>
+                        <textarea id="q4" rows="3" class="w-full border border-slate-200 rounded-xl p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none bg-slate-50 placeholder-slate-400" placeholder="피해 사실이나 목격 내용을 적어주세요."></textarea>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/60">
+                    <h3 class="text-[15px] font-black text-slate-800 mb-4 leading-snug"><span class="text-indigo-500 mr-1">5.</span> 음담패설, 성희롱, 성폭력 등 성관련 법규 위반행위가 있습니까? <span class="text-rose-500 ml-1">*</span></h3>
+                    <div class="flex gap-4">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q5" value="있다" class="peer hidden" required onchange="toggleDetail('q6_block', true)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">있다</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q5" value="없다" class="peer hidden" required onchange="toggleDetail('q6_block', false)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">없다</div>
+                        </label>
+                    </div>
+                    <div id="q6_block" class="slide-down">
+                        <h3 class="text-[14px] font-bold text-indigo-600 mb-2.5"><i class="fa-solid fa-arrow-right mr-1.5 text-xs"></i><span class="mr-1">6.</span> 있다면 당시 상황을 구체적으로 기술하시오.</h3>
+                        <textarea id="q6" rows="3" class="w-full border border-slate-200 rounded-xl p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none bg-slate-50 placeholder-slate-400"></textarea>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/60">
+                    <h3 class="text-[15px] font-black text-slate-800 mb-4 leading-snug"><span class="text-indigo-500 mr-1">7.</span> 간부, 용사 상호간 금전거래ㆍ거출을 한적이 있거나 목격한 적이 있습니까? <span class="text-rose-500 ml-1">*</span></h3>
+                    <div class="flex gap-4">
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q7" value="있다" class="peer hidden" required onchange="toggleDetail('q8_block', true)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">있다</div>
+                        </label>
+                        <label class="flex-1 cursor-pointer">
+                            <input type="radio" name="q7" value="없다" class="peer hidden" required onchange="toggleDetail('q8_block', false)">
+                            <div class="text-center py-3 border-2 border-slate-200 rounded-xl peer-checked:border-indigo-500 peer-checked:bg-indigo-50 peer-checked:text-indigo-700 font-bold text-slate-400 hover:bg-slate-50 transition-all">없다</div>
+                        </label>
+                    </div>
+                    <div id="q8_block" class="slide-down">
+                        <h3 class="text-[14px] font-bold text-indigo-600 mb-2.5"><i class="fa-solid fa-arrow-right mr-1.5 text-xs"></i><span class="mr-1">8.</span> 있다면 당시 상황을 구체적으로 기술하시오.</h3>
+                        <textarea id="q8" rows="3" class="w-full border border-slate-200 rounded-xl p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none bg-slate-50 placeholder-slate-400"></textarea>
+                    </div>
+                </div>
+
+                <div class="p-6 md:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/60">
+                    <h3 class="text-[15px] font-black text-slate-800 mb-3"><span class="text-indigo-500 mr-1">9.</span> 칭찬하고 싶은 간부, 용사가 있으면 작성바랍니다.</h3>
+                    <textarea id="q9" rows="3" class="w-full border border-slate-200 rounded-xl p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none bg-slate-50 placeholder-slate-400"></textarea>
+                </div>
+
+                <div class="p-6 md:p-8 bg-white rounded-3xl shadow-sm border border-slate-200/60">
+                    <h3 class="text-[15px] font-black text-slate-800 mb-3"><span class="text-indigo-500 mr-1">10.</span> 건의, 고충, 애로사항, 질문 등이 있으면 작성바랍니다.</h3>
+                    <textarea id="q10" rows="3" class="w-full border border-slate-200 rounded-xl p-4 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none bg-slate-50 placeholder-slate-400"></textarea>
+                </div>
+                
+                <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl text-lg font-black transition-all shadow-lg flex justify-center items-center gap-2 mt-2">
+                    <i class="fa-solid fa-paper-plane"></i> 안전하게 제출하기
+                </button>
+            </form>
+        </div>
+
+        <div id="adminView" class="w-full max-w-5xl hidden flex-col px-4 pt-12">
+            <div class="flex items-center justify-between mb-8 px-2">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight"><i class="fa-solid fa-inbox text-indigo-500 mr-2"></i>마음의 편지 수신함</h2>
+                    <p class="text-slate-500 text-sm font-bold mt-1">간부, 검토자, 승인자 전용 열람 페이지입니다.</p>
+                </div>
+                <div class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-bold text-sm shadow-sm">
+                    총 <span id="adminLetterCount">0</span>건의 편지
+                </div>
+            </div>
+            <div id="lettersList" class="flex flex-col gap-6"></div>
+        </div>
+
+        <div id="toastAlert" class="fixed top-20 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-8 py-4 rounded-full font-black shadow-2xl z-[200] transform -translate-y-20 opacity-0 transition-all duration-500 flex items-center gap-3 pointer-events-none">
+            <div class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shadow-lg"><i class="fa-solid fa-check text-base"></i></div>
+            <span class="tracking-tight">성공적으로 제출되었습니다.</span>
+        </div>
+
+        <script>
+            // 🔥 SPA 魔法：動態顯示/隱藏細節輸入框
+            function toggleDetail(blockId, show) {
+                const block = document.getElementById(blockId);
+                const inputId = blockId.replace('_block', '');
+                const input = document.getElementById(inputId);
+
+                if (show) {
+                    block.classList.add('open');
+                    input.focus(); // 自動聚焦，方便填寫
+                } else {
+                    block.classList.remove('open');
+                    input.value = ''; // 隱藏時清空內容，保持資料整潔
+                }
+            }
+
+            async function initLetterPage() {
+                const token = localStorage.getItem('token');
+                try {
+                    const res = await fetch('/api/letters', { headers: { Authorization: `Bearer ${token}` } });
+                    const data = await res.json();
+                    
+                    document.getElementById('loadingView').classList.add('hidden');
+
+                    if (data.role === 'Yongsa' || data.role === 'soldier') {
+                        document.getElementById('yongsaView').classList.remove('hidden');
+                        document.getElementById('yongsaView').classList.add('flex');
+                    } else {
+                        document.getElementById('adminView').classList.remove('hidden');
+                        document.getElementById('adminView').classList.add('flex');
+                        renderAdminDashboard(data.letters);
+                    }
+                } catch (error) {
+                    alert('데이터를 불러오는데 실패했습니다.');
+                }
+            }
+
+            // (長官收件匣邏輯維持不變)
+            function renderAdminDashboard(letters) {
+                const container = document.getElementById('lettersList');
+                document.getElementById('adminLetterCount').innerText = letters.length;
+
+                if(letters.length === 0) {
+                    container.innerHTML = `<div class="text-center py-20 text-slate-400 bg-white rounded-3xl border border-slate-200 border-dashed"><i class="fa-solid fa-envelope-open-text text-5xl mb-4 text-slate-300"></i><p class="font-bold">수신된 편지가 없습니다.</p></div>`;
+                    return;
+                }
+
+                container.innerHTML = letters.map(letter => {
+                    const dateStr = new Date(letter.createdAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    return `
+                        <div class="bg-white rounded-3xl p-6 md:p-8 shadow-sm border border-slate-200/60 relative overflow-hidden group hover:shadow-md transition-shadow">
+                            <div class="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+                            
+                            <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                                <div>
+                                    <span class="bg-slate-100 text-slate-600 px-3 py-1 rounded-lg text-xs font-black"><i class="fa-solid fa-user-secret mr-1"></i> 익명 제보</span>
+                                    <span class="text-slate-400 text-xs font-bold ml-2"><i class="fa-regular fa-clock mr-1"></i> ${dateStr}</span>
+                                </div>
+                                <button onclick="deleteLetter('${letter._id}')" class="text-slate-300 hover:text-rose-500 hover:bg-rose-50 p-2 rounded-xl transition-all" title="처리 완료 및 삭제">
+                                    <i class="fa-solid fa-trash-can text-lg"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="flex flex-col gap-4 text-sm">
+                                ${renderAdminQ("1. 부조리 여부", letter.q1_absurdity, letter.q2_absurdityDetail)}
+                                ${renderAdminQ("3. 가혹행위 여부", letter.q3_abuse, letter.q4_abuseDetail)}
+                                ${renderAdminQ("5. 성관련 위반 여부", letter.q5_sexual, letter.q6_sexualDetail)}
+                                ${renderAdminQ("7. 금전거래 여부", letter.q7_money, letter.q8_moneyDetail)}
+                                ${letter.q9_praise ? `<div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100"><span class="font-black text-indigo-700 block mb-1">9. 칭찬합시다</span><p class="text-slate-700 whitespace-pre-wrap">${letter.q9_praise}</p></div>` : ''}
+                                ${letter.q10_suggestion ? `<div class="bg-slate-50 p-4 rounded-xl border border-slate-200"><span class="font-black text-slate-700 block mb-1">10. 건의/애로사항</span><p class="text-slate-700 whitespace-pre-wrap">${letter.q10_suggestion}</p></div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 👑 長官專屬：刪除信件
+            async function deleteLetter(id) {
+                if (!confirm("이 편지를 정말 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.")) return;
+
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`/api/letters/${id}`, {
+                        method: 'DELETE',
+                        headers: { Authorization: `Bearer ${token}` }
+                    });
+                    
+                    if (res.ok) {
+                        // 重新讀取信件列表，畫面會自動更新
+                        initLetterPage(); 
+                    } else {
+                        alert('삭제 권한이 없거나 오류가 발생했습니다.');
+                    }
+                } catch (error) {
+                    alert('서버 통신 오류가 발생했습니다.');
+                }
+            }
+
+            function renderAdminQ(title, choice, detail) {
+                const color = choice === '있다' ? 'text-rose-500' : 'text-slate-500';
+                const detailHtml = detail ? `<p class="mt-2 text-slate-600 bg-white p-3 rounded-lg border border-slate-100 whitespace-pre-wrap">${detail}</p>` : '';
+                return `
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div class="flex justify-between items-center font-black">
+                            <span class="text-slate-700">${title}</span>
+                            <span class="${color}">${choice}</span>
+                        </div>
+                        ${detailHtml}
+                    </div>
+                `;
+            }
+
+            // 🛡️ 勇士提交表單
+            async function submitLetter(e) {
+                e.preventDefault();
+                const btn = document.getElementById('submitBtn');
+                
+                const data = {
+                    q1: document.querySelector('input[name="q1"]:checked')?.value,
+                    q2: document.getElementById('q2').value,
+                    q3: document.querySelector('input[name="q3"]:checked')?.value,
+                    q4: document.getElementById('q4').value,
+                    q5: document.querySelector('input[name="q5"]:checked')?.value,
+                    q6: document.getElementById('q6').value,
+                    q7: document.querySelector('input[name="q7"]:checked')?.value,
+                    q8: document.getElementById('q8').value,
+                    q9: document.getElementById('q9').value,
+                    q10: document.getElementById('q10').value
+                };
+
+                btn.disabled = true;
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-xl"></i> 제출 중...`;
+                btn.classList.replace('bg-indigo-600', 'bg-slate-400');
+
+                try {
+                    const token = localStorage.getItem('token');
+                    const res = await fetch('/api/letters', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                        body: JSON.stringify(data)
+                    });
+                    
+                    if (res.ok) {
+                        const toast = document.getElementById('toastAlert');
+                        toast.classList.remove('-translate-y-20', 'opacity-0');
+                        toast.classList.add('translate-y-0', 'opacity-100');
+                        document.getElementById('letterForm').reset();
+                        // 送出後強制隱藏所有動態方塊
+                        ['q2_block', 'q4_block', 'q6_block', 'q8_block'].forEach(id => document.getElementById(id).classList.remove('open'));
+                        
+                        setTimeout(() => {
+                            toast.classList.remove('translate-y-0', 'opacity-100');
+                            toast.classList.add('-translate-y-20', 'opacity-0');
+                        }, 4000);
+                    } else {
+                        const err = await res.json();
+                        alert(err.error || '오류가 발생했습니다.');
+                    }
+                } catch (error) {
+                    alert('서버 통신 오류가 발생했습니다.');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> 안전하게 제출하기`;
+                    btn.classList.replace('bg-slate-400', 'bg-indigo-600');
+                }
+            }
+
+            setTimeout(initLetterPage, 100);
+        </script>
+    </div>
+
+    <script src="/common.js" onerror="console.log('common.js not found')"></script>
+</body>
+</html>
