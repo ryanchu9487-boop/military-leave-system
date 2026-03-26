@@ -3,34 +3,40 @@ const router = express.Router();
 const Notice = require("../../models/Notice");
 const { authMiddleware } = require("../middlewares/authMiddleware");
 const multer = require("multer");
-const path = require("path");
 
-// 🔥 設定檔案上傳 (Multer)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, "public/uploads/"); // 確保你有這個資料夾
-  },
-  filename: (req, file, cb) => {
-    // 檔名前面加上時間戳記避免重複
-    cb(null, Date.now() + "-" + file.originalname);
+// 🔥 引入 Cloudinary 套件
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// 🔥 設定 Cloudinary 鑰匙
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// 🔥 設定 Cloudinary 儲存庫 (支援圖片與文件)
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: async (req, file) => {
+    return {
+      folder: 'smartmil/notices', // 存到雲端上的 smartmil/notices 資料夾
+      resource_type: 'auto',      // 自動判斷是圖片還是文件
+      public_id: Date.now() + "-" + Math.round(Math.random() * 1e9)
+    };
   }
 });
-const upload = multer({ storage });
+const upload = multer({ storage: storage });
 
 // 1. 獲取公告列表
 router.get("/api/notices", authMiddleware, async (req, res) => {
   try {
     const notices = await Notice.find({ organizationId: req.user.orgId })
-      // 🔥 終極解法：把晉升日期一起抓出來，讓前端可以動態計算階級！
       .populate("authorId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
       .populate("comments.userId", "name rank role promoToIlbyung promoToSangbyung promoToByungjang")
       .populate("likes", "name rank role promoToIlbyung promoToSangbyung promoToByungjang") 
-      // 🔥 改用 _id: -1 排序，絕對保證最新文章在最上面！
       .sort({ isImportant: -1, _id: -1 })
       .lean();
-    
-    // 💡 照妖鏡：把它印在終端機 (Terminal) 裡檢查！
-    console.log("🔥 檢查第一個公告的作者資料：", notices[0]?.authorId);
 
     res.json({ success: true, notices, role: req.user.role, currentUserId: req.user.userId || req.user._id });
   } catch (error) {
@@ -38,7 +44,7 @@ router.get("/api/notices", authMiddleware, async (req, res) => {
   }
 });
 
-// 2. 新增公告 (🔥 支援上傳多個檔案)
+// 2. 新增公告
 router.post("/api/notices", authMiddleware, upload.array("files", 5), async (req, res) => {
   try {
     const { role, orgId, userId } = req.user;
@@ -48,15 +54,15 @@ router.post("/api/notices", authMiddleware, upload.array("files", 5), async (req
     
     const { title, content, isImportant } = req.body;
     
-    // 整理上傳的檔案路徑
-    const attachedFiles = req.files ? req.files.map(file => `/uploads/${file.filename}`) : [];
+    // 🔥 神奇魔法：Cloudinary 直接給我們完整網址 file.path！
+    const attachedFiles = req.files ? req.files.map(file => file.path) : [];
 
     const newNotice = await Notice.create({ 
       organizationId: orgId, 
       authorId: userId, 
       title, 
       content, 
-      isImportant: isImportant === 'true', // FormData 傳過來會是字串
+      isImportant: isImportant === 'true',
       attachedFiles 
     });
     

@@ -207,23 +207,39 @@
                   var image = document.getElementById('cropperImage');
                   var modal = document.getElementById('cropModal');
                   
-                  if(cropper) { cropper.destroy(); cropper = null; }
+                  // 1. 徹底清除舊的裁切器，防止兩張圖疊在一起
+                  if(cropper) { 
+                      cropper.destroy(); 
+                      cropper = null; 
+                  }
                   
-                  image.src = e.target.result;
+                  // 2. 先把 Modal 顯示出來 (開始播淡入動畫)
                   modal.classList.remove('hidden');
                   modal.classList.add('flex');
-                  void modal.offsetWidth; 
+                  void modal.offsetWidth; // 強制重繪
                   modal.classList.remove('opacity-0');
 
+                  // 3. ⭐️ 關鍵修正：先綁定 onload 事件，再去賦予 src！
                   image.onload = function() {
+                      // 確保 Modal 的 300ms 動畫「完全」結束後，才讓 Cropper 去抓取寬高
                       setTimeout(() => {
                           cropper = new Cropper(image, { 
-                              viewMode: 1, dragMode: 'move', autoCropArea: 0.8, restore: false,
-                              guides: true, center: true, highlight: false, cropBoxMovable: true,
-                              cropBoxResizable: true, toggleDragModeOnDblclick: false,
+                              viewMode: 1, 
+                              dragMode: 'move', 
+                              autoCropArea: 0.8, 
+                              restore: false,
+                              guides: true, 
+                              center: true, 
+                              highlight: false, 
+                              cropBoxMovable: true,
+                              cropBoxResizable: true, 
+                              toggleDragModeOnDblclick: false,
                           });
-                      }, 300);
+                      }, 400); // 緩衝加長到 400ms，絕對防跑版
                   };
+
+                  // 4. 最後一步：把照片塞進去，觸發上面的 onload
+                  image.src = e.target.result;
               }
               reader.readAsDataURL(file);
           }
