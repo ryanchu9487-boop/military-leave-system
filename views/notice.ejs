@@ -67,7 +67,7 @@
                   <div class="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative flex flex-col items-center justify-center gap-2" onclick="document.getElementById('fileInput').click()">
                     <i class="fa-solid fa-images text-indigo-400 text-2xl"></i>
                     <span id="fileCountText" class="text-slate-500 text-sm font-bold text-center">클릭하여 사진/파일 업로드<br><span class="text-xs text-slate-400">(여러 번 나누어 선택 가능, 최대 5개)</span></span>
-                    <input type="file" id="fileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx" class="hidden" onchange="handleNoticeFileSelect(this)">
+                    <input type="file" id="fileInput" multiple accept="image/jpeg, image/png, image/gif, image/webp, .pdf, .doc, .docx, .xls, .xlsx, .hwp" class="hidden" onchange="handleNoticeFileSelect(this)">
                   </div>
                   
                   <div id="noticeSelectedFilesBox" class="mt-2 hidden">
@@ -95,11 +95,12 @@
           </div>
         </div>
 
+        <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+
         <script>
           var currentRole = "soldier";
           var currentUserId = "";
           
-          // 🔥 動態階級計算機 (精準算出 일병, 상병 등)
           function getDisplayRank(user) {
               if (!user) return "";
               if (user.role !== "soldier" || !user.promoToIlbyung) {
@@ -117,20 +118,73 @@
 
           var selectedNoticeFiles = [];
 
-          function handleNoticeFileSelect(input) {
-              if (input.files && input.files.length > 0) {
-                  const newFiles = Array.from(input.files);
-                  
-                  if (selectedNoticeFiles.length + newFiles.length > 5) {
+          // 🔥 修改 3：升級版鐵血防呆 + 自動壓縮邏輯
+          async function handleNoticeFileSelect(input) {
+              if (!input.files || input.files.length === 0) return;
+
+              const newFiles = Array.from(input.files);
+              let processedFiles = [];
+
+              const options = {
+                  maxSizeMB: 1, 
+                  maxWidthOrHeight: 1920,
+                  useWebWorker: true
+              };
+
+              const submitBtn = document.getElementById("submitNoticeBtn");
+              submitBtn.disabled = true;
+              submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 파일 처리 중...`;
+
+              try {
+                  for (let i = 0; i < newFiles.length; i++) {
+                      let file = newFiles[i];
+
+                      // 💡 只有常見的網頁圖片格式才進行壓縮
+                      if (file.type.match(/image\/(jpeg|png|webp)/i)) {
+                          try {
+                              console.log(`壓縮前: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`);
+                              const compressedBlob = await imageCompression(file, options);
+                              const compressedFile = new File([compressedBlob], file.name, { type: file.type });
+                              console.log(`壓縮後: ${compressedFile.name} (${(compressedFile.size/1024/1024).toFixed(2)} MB)`);
+                              
+                              processedFiles.push(compressedFile);
+                          } catch (error) {
+                              console.warn("壓縮失敗:", error);
+                              // 🚨 鐵血防線：壓縮失敗且原圖超過 10MB，踢掉！
+                              if (file.size > 10 * 1024 * 1024) {
+                                  alert(`"${file.name}" 사진 압축에 실패했으며, 용량이 너무 큽니다 (최대 10MB).`);
+                                  continue; 
+                              }
+                              processedFiles.push(file); 
+                          }
+                      } 
+                      // 💡 其他檔案（PDF, DOC 等）直接檢查大小
+                      else {
+                          // 🚨 鐵血防線：非圖片檔只要超過 10MB，踢掉！
+                          if (file.size > 10 * 1024 * 1024) {
+                              alert(`"${file.name}" 파일이 너무 큽니다! (최대 10MB까지만 가능)`);
+                              continue; 
+                          }
+                          processedFiles.push(file);
+                      }
+                  }
+
+                  if (selectedNoticeFiles.length + processedFiles.length > 5) {
                       alert("첨부파일은 최대 5개까지만 업로드 가능합니다.");
                       const allowedCount = 5 - selectedNoticeFiles.length;
-                      selectedNoticeFiles = selectedNoticeFiles.concat(newFiles.slice(0, allowedCount));
+                      selectedNoticeFiles = selectedNoticeFiles.concat(processedFiles.slice(0, allowedCount));
                   } else {
-                      selectedNoticeFiles = selectedNoticeFiles.concat(newFiles);
+                      selectedNoticeFiles = selectedNoticeFiles.concat(processedFiles);
                   }
-                  
+
                   input.value = ""; 
                   updateNoticeFileUI();
+                  
+              } catch (error) {
+                  console.error("檔案處理發生錯誤:", error);
+              } finally {
+                  submitBtn.disabled = false;
+                  submitBtn.innerHTML = `공유하기`;
               }
           }
 
@@ -218,11 +272,9 @@ function renderFeed(notices) {
     
     let likesListText = "아직 좋아요가 없습니다";
     if (n.likes.length > 0) {
-        // 🔥 套用計算機，精準顯示按讚者階級
         likesListText = n.likes.map(u => `${getDisplayRank(u)} ${u.name || '알수없음'}`.trim()).join("<br>");
     }
 
-    // 🔥 套用計算機，精準顯示留言者階級
     const commentsHtml = n.comments.map(c => {
         let cRank = getDisplayRank(c.userId);
         return `
@@ -257,8 +309,6 @@ function renderFeed(notices) {
     }
 
     const isAuthorControl = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
-    
-    // 🔥 套用計算機，精準顯示發文者階級
     let authorRank = getDisplayRank(n.authorId);
 
     return `
@@ -416,11 +466,10 @@ function renderFeed(notices) {
               showModal("createModal"); 
           }
 
-          // 🔥 終極手機防擋鍵盤：Spacer 頂高法
           function handleMobileFocus(inputEl) {
               const spacer = document.getElementById('keyboardSpacer');
-              if(spacer && window.innerWidth < 768) { // 只在手機版生效
-                  spacer.style.height = '40vh'; // 強行撐開空間
+              if(spacer && window.innerWidth < 768) {
+                  spacer.style.height = '40vh';
                   setTimeout(() => {
                       inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }, 300);
@@ -430,7 +479,7 @@ function renderFeed(notices) {
           function handleMobileBlur() {
               const spacer = document.getElementById('keyboardSpacer');
               if(spacer) {
-                  spacer.style.height = '0px'; // 縮回空間
+                  spacer.style.height = '0px';
               }
           }
 
@@ -441,9 +490,7 @@ function renderFeed(notices) {
               }
           }
 
-          // 初始化綁定防擋鍵盤事件
           document.addEventListener('DOMContentLoaded', () => {
-              // 1. 綁定發文表單的輸入框
               const formInputs = ['titleInput', 'contentInput'];
               formInputs.forEach(id => {
                   const el = document.getElementById(id);
@@ -453,7 +500,6 @@ function renderFeed(notices) {
                   }
               });
 
-              // 2. 綁定留言區的輸入框 (動態生成的，使用事件委派)
               document.body.addEventListener('focus', (e) => {
                   if (e.target && e.target.classList.contains('mobile-input')) {
                       setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
