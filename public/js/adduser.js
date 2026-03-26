@@ -179,14 +179,27 @@ function renderUsers(users) {
 
   users.forEach((user) => {
     let roleHtml = "";
-    // 🔥 確保自己不能降級自己 (這裡假設 superadmin 不能被降級)
-    const canDelete = user.role !== "superadmin";
+    
+    // 🔥 [核心防護] 鐵飯碗保護機制：最高管理者、審核者、核准者都不能被降級或刪除！
+    const isIronBowl = ["superadmin", "reviewer", "approver"].includes(user.role);
+    const canDelete = !isIronBowl;
 
-    if (!canDelete) {
-      const roleText = "최고 관리자 (管理者)";
-      const bgClass = "bg-purple-50 text-purple-700 border-purple-200";
+    // 🔥 判斷角色顯示徽章，而不是下拉選單
+    if (isIronBowl) {
+      let roleText = "최고 관리자";
+      let bgClass = "bg-purple-50 text-purple-700 border-purple-200";
+      
+      if (user.role === "reviewer") {
+          roleText = "검토자 (檢閱者)";
+          bgClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+      } else if (user.role === "approver") {
+          roleText = "승인자 (核准者)";
+          bgClass = "bg-rose-50 text-rose-700 border-rose-200";
+      }
+
       roleHtml = `<span class="px-3 py-1.5 ${bgClass} border rounded-lg font-bold text-xs shadow-sm inline-block min-w-[100px] text-center">${roleText}</span>`;
     } else {
+      // 只有普通幹部 (officer) 或勇士 (soldier) 可以互相切換
       roleHtml = `
         <select onchange="window.changeUserRole('${
           user._id
@@ -195,19 +208,27 @@ function renderUsers(users) {
             user.role === "soldier" ? "selected" : ""
           }>용사 (勇士)</option>
           <option value="officer" ${
-            (user.role === "officer" || user.role === "reviewer" || user.role === "approver") ? "selected" : ""
+            user.role === "officer" ? "selected" : ""
           }>간부 (幹部)</option>
         </select>`;
     }
 
+    // 只有可以被降級的人才能被刪除/退伍
     const deleteBtn = canDelete
       ? `<button onclick="window.dischargeUser('${user._id}', '${user.name}')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200" title="전역/삭제">
           <i class="fa-solid fa-trash-can"></i>
         </button>`
       : `<div class="w-8 h-8"></div>`;
 
-    const displayRank = user.currentRank || user.rank || "계급없음";
+    // 🔥 [階級正名] 如果是長官（不管哪一種），優先顯示他資料庫真實的 user.rank (例如：대위)，勇士才用動態計算的 currentRank
+    let displayRank = "계급없음";
+    if (user.role !== "soldier" && user.rank) {
+        displayRank = user.rank;
+    } else {
+        displayRank = user.currentRank || user.rank || "계급없음";
+    }
 
+    // 只有士兵有退伍日和人事卡片
     const hrBtn = user.role === "soldier" && user.enlistmentDate
         ? `<button onclick='window.openHrModal(${JSON.stringify(user).replace(
             /'/g,
@@ -318,7 +339,6 @@ window.openHrModal = function(user) {
   const numEl = document.getElementById("hrServiceNum");
   if (numEl) numEl.innerText = user.serviceNumber;
 
-  // 🔥 방어 코드: 화면에 없으면 값을 넣지 않음 (여기서 에러가 나면 창이 안 켜짐)
   const enlistEl = document.getElementById("hrEnlistDate");
   if (enlistEl) enlistEl.innerText = formatDate(user.enlistmentDate);
   
@@ -338,11 +358,9 @@ window.renderHrTimeline = function(user) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // 取得退伍日供後續比對
   const dischargeDate = new Date(user.dischargeDate);
   dischargeDate.setHours(0, 0, 0, 0);
 
-  // 🔥 陣列最上方加入「전역 (退伍)」，維持從下到上的時間軸順序
   const milestones = [
     {
       rank: "전역", date: user.dischargeDate, canAdjust: false, icon: "fa-house",
@@ -394,12 +412,10 @@ window.renderHrTimeline = function(user) {
 
     let actionButtons = "";
     if (m.canAdjust && !isPassed) {
-      // 🔥 1. 早期晉升計算：檢查調整後是否會早於或等於今天
       const testEarlyDate = new Date(m.date);
       testEarlyDate.setMonth(testEarlyDate.getMonth() - 1);
       const canEarly = testEarlyDate > today;
 
-      // 🔥 2. 延後晉升計算：檢查調整後是否會晚於或等於退伍日
       const testDelayDate = new Date(m.date);
       testDelayDate.setMonth(testDelayDate.getMonth() + 1);
       const canDelay = testDelayDate < dischargeDate;
@@ -427,7 +443,6 @@ window.renderHrTimeline = function(user) {
       `;
     }
 
-    // 處理標籤文字（入伍與退伍不加「진급」字眼）
     const isSpecialNode = m.rank.includes("입대") || m.rank.includes("전역");
     const titleText = `${m.rank} ${isSpecialNode ? "" : "진급"}`;
 

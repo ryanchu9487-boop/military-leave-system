@@ -31,8 +31,8 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json({ limit: "10kb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "50mb" })); // 已經放大到 50mb
+app.use(express.urlencoded({ limit: "50mb", extended: true })); // 已經放大到 50mb
 app.use(express.static(path.join(__dirname, "public")));
 
 // 🔥 [這裡加上了！] 明確開放 uploads 資料夾的讀取權限，解決 Cannot GET 錯誤
@@ -61,32 +61,28 @@ mongoose
         org1 = await Organization.create({
           name: org1Name,
           orgCode: org1Code,
-          license: {
-            maxUsers: 100,
-            plan: "pro",
-            isPaid: true,
-          },
+          license: { maxUsers: 100, plan: "pro", isPaid: true },
         });
         console.log(`✨ 더미 조직 생성 완료: ${org1Name} (Code: ${org1Code})`);
       }
 
-      // 17포병대대 관리자 계정 생성
-      let admin1 = await User.findOne({ serviceNumber: "17-00000000" });
-      if (!admin1) {
-        admin1 = await User.create({
-          organizationId: org1._id,
-          name: "홍길동",
-          rank: "대위", // 스키마 필수값
-          serviceNumber: "17-00000000",
-          phoneNumber: "010-0000-0000",
-          password: "password0", // 스키마 pre-save 훅에 의해 자동 해싱됨
-          role: "admin",
-          status: "approved",
-        });
-        console.log(
-          `✨ 더미 관리자 생성 완료: ${admin1.name} (${org1Name}, 군번: ${admin1.serviceNumber})`
-        );
-      }
+      // 🔥 17포병대대 홍길동 강제 복구 (強制恢復大尉與核准者身分！)
+      await User.findOneAndUpdate(
+        { serviceNumber: "17-00000000" },
+        {
+          $set: {
+            organizationId: org1._id,
+            name: "홍길동",
+            rank: "대위", // 討回大尉階級！
+            phoneNumber: "010-0000-0000",
+            role: "approver", // 🔥 設定為 승인자 (核准者)
+            status: "approved",
+          },
+          $setOnInsert: { password: "password0" }
+        },
+        { upsert: true }
+      );
+      console.log(`✨ 홍길동(17포병대대) 대위/승인자 복구 완료!`);
 
       // =========================
       // 2️⃣ 21보병대대 및 소속 관리자 생성
@@ -99,32 +95,30 @@ mongoose
         org2 = await Organization.create({
           name: org2Name,
           orgCode: org2Code,
-          license: {
-            maxUsers: 50,
-            plan: "basic",
-            isPaid: false,
-          },
+          license: { maxUsers: 50, plan: "basic", isPaid: false },
         });
         console.log(`✨ 더미 조직 생성 완료: ${org2Name} (Code: ${org2Code})`);
       }
 
-      // 21보병대대 관리자 계정 생성
-      let admin2 = await User.findOne({ serviceNumber: "21-00000000" });
-      if (!admin2) {
-        admin2 = await User.create({
-          organizationId: org2._id,
-          name: "홍길동",
-          rank: "대위", // 스키마 필수값
-          serviceNumber: "21-00000000",
-          phoneNumber: "010-0000-0000",
-          password: "password0",
-          role: "admin",
-          status: "approved",
-        });
-        console.log(
-          `✨ 더미 관리자 생성 완료: ${admin2.name} (${org2Name}, 군번: ${admin2.serviceNumber})`
-        );
-      }
+      // 🔥 21보병대대 홍길동 강제 복구
+      await User.findOneAndUpdate(
+        { serviceNumber: "21-00000000" },
+        {
+          $set: {
+            organizationId: org2._id,
+            name: "홍길동",
+            rank: "대위", // 討回大尉階級！
+            phoneNumber: "010-0000-0000",
+            role: "approver", // 🔥 設定為 승인자 (核准者)
+            status: "approved",
+          },
+          $setOnInsert: { password: "password0" }
+        },
+        { upsert: true }
+      );
+      console.log(`✨ 홍길동(21보병대대) 대위/승인자 복구 완료!`);
+
+    // 🔥 [這裡就是你漏掉的括號！我補回來了！]
     } catch (err) {
       console.error("❌ 더미 데이터 생성 중 오류:", err);
     }
