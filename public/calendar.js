@@ -3,7 +3,6 @@
  * (SPA 無縫切換完美相容版 - 解決全域變數衝突)
  */
 
-// 🔥 關鍵修正：將最外層的全域變數全部改為 var，防止 SPA 重複載入時發生 SyntaxError
 var GOOGLE_API_KEY = "AIzaSyBDbm1GF1W0wKYXSeAoIj3F8TJbmn7wHuw";
 var KOREA_HOLIDAY_CALENDAR_ID = "ko.south_korea#holiday@group.v.calendar.google.com";
 
@@ -24,7 +23,7 @@ var dragStartStr = null;
 var dragEndStr = null;
 
 // ==========================================
-// 🚀 SPA 啟動入口 (由 index.ejs 負責喚醒)
+// 🚀 SPA 啟動入口
 // ==========================================
 window.initCalendarPage = async function () {
   console.log("🔥 SmartMil Calendar Initializing...");
@@ -45,17 +44,13 @@ window.initCalendarPage = async function () {
 
   injectFloatingUI();
   setupProUX();
-  bindGlobalEventsOnce(); // 確保全域事件不會因為 SPA 切換而重複疊加
+  bindGlobalEventsOnce(); 
   await initApp();
 };
 
-// ==========================================
-// 全域事件防重複綁定 (SPA 必備)
-// ==========================================
 function bindGlobalEventsOnce() {
   if (window.__smartmilCalendarGlobalsBound) return;
 
-  // 1. Mini picker & Global search 點擊外部隱藏
   document.addEventListener("click", (e) => {
     const box = document.getElementById("miniPickerBox");
     const pill = document.getElementById("floatingPill");
@@ -72,7 +67,6 @@ function bindGlobalEventsOnce() {
     }
   });
 
-  // 2. Drag Selection 的放開事件
   window.addEventListener("mouseup", async (e) => {
     if (!isDragging) return;
     isDragging = false;
@@ -92,7 +86,6 @@ function bindGlobalEventsOnce() {
     clearSelectionVisuals();
   });
 
-  // 3. Pro Tooltip 滑鼠移開事件
   document.addEventListener("mouseover", (e) => {
     if (e.target && typeof e.target.className === "string" && !e.target.className.includes("leave-bar")) {
       hideProTooltip();
@@ -101,10 +94,6 @@ function bindGlobalEventsOnce() {
 
   window.__smartmilCalendarGlobalsBound = true;
 }
-
-// ==========================================
-// 核心應用程式初始化與渲染邏輯
-// ==========================================
 
 async function initApp() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -165,7 +154,6 @@ function updateModeUI() {
 
   const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole);
 
-  // 🔥 關鍵修改：加上 currentCalendarMode !== "personal" 條件
   if (settingsModalBtn) {
     if (isManager && currentCalendarMode !== "personal") {
       settingsModalBtn.classList.remove("hidden");
@@ -185,8 +173,6 @@ function updateModeUI() {
 
 async function batchApprovePhase1() {
   const isApprover = ["approver", "superadmin"].includes(currentUserRole);
-  
-  // 依據身分給予不同的提示訊息 (核准者不再看到候補警告)
   const confirmMsg = isApprover 
     ? "현재 월력에 표시된 모든 대기 인원을 일괄 '최종 승인' 하시겠습니까?" 
     : "현재 월력에 표시된 [정규 편성(정원 내)] 인원만 일괄 '검토 완료' 처리하시겠습니까?\n(⚠️ 출타율을 초과한 '후보' 인원은 자동으로 제외됩니다.)";
@@ -202,13 +188,11 @@ async function batchApprovePhase1() {
     
     if (data.success) {
         let alertMsg = data.message;
-        // 只有 Reviewer 才需要顯示候補被跳過的警告
         if (data.skippedCount > 0 && !data.isApprover) {
             alertMsg += `\n\n🚨 주의: ${data.skippedCount}건의 '후보' 상태인 휴가는 출타율 초과 방지를 위해 제외되었습니다. 수동으로 확인해주세요.`;
         }
         alert(alertMsg);
         
-        // 🔥 核准後，同時刷新月曆與右上角的小鈴鐺！
         await refreshCalendarData();
         if (typeof checkPendingLeaves === "function") checkPendingLeaves();
     } else {
@@ -264,7 +248,6 @@ function setupProUX() {
     tooltip.className = "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
     document.body.appendChild(tooltip);
   }
-
   const calendarEl = document.getElementById("calendar");
   if(calendarEl) calendarEl.addEventListener("scroll", hideProTooltip, { passive: true });
 }
@@ -352,7 +335,6 @@ function generateCellsHTML(start, end) {
   let html = "";
   let iter = new Date(start);
   const todayStr = formatDate(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-  
   const isClickable = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) && currentCalendarMode !== "personal";
 
   while (iter <= end) {
@@ -449,11 +431,17 @@ function renderEvents() {
   document.querySelectorAll(".event-layer").forEach((el) => (el.innerHTML = ""));
   document.querySelectorAll(".holiday-name").forEach((el) => (el.innerText = ""));
 
+  // 🔥 聽你的！直接用大分類 (type) 判斷，為了相容舊資料我們保留一點寬容度
   let displayLeaves = leavesCache.filter((leave) => {
     if (leave.isHoliday) return true;
     if (currentCalendarMode === "personal") return true; 
-    if (currentCalendarMode === "team-long") return leave.type === "휴가"; 
-    if (currentCalendarMode === "team-short") return leave.type === "외출" || leave.type === "외박"; 
+    
+    // 正確的判定邏輯：依據大分類 (휴가 / 외출 / 외박)
+    const isLongType = leave.type === "휴가" || ["연가", "포상", "보상", "위로", "기타"].includes(leave.type);
+    const isShortType = leave.type === "외출" || leave.type === "외박" || leave.type.includes("외출") || leave.type.includes("외박");
+    
+    if (currentCalendarMode === "team-long") return isLongType; 
+    if (currentCalendarMode === "team-short") return isShortType; 
     return true;
   });
 
@@ -552,7 +540,6 @@ function renderEvents() {
         bar.innerText = isGlobalStart || startIdx === 0 ? displayName : "";
         const fixedColor = getLeaveColor(leave.reason, leave.type);
 
-        // 🔥 這裡的 if...else 鏈已經完美修復，絕不會再報 SyntaxError
         if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
@@ -562,15 +549,12 @@ function renderEvents() {
             e.stopPropagation(); 
             hideProTooltip(); 
             
-            // 1. 立即隱藏 알림창
             if (typeof window.closeNotifications === "function") window.closeNotifications();
 
-            // 2. 讓月曆上的 bar 瞬間淡出消失
             bar.style.transition = "all 0.3s ease";
             bar.style.opacity = "0";
             bar.style.transform = "scale(0.9)";
             
-            // 3. 瞬間從 알림창 中移除這個項目，並重新計算小鈴鐺數字
             const notiEl = document.getElementById(`noti-${leave._id}`);
             if (notiEl) notiEl.remove();
             
@@ -586,7 +570,6 @@ function renderEvents() {
               }
             }
 
-            // 4. 發送已讀請求
             try {
               await fetch(`/leaves/${leave._id}/confirm-reject`, {
                 method: "PUT",
@@ -627,7 +610,7 @@ function renderEvents() {
             
             if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
               if (leave.status === "PENDING_REVIEW" || leave.status === "CANCEL_REQ_REVIEW") {
-                spaNavigate(`/review.ejs?id=${leave._id}`); // 注意：如果是 html 檔這裡請改為 review.html
+                spaNavigate(`/review.ejs?id=${leave._id}`); 
                 return;
               } else if (leave.status === "PENDING_APPROVAL" || leave.status === "CANCEL_REQ_APPROVAL") {
                 spaNavigate(`/approve.html?id=${leave._id}`);
@@ -704,7 +687,6 @@ async function fetchLeavesFromDB() {
   const endpoint = currentCalendarMode === "personal" ? "/leaves/my" : "/leaves/all";
   const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
   
-  // 🛡️ 401 防呆：抓不到資料就直接踢回登入頁
   if (res.status === 401) {
       localStorage.removeItem("token");
       window.location.href = "/login.html";
@@ -732,7 +714,13 @@ async function cancelLeave(id) {
   try {
     const res = await fetch(`/leaves/${id}`, { method: "DELETE", headers: { Authorization: "Bearer " + currentToken } });
     const data = await res.json();
-    if (data.success) { alert(data.message); await refreshCalendarData(); } else { alert(data.error || "오류가 발생했습니다."); }
+    if (data.success) { 
+        alert(data.message); 
+        await refreshCalendarData(); 
+        await loadMySlots();
+    } else { 
+        alert(data.error || "오류가 발생했습니다."); 
+    }
   } catch (err) {}
 }
 
@@ -754,15 +742,16 @@ function unhighlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).fo
 
 async function submitGrant() {
   const mainCat = document.getElementById("grantMainCategory").value;
-  const type = mainCat === "휴가" ? document.getElementById("grantSubType").value : mainCat;
+  const subType = document.getElementById("grantSubType").value;
   const totalCount = document.getElementById("grantDays").value;
-  const reason = document.getElementById("grantReason").value;
-  if (!reason) return alert("심의 사유를 입력해 주세요.");
+  const reasonInput = document.getElementById("grantReason").value;
+  if (!reasonInput) return alert("심의 사유를 입력해 주세요.");
 
+  // 🔥 聽你的建議！直接用「大分類」存入資料庫，並把次分類保留在 사유 裡
   const payload = {
-    type: type,
+    type: mainCat, // 永遠只傳遞 '휴가', '외출', '외박'
     totalCount: Number(totalCount),
-    reason: reason
+    reason: subType ? `[${subType}] ${reasonInput}` : reasonInput
   };
 
   try {
@@ -857,9 +846,9 @@ function renderSlotList() {
           <p class="text-[11px] text-gray-500 font-medium">잔여 ${s.remains}일</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <button onclick="changeManualQty('${s._id}', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">-</button>
+          <button type="button" onclick="changeManualQty('${s._id}', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">-</button>
           <span class="w-5 text-center font-bold text-indigo-700">${qty}</span>
-          <button onclick="changeManualQty('${s._id}', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">+</button>
+          <button type="button" onclick="changeManualQty('${s._id}', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">+</button>
         </div>
       </div>`;
 
@@ -1017,16 +1006,22 @@ async function submitRequest() {
     });
     const result = await res.json();
     if (result.error) return alert(result.error);
+    
     if(typeof closeModal === "function") closeModal("requestModal");
-    await refreshCalendarData();
+    
     alert("출타 신청서가 성공적으로 제출되었습니다.");
+    
+    // 🔥 [Bug 2 終極修復]：成功送出假單後，強力刷新畫面！
+    await loadMySlots(); 
+    await refreshCalendarData();
+    
   } catch (err) {
     alert("서버와 통신 중 오류가 발생했습니다.");
   }
 }
 
 // ==========================================
-// 🔥 檢討者專用：底部抽屜選單互動邏輯 (支援 Drag & Drop)
+// 🔥 檢討者專用：底部抽屜選單互動邏輯
 // ==========================================
 var draggedLeaveId = null;
 var draggedLeaveName = null;
@@ -1039,8 +1034,12 @@ function openBottomSheet(dateStr) {
     if (targetDate < sDate || targetDate > eDate) return false; 
     if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false;
     
-    if (currentCalendarMode === "team-long" && l.type !== "휴가") return false;
-    if (currentCalendarMode === "team-short" && l.type !== "외출" && l.type !== "외박") return false;
+    // 🔥 聽你的建議，依照大分類正統判斷 (同時保留對舊資料的一點相容)
+    const isLongType = l.type === "휴가" || ["연가", "포상", "보상", "위로", "기타"].includes(l.type);
+    const isShortType = l.type === "외출" || l.type === "외박" || l.type.includes("외출") || l.type.includes("외박");
+    
+    if (currentCalendarMode === "team-long" && !isLongType) return false;
+    if (currentCalendarMode === "team-short" && !isShortType) return false;
     return true;
   });
 
@@ -1223,10 +1222,6 @@ async function deleteSpecialRate(rateId) {
   } catch(e) { alert("삭제 중 오류가 발생했습니다."); }
 }
 
-// ==========================================
-// 🔥 抽屜面板 Drag & Drop (1換1 積分對調) 邏輯
-// ==========================================
-
 function handleDragStart(e, id, name) {
   if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
   draggedLeaveId = id;
@@ -1268,9 +1263,6 @@ async function handleDrop(e, targetId, targetName) {
   }
 }
 
-// ==========================================
-// 🔥 全局搜尋引擎 (Global Search & Spotlight)
-// ==========================================
 var globalSearchCache = null;
 
 async function initGlobalSearchData() {
@@ -1341,7 +1333,8 @@ async function executeSearchNavigation(leaveId, type, startDateStr, isSmooth = t
   if(input) { input.value = ""; input.blur(); }
 
   if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
-    const targetMode = (type === "휴가") ? "team-long" : "team-short";
+    const isShortType = type === "외출" || type === "외박" || type.includes("외출") || type.includes("외박");
+    const targetMode = isShortType ? "team-short" : "team-long";
     if (currentCalendarMode !== targetMode) {
       await switchCalendarMode(targetMode); 
     }
