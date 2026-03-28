@@ -247,13 +247,18 @@
                 currentUserId = data.currentUserId;
                 
                 if (["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole)) {
-                  const createBtn = document.getElementById("createNoticeBtn");
-                  if (createBtn) createBtn.classList.remove("hidden");
-                }
-                renderFeed(data.notices);
+                const createBtn = document.getElementById("createNoticeBtn");
+                if (createBtn) createBtn.classList.remove("hidden");
               }
-            } catch (e) { console.error("Error:", e); }
-          }
+              renderFeed(data.notices);
+              
+              // 🔥 資料畫完之後，呼叫聚光燈引擎來找目標！
+              if (typeof window.checkAndHighlightFocus === "function") {
+                  setTimeout(window.checkAndHighlightFocus, 100);
+              }
+            }
+          } catch (e) { console.error("Error:", e); }
+        }
 
 function renderFeed(notices) {
   const container = document.getElementById("feedContainer");
@@ -312,7 +317,7 @@ function renderFeed(notices) {
     let authorRank = getDisplayRank(n.authorId);
 
     return `
-      <article class="glass-card overflow-hidden flex flex-col max-h-[750px] mb-2 md:mb-0"> 
+      <article id="item-${n._id}" class="glass-card overflow-hidden flex flex-col max-h-[750px] mb-2 md:mb-0"> 
         <div class="p-4 md:p-5 border-b border-slate-100/50 shrink-0">
           <div class="flex justify-between items-start mb-2.5 md:mb-3">
             <div class="flex items-center gap-2.5 md:gap-3">

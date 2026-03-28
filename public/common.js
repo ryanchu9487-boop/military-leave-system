@@ -1,5 +1,3 @@
-// public/common.js
-
 const roleMap = {
   soldier: "용사",
   officer: "간부",
@@ -8,7 +6,69 @@ const roleMap = {
 };
 
 // ==========================================
-// 🚀 SmartMil 終極 SPA 導航引擎 (完美順序修復版)
+// 💡 全局聚光燈特效引擎 (無視 !important 升級版)
+// ==========================================
+const spotlightStyle = document.createElement('style');
+spotlightStyle.innerHTML = `
+/* 升級版：使用 ::after 疊加層，完美迴避任何 !important 背景鎖定 */
+@keyframes global-highlight-flash {
+  0% { background-color: rgba(99, 102, 241, 0.25); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.6); opacity: 1; }
+  50% { background-color: rgba(99, 102, 241, 0.1); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3); opacity: 1; }
+  100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; opacity: 0; }
+}
+.global-flash-target {
+  position: relative !important; /* 確保疊加層定位正確 */
+}
+.global-flash-target::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: inherit; /* 自動貼合原本卡片的圓角 */
+  pointer-events: none; /* 確保不阻擋滑鼠點擊 */
+  animation: global-highlight-flash 2.5s ease-out forwards;
+  z-index: 50;
+}
+`;
+document.head.appendChild(spotlightStyle);
+
+window.checkAndHighlightFocus = function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const focusId = urlParams.get('focus');
+
+  // 防呆：避免 SPA 重複觸發
+  if (!focusId || window.__focusHandled === focusId) return; 
+
+  let attempts = 0;
+  const tryHighlight = () => {
+      const targetElement = document.getElementById(`item-${focusId}`);
+      if (targetElement) {
+          window.__focusHandled = focusId; // 鎖定
+
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          setTimeout(() => {
+              targetElement.classList.add('global-flash-target');
+              
+              const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+              window.history.replaceState({path: newUrl}, '', newUrl);
+
+              setTimeout(() => {
+                  targetElement.classList.remove('global-flash-target');
+                  window.__focusHandled = null; // 解鎖，讓使用者下次搜尋同一個人還是會亮
+              }, 2600);
+          }, 500); 
+          
+      } else if (attempts < 20) {
+          attempts++;
+          setTimeout(tryHighlight, 100);
+      }
+  };
+  tryHighlight();
+};
+
+
+// ==========================================
+// 🚀 SmartMil 終極 SPA 導航引擎
 // ==========================================
 window.spaNavigate = async function (urlPath) {
   const url = new URL(urlPath, window.location.origin).href;
@@ -82,7 +142,7 @@ window.spaNavigate = async function (urlPath) {
 };
 
 // ==========================================
-// 🚀 簡單粗暴的喚醒機制
+// 🚀 喚醒機制 (加上聚光燈呼叫)
 // ==========================================
 function reInitializePage() {
   applyRolePermissions(); 
@@ -100,6 +160,9 @@ function reInitializePage() {
     } else {
        if (typeof window.initCalendarPage === "function") window.initCalendarPage();
     }
+    
+    // 🔥 SPA 畫面載入完成後，自動呼叫聚光燈引擎！
+    window.checkAndHighlightFocus();
   }, 150);
 }
 
@@ -140,7 +203,6 @@ async function checkPendingLeaves() {
   if (!token) return;
 
   try {
-    // 🔥 加一個 t=Date.now() 參數，破解 304 快取魔咒
     const res = await fetch(`/leaves/notifications?t=${Date.now()}`, { 
       headers: { Authorization: `Bearer ${token}` } 
     });
@@ -162,7 +224,6 @@ async function checkPendingLeaves() {
       const initEl = document.getElementById("headerProfileInitials");
       if (initEl) initEl.innerText = u.name.charAt(0);
 
-      // 🔥 強制解除隱藏，確保小鈴鐺永遠存在畫面上
       const notifWrapper = document.getElementById("notificationWrapper");
       if (notifWrapper) {
           notifWrapper.classList.remove("hidden");
@@ -176,7 +237,6 @@ async function checkPendingLeaves() {
   }
 }
 
-// 🔥 友善的時間格式化函數
 function timeAgo(dateString) {
   const now = new Date();
   const past = new Date(dateString);
@@ -200,7 +260,6 @@ function toggleNotifications() {
 function renderNotifications(notifications, role) {
   const listEl = document.getElementById("notificationList");
   const badgeEl = document.getElementById("notificationBadge");
-  const approveAllBtn = document.getElementById("approveAllBtn");
 
   if (!listEl) return;
 
@@ -213,7 +272,6 @@ function renderNotifications(notifications, role) {
         <p class="text-xs font-bold text-slate-500">새로운 알림이 없습니다.</p>
       </div>`;
     if (badgeEl) badgeEl.classList.add("hidden");
-    if (approveAllBtn) approveAllBtn.classList.add("hidden");
     return;
   }
 
@@ -222,10 +280,6 @@ function renderNotifications(notifications, role) {
     badgeEl.className = "absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm z-10";
     badgeEl.classList.remove("hidden");
   }
-  
-  if (approveAllBtn && ["reviewer", "approver", "officer", "superadmin"].includes(role)) {
-    approveAllBtn.classList.remove("hidden");
-  }
 
   const isIndex = window.location.pathname === '/' || window.location.pathname === '/index.html' || window.location.pathname === '';
 
@@ -233,7 +287,7 @@ function renderNotifications(notifications, role) {
     let icon = "fa-bell", color = "text-indigo-600", bgColor = "bg-indigo-50 border-indigo-100", actionButtons = "", clickAction = "";
     let statusText = noti.reason;
     
-if (noti.status === "PENDING_REVIEW" || noti.status === "CANCEL_REQ_REVIEW") {
+    if (noti.status === "PENDING_REVIEW" || noti.status === "CANCEL_REQ_REVIEW") {
       icon = "fa-clipboard-check"; color = "text-amber-600"; bgColor = "bg-amber-50 border-amber-100";
       statusText = noti.status.includes("CANCEL") ? "취소 검토 요청" : "새로운 출타 검토 요청";
       clickAction = `window.closeNotifications(); spaNavigate('/review?id=${noti._id}');`; 
@@ -256,21 +310,16 @@ if (noti.status === "PENDING_REVIEW" || noti.status === "CANCEL_REQ_REVIEW") {
       statusText = "신규 부대원 가입 대기";
       clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
     } else if (noti.status.includes("REJECTED") || noti.status === "CANCEL_APPROVED") {
-      
-      // 🔥 如果是取消成功，顯示灰色 UI
       if (noti.status === "CANCEL_APPROVED") {
         icon = "fa-calendar-minus"; color = "text-gray-500"; bgColor = "bg-gray-100 border-gray-200";
         statusText = "휴가 취소가 최종 승인되어 일수가 반환되었습니다.";
       } 
-      // 🔥 如果是拒絕，顯示紅色 UI
       else {
         icon = "fa-circle-xmark"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
         statusText = "출타 신청이 반려되었습니다.";
       }
       
       const targetDate = noti.startDate ? noti.startDate.split('T')[0] : '';
-      
-      // 點擊後跳轉回月曆，並照亮該灰色的 EventBar
       clickAction = isIndex 
         ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');` 
         : `window.closeNotifications(); spaNavigate('/?focus=${noti._id}&date=${targetDate}&type=${noti.type}');`;
@@ -309,31 +358,6 @@ if (noti.status === "PENDING_REVIEW" || noti.status === "CANCEL_REQ_REVIEW") {
   }).join("");
 }
 
-// 🛡️ API 防呆：小鈴鐺專屬一鍵審核 (嚴格白名單模式)
-window.approveAllLeaves = async function() {
-  if (!confirm("알림창 내의 [정규 편성(정원 내)] 일반 휴가만 일괄 처리하시겠습니까?\n(⚠️ 안전을 위해 '후보', '취소 신청', '인원 추가' 등의 알림은 제외됩니다.)")) return;
-  const token = localStorage.getItem("token");
-  try {
-    const res = await fetch("/leaves/approve-all", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
-    if (res.status === 401) { window.location.href = "/login.html"; return; }
-    const data = await res.json();
-    
-    // 🔥 優化 UX：告訴長官有哪些東西被系統「安全攔截」跳過了
-    if (data.success) {
-        let alertMsg = data.message;
-        if (data.skippedCount > 0) {
-            alertMsg += `\n\n🚨 주의: ${data.skippedCount}건의 알림(후보, 취소신청, 신규가입 등)은 안전을 위해 제외되었습니다. 직접 클릭하여 확인해주세요.`;
-        }
-        alert(alertMsg);
-        checkPendingLeaves(); // 重新整理小鈴鐺
-        if(typeof refreshCalendarData === "function") refreshCalendarData(); // 更新月曆
-    } else {
-        alert(data.error);
-    }
-  } catch (e) { alert("처리 중 오류가 발생했습니다."); }
-};
-
-// 🛡️ API 防呆：快速檢討
 window.quickReview = async function(id, action) {
   const token = localStorage.getItem("token");
   const path = action === 'approve' ? 'review' : 'reject';
@@ -350,7 +374,6 @@ window.quickReview = async function(id, action) {
   } catch (e) { alert("처리 중 오류 발생"); }
 };
 
-// 🛡️ API 防呆：快速最終核准
 window.quickApprove = async function(id, action) {
   const token = localStorage.getItem("token");
   const path = action === 'approve' ? 'approve' : 'reject';
@@ -374,7 +397,6 @@ function logout() {
   }
 }
 
-// 🔥 攔截點擊事件：SPA 跳轉 + 全域下拉選單關閉邏輯
 document.addEventListener("click", (e) => {
   const link = e.target.closest("a");
   if (link && link.href && link.href.startsWith(window.location.origin) && !link.hasAttribute("target")) {
@@ -391,8 +413,8 @@ document.addEventListener("click", (e) => {
     }
   }
 
-  const searchDropdown = document.getElementById("globalSearchDropdown");
-  const searchInput = document.getElementById("globalSearchInput");
+  const searchDropdown = document.getElementById("inlineSearchDropdown");
+  const searchInput = document.getElementById("inlineSearchInput");
   if (searchDropdown && !searchDropdown.classList.contains("hidden")) {
     if (!searchDropdown.contains(e.target) && e.target !== searchInput) {
       searchDropdown.classList.add("hidden");
@@ -400,10 +422,144 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// ==========================================
+// 🔍 SmartMil 整合搜尋 (Inline Omni-Search)
+// ==========================================
+let inlineSearchTimeout = null;
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    const input = document.getElementById("inlineSearchInput");
+    if (input) input.focus();
+  }
+  if (e.key === 'Escape') {
+    const dropdown = document.getElementById("inlineSearchDropdown");
+    if (dropdown) dropdown.classList.add("hidden");
+  }
+});
+
+window.handleInlineSearch = async function(query) {
+  const dropdown = document.getElementById("inlineSearchDropdown");
+  const resultsBox = document.getElementById("inlineSearchList");
+  if (!dropdown || !resultsBox) return;
+
+  if (!query.trim()) {
+    dropdown.classList.add("hidden");
+    return;
+  }
+
+  dropdown.classList.remove("hidden");
+  clearTimeout(inlineSearchTimeout);
+  
+  resultsBox.innerHTML = `<div class="p-6 text-center text-gray-400"><i class="fa-solid fa-circle-notch fa-spin text-2xl text-indigo-500 mb-2"></i><p class="text-xs font-bold">검색 중...</p></div>`;
+
+  inlineSearchTimeout = setTimeout(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/omni-search?q=${encodeURIComponent(query)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      
+      if (data.success) {
+        window.renderInlineResults(data.results, query);
+      } else {
+        resultsBox.innerHTML = `<div class="p-5 text-sm text-red-400 text-center">검색 중 오류가 발생했습니다.</div>`;
+      }
+    } catch (e) {
+      resultsBox.innerHTML = `<div class="p-5 text-sm text-red-400 text-center">네트워크 오류가 발생했습니다.</div>`;
+    }
+  }, 250); 
+};
+
+window.renderInlineResults = function(results, query) {
+  const resultsBox = document.getElementById("inlineSearchList");
+  let html = "";
+  
+  const hasUsers = results.users && results.users.length > 0;
+  const hasLeaves = results.leaves && results.leaves.length > 0;
+  const hasNotices = results.notices && results.notices.length > 0;
+  const hasGalleries = results.galleries && results.galleries.length > 0;
+
+  if (!hasUsers && !hasLeaves && !hasNotices && !hasGalleries) {
+    resultsBox.innerHTML = `<div class="p-6 text-center text-gray-400"><i class="fa-solid fa-magnifying-glass-minus text-2xl mb-2 text-gray-300 block"></i><p class="text-[11px] font-bold text-gray-500">'${query}'에 대한 결과가 없습니다.</p></div>`;
+    return;
+  }
+
+  // 1. 人員 (加入 focus 跳轉)
+  if (hasUsers) {
+    html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-blue-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-users mr-1"></i>부대원</h4><div class="flex flex-col gap-0.5">`;
+    results.users.forEach(u => {
+      const rank = typeof window.getDisplayRank === 'function' ? window.getDisplayRank(u) : (u.rank || "용사");
+      html += `
+        <button onclick="document.getElementById('inlineSearchDropdown').classList.add('hidden'); spaNavigate('/adduser?focus=${u._id}')" class="flex items-center justify-between p-2 rounded-lg hover:bg-blue-50 border border-transparent transition text-left group">
+          <div class="flex items-center gap-2.5">
+            <div class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 font-black flex items-center justify-center shadow-inner text-[10px]">${u.name.charAt(0)}</div>
+            <div><p class="text-xs font-bold text-gray-800">${u.name} <span class="text-[9px] text-gray-500 font-normal">(${rank})</span></p></div>
+          </div>
+          <i class="fa-solid fa-arrow-right text-blue-200 group-hover:text-blue-500 transition-colors text-[10px] opacity-0 group-hover:opacity-100"></i>
+        </button>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // 2. 假單 (Leaves)
+  if (hasLeaves) {
+    html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-emerald-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-calendar-check mr-1"></i>출타 내역</h4><div class="flex flex-col gap-0.5">`;
+    results.leaves.forEach(l => {
+      const sDate = l.startDate.split("T")[0];
+      const isApproved = l.status === "APPROVED";
+      html += `
+        <button onclick="document.getElementById('inlineSearchDropdown').classList.add('hidden'); if(typeof window.executeSearchNavigation === 'function'){ window.executeSearchNavigation('${l._id}', '${l.type}', '${sDate}'); } else { window.spaNavigate('/?focus=${l._id}&date=${sDate}&type=${l.type}'); }" class="flex flex-col p-2 rounded-lg hover:bg-emerald-50 border border-transparent transition text-left group">
+          <div class="flex justify-between items-center w-full mb-0.5">
+            <span class="text-xs font-bold text-gray-800"><span class="text-emerald-600 mr-1">[${l.type}]</span>${l.userId?.name || "알수없음"}</span>
+            ${isApproved ? '<i class="fa-solid fa-check text-emerald-500 text-[9px]"></i>' : '<i class="fa-solid fa-clock text-amber-500 text-[9px]"></i>'}
+          </div>
+          <p class="text-[10px] text-gray-500 truncate"><i class="fa-regular fa-calendar mr-1"></i>${sDate.replace(/-/g, ".")} | ${l.reason}</p>
+        </button>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // 3. 公告 (加入 focus 跳轉)
+  if (hasNotices) {
+    html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-amber-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-bullhorn mr-1"></i>공지사항</h4><div class="flex flex-col gap-0.5">`;
+    results.notices.forEach(n => {
+      const date = new Date(n.createdAt).toLocaleDateString();
+      html += `
+        <button onclick="document.getElementById('inlineSearchDropdown').classList.add('hidden'); spaNavigate('/notice?focus=${n._id}')" class="flex flex-col p-2 rounded-lg hover:bg-amber-50 border border-transparent transition text-left group">
+          <p class="text-xs font-bold text-gray-800 truncate w-full mb-0.5 group-hover:text-amber-700">${n.title}</p>
+          <p class="text-[9px] text-gray-400">${date}</p>
+        </button>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // 4. 相簿 (加入 focus 跳轉)
+  if (hasGalleries) {
+    html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-pink-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-regular fa-image mr-1"></i>사진첩</h4><div class="flex flex-col gap-0.5">`;
+    results.galleries.forEach(g => {
+      const date = new Date(g.createdAt).toLocaleDateString();
+      html += `
+        <button onclick="document.getElementById('inlineSearchDropdown').classList.add('hidden'); spaNavigate('/gallery?focus=${g._id}')" class="flex flex-col p-2 rounded-lg hover:bg-pink-50 border border-transparent transition text-left group">
+          <p class="text-xs font-bold text-gray-800 truncate w-full mb-0.5 group-hover:text-pink-700">${g.title || '제목 없음'}</p>
+          <p class="text-[9px] text-gray-400">${date}</p>
+        </button>`;
+    });
+    html += `</div></div>`;
+  }
+
+  resultsBox.innerHTML = html;
+};
+
 // 處理瀏覽器返回鍵
 window.addEventListener("popstate", () => {
   window.location.reload();
 });
 
 // 初始載入
-document.addEventListener("DOMContentLoaded", applyRolePermissions);
+document.addEventListener("DOMContentLoaded", () => {
+  applyRolePermissions();
+  window.checkAndHighlightFocus(); // 第一次載入也檢查一次聚光燈
+});

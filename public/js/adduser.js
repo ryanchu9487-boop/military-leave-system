@@ -30,6 +30,11 @@ window.fetchUsers = async function() {
 
   await window.loadPendingUsers();
   await window.loadUsers();
+
+  // 🔥 [新增] 資料畫完之後，呼叫聚光燈引擎來找目標！
+  if (typeof window.checkAndHighlightFocus === "function") {
+      setTimeout(window.checkAndHighlightFocus, 100);
+  }
 };
 
 // 🔹 기존 새로고침(F5) 대응 및 SPA 호출 대비
@@ -70,8 +75,9 @@ function renderPending(users) {
   list.innerHTML = "";
 
   users.forEach((user) => {
+    // 🔥 [新增] 加上 id="item-${user._id}" 讓聚光燈找得到
     list.innerHTML += `
-      <div class="flex items-center justify-between w-full bg-white px-5 py-4 rounded-xl border border-yellow-200 shadow-sm mb-2 hover:shadow-md transition">
+      <div id="item-${user._id}" class="flex items-center justify-between w-full bg-white px-5 py-4 rounded-xl border border-yellow-200 shadow-sm mb-2 hover:shadow-md transition">
         <div class="flex items-center gap-4">
           <div class="w-10 h-10 rounded-full bg-yellow-50 border border-yellow-100 flex items-center justify-center text-yellow-600">
             <i class="fa-solid fa-user-clock"></i>
@@ -180,11 +186,10 @@ function renderUsers(users) {
   users.forEach((user) => {
     let roleHtml = "";
     
-    // 🔥 [核心防護] 鐵飯碗保護機制：最高管理者、審核者、核准者都不能被降級或刪除！
+    // 🔥 [核心防護] 鐵飯碗保護機制
     const isIronBowl = ["superadmin", "reviewer", "approver"].includes(user.role);
     const canDelete = !isIronBowl;
 
-    // 🔥 判斷角色顯示徽章，而不是下拉選單
     if (isIronBowl) {
       let roleText = "최고 관리자";
       let bgClass = "bg-purple-50 text-purple-700 border-purple-200";
@@ -199,7 +204,6 @@ function renderUsers(users) {
 
       roleHtml = `<span class="px-3 py-1.5 ${bgClass} border rounded-lg font-bold text-xs shadow-sm inline-block min-w-[100px] text-center">${roleText}</span>`;
     } else {
-      // 只有普通幹部 (officer) 或勇士 (soldier) 可以互相切換
       roleHtml = `
         <select onchange="window.changeUserRole('${
           user._id
@@ -213,14 +217,12 @@ function renderUsers(users) {
         </select>`;
     }
 
-    // 只有可以被降級的人才能被刪除/退伍
     const deleteBtn = canDelete
       ? `<button onclick="window.dischargeUser('${user._id}', '${user.name}')" class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-200" title="전역/삭제">
           <i class="fa-solid fa-trash-can"></i>
         </button>`
       : `<div class="w-8 h-8"></div>`;
 
-    // 🔥 [階級正名] 如果是長官（不管哪一種），優先顯示他資料庫真實的 user.rank (例如：대위)，勇士才用動態計算的 currentRank
     let displayRank = "계급없음";
     if (user.role !== "soldier" && user.rank) {
         displayRank = user.rank;
@@ -228,7 +230,6 @@ function renderUsers(users) {
         displayRank = user.currentRank || user.rank || "계급없음";
     }
 
-    // 只有士兵有退伍日和人事卡片
     const hrBtn = user.role === "soldier" && user.enlistmentDate
         ? `<button onclick='window.openHrModal(${JSON.stringify(user).replace(
             /'/g,
@@ -238,8 +239,9 @@ function renderUsers(users) {
          </button>`
         : ``;
 
+    // 🔥 [新增] 加上 id="item-${user._id}" 讓聚光燈找得到
     list.innerHTML += `
-      <div class="flex items-center justify-between w-full bg-white px-5 py-4 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-colors mb-2">
+      <div id="item-${user._id}" class="flex items-center justify-between w-full bg-white px-5 py-4 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-300 transition-colors mb-2">
         <div class="flex items-center gap-4">
           <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-gray-200 to-gray-300 flex items-center justify-center text-gray-600 font-black shadow-inner">
             ${user.name ? user.name.charAt(0) : "U"}
@@ -318,7 +320,7 @@ window.changeUserRole = async function(userId, newRole) {
 };
 
 // 🚀 ==========================================
-// 🔥 HR 인사 관리 모달 로직 (완벽 수정본)
+// 🔥 HR 인사 관리 모달 로직 
 // ==============================================
 
 function formatDate(dateString) {

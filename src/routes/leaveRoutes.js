@@ -790,11 +790,12 @@ router.delete("/leaves/rates/special/:rateId", authMiddleware, async (req, res) 
 
 
 // ==========================================
-// 🔥 [月曆專屬] 一鍵結算 (自動判斷檢討者與核准者)
+// 🔥 [月曆專屬] 一鍵結算 (自動判斷檢討者與核准者 + 按月份與類別過濾)
 // ==========================================
 router.post("/leaves/approve-calendar-phase1", authMiddleware, async (req, res) => {
   try {
       const { orgId, role } = req.user;
+      const { year, month, mode } = req.body; // 🔥 接收前端傳來的年份、月份、模式
       
       if (!["reviewer", "officer", "approver", "superadmin"].includes(role)) {
           return res.status(403).json({ error: "일괄 결재 권한이 없습니다." });
@@ -811,11 +812,28 @@ router.post("/leaves/approve-calendar-phase1", authMiddleware, async (req, res) 
           isApprover = true;
       }
 
-      const totalPending = await Leave.countDocuments({ organizationId: orgId, status: targetStatus });
-
-      // 🛡️ 智慧過濾：如果是檢討者 (Phase 1)，才需避開候補。核准者 (Phase 2) 無條件放行！
+      // 🔥 建立基礎查詢條件
       const query = { organizationId: orgId, status: targetStatus };
+
+      // 1. 加入月份過濾 (只核准該月份有重疊到的假單)
+      if (year && month) {
+          const startDateOfMonth = new Date(year, month - 1, 1);
+          const endDateOfMonth = new Date(year, month, 0, 23, 59, 59);
+          query.startDate = { $lte: endDateOfMonth };
+          query.endDate = { $gte: startDateOfMonth };
+      }
+
+      // 2. 加入類別過濾 (長假 vs 短假)
+      if (mode === "team-long") {
+          query.type = { $not: /외출|외박/ }; // 排除外出、外宿，剩下的就是長假
+      } else if (mode === "team-short") {
+          query.type = /외출|외박/; // 包含外出或外宿
+      }
+
+      // 如果是檢討者 (Phase 1)，必須避開候補
       if (!isApprover) query.isWaitlisted = false;
+
+      const totalPending = await Leave.countDocuments(query); // 算出真正符合條件的總數
 
       const updatePayload = { status: newStatus };
       if (isApprover) {
@@ -844,10 +862,10 @@ router.post("/leaves/approve-calendar-phase1", authMiddleware, async (req, res) 
       const roleName = isApprover ? "최종 승인" : "검토 완료";
 
       if (leaveUpdate.modifiedCount === 0) {
-          return res.json({ success: true, message: "처리할 대기 건이 없습니다.", skippedCount, isApprover });
+          return res.json({ success: true, message: "해당 월/분류에 처리할 대기 건이 없습니다.", skippedCount, isApprover });
       }
 
-      res.json({ success: true, message: `총 ${leaveUpdate.modifiedCount}건의 휴가가 일괄 ${roleName} 되었습니다.`, skippedCount, isApprover });
+      res.json({ success: true, message: `해당 월의 총 ${leaveUpdate.modifiedCount}건이 일괄 ${roleName} 되었습니다.`, skippedCount, isApprover });
 
   } catch (error) {
       res.status(500).json({ error: "일괄 결재 처리 중 서버 오류가 발생했습니다." });

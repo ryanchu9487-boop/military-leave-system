@@ -293,6 +293,70 @@ app.get("/leaves/notifications", authMiddleware, async (req, res) => {
   }
 });
 
+// ==========================================
+// 🔍 [新增] 全局魔法搜尋引擎 (Omni-Search API - 萬物皆可搜版)
+// ==========================================
+app.get("/api/omni-search", authMiddleware, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length === 0) return res.json({ success: true, results: [] });
+
+    const keyword = q.trim();
+    const regex = new RegExp(keyword, "i");
+    const { orgId } = req.user;
+
+    const mongoose = require("mongoose");
+    const NoticeModel = mongoose.models.Notice;
+    const GalleryModel = mongoose.models.Gallery; // 🔥 呼叫相簿模型
+
+    // 步驟 1：先找出「名字」或「軍番」符合的人員
+    const matchedUsers = await User.find({
+      organizationId: orgId,
+      status: "approved",
+      $or: [{ name: regex }, { serviceNumber: regex }]
+    }).select("_id name rank role promoToIlbyung promoToSangbyung promoToByungjang status").lean();
+
+    const matchedUserIds = matchedUsers.map(u => u._id);
+
+    // 步驟 2：四線並行搜尋 (假單、公告、相簿)
+    const [leaves, notices, galleries] = await Promise.all([
+      // 1. 搜尋假單
+      Leave.find({
+        organizationId: orgId,
+        status: { $nin: ["CANCELLED"] },
+        $or: [
+          { reason: regex }, 
+          { type: regex },
+          { userId: { $in: matchedUserIds } }
+        ]
+      }).populate("userId", "name rank").sort({ startDate: -1 }).limit(5).lean(),
+
+      // 2. 搜尋公告 (Notice)
+      NoticeModel ? NoticeModel.find({
+        organizationId: orgId,
+        $or: [{ title: regex }, { content: regex }] // 搜標題與內容
+      }).select("_id title createdAt").sort({ createdAt: -1 }).limit(3).lean() : Promise.resolve([]),
+
+      // 3. 搜尋相簿 (Gallery) 🔥 新增！
+      GalleryModel ? GalleryModel.find({
+        organizationId: orgId,
+        $or: [{ title: regex }, { description: regex }, { content: regex }] // 盡可能包容各種你可能用的欄位名稱
+      }).select("_id title createdAt").sort({ createdAt: -1 }).limit(3).lean() : Promise.resolve([])
+    ]);
+
+    // 過濾人員顯示數量
+    const usersToDisplay = matchedUsers.filter(u => u.status === "approved").slice(0, 4);
+
+    res.json({ 
+      success: true, 
+      results: { users: usersToDisplay, leaves, notices, galleries } 
+    });
+  } catch (error) {
+    console.error("Omni-Search Error:", error);
+    res.status(500).json({ success: false, error: "검색 중 오류 발생" });
+  }
+});
+
 // ============================
 // 라우터 연결
 // ============================

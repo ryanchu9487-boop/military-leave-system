@@ -22,6 +22,22 @@ var isDragging = false;
 var dragStartStr = null;
 var dragEndStr = null;
 
+// 🔥 [修復 3] 導入動態階級計算機
+function getDisplayRank(user) {
+  if (!user) return "";
+  if (user.role !== "soldier" || !user.promoToIlbyung) {
+      let fallback = user.rank || "";
+      if(!fallback && user.role === 'soldier') return '용사';
+      if(!fallback && user.role === 'officer') return '간부';
+      return fallback;
+  }
+  const today = new Date();
+  if (today >= new Date(user.promoToByungjang)) return "병장";
+  if (today >= new Date(user.promoToSangbyung)) return "상병";
+  if (today >= new Date(user.promoToIlbyung)) return "일병";
+  return "이병";
+}
+
 // ==========================================
 // 🚀 SPA 啟動入口
 // ==========================================
@@ -171,18 +187,29 @@ function updateModeUI() {
   }
 }
 
+// 🔥 [修復 2] 一鍵結算：帶上月份與模式情報，實現單月單類別核准！
 async function batchApprovePhase1() {
   const isApprover = ["approver", "superadmin"].includes(currentUserRole);
+  const typeName = currentCalendarMode === "team-long" ? "휴가" : "외출/외박";
+  
   const confirmMsg = isApprover 
-    ? "현재 월력에 표시된 모든 대기 인원을 일괄 '최종 승인' 하시겠습니까?" 
-    : "현재 월력에 표시된 [정규 편성(정원 내)] 인원만 일괄 '검토 완료' 처리하시겠습니까?\n(⚠️ 출타율을 초과한 '후보' 인원은 자동으로 제외됩니다.)";
+    ? `현재 표시된 ${currentYear}년 ${currentMonth + 1}월의 모든 [${typeName}] 대기 인원을 일괄 '최종 승인' 하시겠습니까?` 
+    : `현재 표시된 ${currentYear}년 ${currentMonth + 1}월의 [${typeName}] 정규 편성 인원만 일괄 '검토 완료' 처리하시겠습니까?\n(⚠️ 후보 인원은 제외됩니다.)`;
 
   if (!confirm(confirmMsg)) return;
 
   try {
     const res = await fetch(`/leaves/approve-calendar-phase1`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${currentToken}` },
+      headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${currentToken}` 
+      },
+      body: JSON.stringify({ 
+          year: currentYear, 
+          month: currentMonth + 1, 
+          mode: currentCalendarMode 
+      })
     });
     const data = await res.json();
     
@@ -280,6 +307,7 @@ function toggleMonthPicker() {
   }
 }
 
+// 🔥 [修復 1] 讓下拉選單點擊後呼叫 scrollToMonth，平滑捲動到該月份
 function renderMiniPickerLists() {
   const yList = document.getElementById("miniYearList");
   const mList = document.getElementById("miniMonthList");
@@ -291,12 +319,12 @@ function renderMiniPickerLists() {
     const active = y === currentYear;
     btn.className = `w-full py-1.5 text-xs rounded-md font-bold snap-center transition ${active ? "bg-indigo-50 text-indigo-600" : "text-gray-500 hover:bg-gray-50"}`;
     btn.innerText = `${y}년`;
-    btn.onclick = (e) => {
+    btn.onclick = async (e) => {
       e.stopPropagation();
       currentYear = y;
       document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
       renderMiniPickerLists();
-      resetCalendarTo(currentYear, currentMonth);
+      await scrollToMonth(currentYear, currentMonth, true); // 修改這裡
     };
     yList.appendChild(btn);
     if (active) setTimeout(() => btn.scrollIntoView({ block: "center" }), 10);
@@ -306,12 +334,12 @@ function renderMiniPickerLists() {
     const active = m === currentMonth;
     btn.className = `w-full py-1.5 text-xs rounded-md font-bold snap-center transition ${active ? "bg-indigo-50 text-indigo-600" : "text-gray-500 hover:bg-gray-50"}`;
     btn.innerText = `${m + 1}월`;
-    btn.onclick = (e) => {
+    btn.onclick = async (e) => {
       e.stopPropagation();
       toggleMonthPicker();
       currentMonth = m;
       document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
-      resetCalendarTo(currentYear, currentMonth);
+      await scrollToMonth(currentYear, currentMonth, true); // 修改這裡
     };
     mList.appendChild(btn);
     if (active) setTimeout(() => btn.scrollIntoView({ block: "center" }), 10);
@@ -431,12 +459,10 @@ function renderEvents() {
   document.querySelectorAll(".event-layer").forEach((el) => (el.innerHTML = ""));
   document.querySelectorAll(".holiday-name").forEach((el) => (el.innerText = ""));
 
-  // 🔥 聽你的！直接用大分類 (type) 判斷，為了相容舊資料我們保留一點寬容度
   let displayLeaves = leavesCache.filter((leave) => {
     if (leave.isHoliday) return true;
     if (currentCalendarMode === "personal") return true; 
     
-    // 正確的判定邏輯：依據大分類 (휴가 / 외출 / 외박)
     const isLongType = leave.type === "휴가" || ["연가", "포상", "보상", "위로", "기타"].includes(leave.type);
     const isShortType = leave.type === "외출" || leave.type === "외박" || leave.type.includes("외출") || leave.type.includes("외박");
     
@@ -747,9 +773,8 @@ async function submitGrant() {
   const reasonInput = document.getElementById("grantReason").value;
   if (!reasonInput) return alert("심의 사유를 입력해 주세요.");
 
-  // 🔥 聽你的建議！直接用「大分類」存入資料庫，並把次分類保留在 사유 裡
   const payload = {
-    type: mainCat, // 永遠只傳遞 '휴가', '외출', '외박'
+    type: mainCat,
     totalCount: Number(totalCount),
     reason: subType ? `[${subType}] ${reasonInput}` : reasonInput
   };
@@ -1010,8 +1035,6 @@ async function submitRequest() {
     if(typeof closeModal === "function") closeModal("requestModal");
     
     alert("출타 신청서가 성공적으로 제출되었습니다.");
-    
-    // 🔥 [Bug 2 終極修復]：成功送出假單後，強力刷新畫面！
     await loadMySlots(); 
     await refreshCalendarData();
     
@@ -1021,7 +1044,7 @@ async function submitRequest() {
 }
 
 // ==========================================
-// 🔥 檢討者專用：底部抽屜選單互動邏輯
+// 🔥 檢討者專用：底部抽屜選單互動邏輯 (導入軍階計算)
 // ==========================================
 var draggedLeaveId = null;
 var draggedLeaveName = null;
@@ -1034,7 +1057,6 @@ function openBottomSheet(dateStr) {
     if (targetDate < sDate || targetDate > eDate) return false; 
     if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false;
     
-    // 🔥 聽你的建議，依照大分類正統判斷 (同時保留對舊資料的一點相容)
     const isLongType = l.type === "휴가" || ["연가", "포상", "보상", "위로", "기타"].includes(l.type);
     const isShortType = l.type === "외출" || l.type === "외박" || l.type.includes("외출") || l.type.includes("외박");
     
@@ -1060,12 +1082,15 @@ function openBottomSheet(dateStr) {
     const gripIcon = isApproved ? `<i class="fa-solid fa-lock text-gray-200 mr-3 text-lg" title="최종 승인됨"></i>` : `<i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>`;
     const cursorClass = isApproved ? "cursor-default" : "cursor-move hover:shadow-md";
 
+    // 🔥 [修復 3] 使用動態階級計算機
+    const userRank = getDisplayRank(l.userId);
+
     appContainer.innerHTML += `
       <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center transition ${cursorClass} mb-2">
         <div class="flex items-center min-w-0 pr-2">
           ${gripIcon}
           <div class="truncate">
-            <p class="text-[13px] font-bold text-gray-800 truncate">${l.isManualOverride ? '🔒 ' : ''}${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
+            <p class="text-[13px] font-bold text-gray-800 truncate">${l.isManualOverride ? '🔒 ' : ''}${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${userRank})</span></p>
             <p class="text-[11px] text-gray-500 mt-0.5 truncate">${l.reason || ''} ${isApproved ? '<span class="text-indigo-500 font-bold">(최종승인)</span>' : ''}</p>
           </div>
         </div>
@@ -1080,12 +1105,16 @@ function openBottomSheet(dateStr) {
   
   waitlistedLeaves.forEach(l => {
     const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
+    
+    // 🔥 [修復 3] 使用動態階級計算機
+    const userRank = getDisplayRank(l.userId);
+
     waitContainer.innerHTML += `
       <div ${dragAttrs} class="bg-gray-50 p-3 rounded-xl border border-dashed border-orange-300 flex justify-between items-center opacity-90 cursor-move hover:opacity-100 hover:shadow-md transition mb-2">
         <div class="flex items-center min-w-0 pr-2">
           <i class="fa-solid fa-grip-lines text-orange-200 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>
           <div class="truncate">
-            <p class="text-[13px] font-bold text-orange-800 truncate">${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${l.userId?.rank || ''})</span></p>
+            <p class="text-[13px] font-bold text-orange-800 truncate">${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${userRank})</span></p>
             <p class="text-[11px] text-orange-600 mt-0.5 truncate">${l.reason || ''}</p>
           </div>
         </div>
@@ -1326,7 +1355,7 @@ function renderSearchResults(results) {
   }).join("");
 }
 
-async function executeSearchNavigation(leaveId, type, startDateStr, isSmooth = true) {
+window.executeSearchNavigation = async function(leaveId, type, startDateStr, isSmooth = true) {
   const dropdown = document.getElementById("globalSearchDropdown");
   const input = document.getElementById("globalSearchInput");
   if(dropdown) dropdown.classList.add("hidden");

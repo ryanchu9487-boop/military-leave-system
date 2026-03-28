@@ -9,14 +9,17 @@
   </div>
 
   <div class="flex items-center gap-2 sm:gap-3">
-    <div class="relative group hidden sm:flex items-center">
-      <input id="globalSearchInput" onfocus="initGlobalSearchData()" oninput="handleGlobalSearch(this.value)" type="text" placeholder="이름, 사유, 계급 검색..." class="w-9 h-9 rounded-full bg-gray-100/80 border border-transparent focus:w-56 lg:focus:w-72 focus:bg-white focus:border-indigo-300 focus:shadow-[0_4px_20px_-5px_rgba(99,102,241,0.15)] focus:px-4 focus:pl-10 transition-all duration-500 outline-none text-sm placeholder-transparent focus:placeholder-gray-400 cursor-pointer focus:cursor-text peer text-gray-700" />
-      <i class="fa-solid fa-magnifying-glass absolute left-2.5 text-gray-500 peer-focus:text-indigo-500 transition-colors duration-300 pointer-events-none"></i>
-      <div id="globalSearchDropdown" class="hidden absolute top-12 left-0 w-full min-w-[280px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 z-[150] flex flex-col max-h-[60vh] overflow-hidden">
-        <div class="p-3 border-b border-gray-100 bg-indigo-50/50 font-bold text-indigo-800 text-xs flex justify-between items-center shrink-0">
-          <span><i class="fa-solid fa-bolt text-indigo-500 mr-1.5"></i>빠른 검색 결과</span>
+    
+    <div class="relative group hidden sm:flex items-center z-[150]">
+      <input id="inlineSearchInput" oninput="handleInlineSearch(this.value)" onfocus="handleInlineSearch(this.value)" type="text" placeholder="이름, 사유, 공지 검색... (⌘K)" class="w-48 lg:w-64 h-9 rounded-full bg-gray-100/80 border border-transparent focus:bg-white focus:border-indigo-300 focus:shadow-[0_4px_20px_-5px_rgba(99,102,241,0.15)] px-4 pl-10 transition-all duration-300 outline-none text-sm text-gray-700" autocomplete="off" spellcheck="false" />
+      <i class="fa-solid fa-magnifying-glass absolute left-3.5 text-gray-500 transition-colors duration-300 pointer-events-none"></i>
+      
+      <div id="inlineSearchDropdown" class="hidden absolute top-12 left-0 w-full min-w-[320px] bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] rounded-xl border border-gray-100 flex flex-col max-h-[65vh] overflow-hidden transform origin-top transition-all">
+        <div class="p-3 border-b border-gray-100 bg-indigo-50/50 font-bold text-indigo-800 text-[11px] flex justify-between items-center shrink-0 uppercase tracking-wider">
+          <span><i class="fa-solid fa-bolt text-indigo-500 mr-1.5"></i>통합 검색 결과</span>
+          <span class="text-[9px] text-gray-400 bg-white px-1.5 py-0.5 rounded shadow-sm">ESC 닫기</span>
         </div>
-        <div id="globalSearchList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white"></div>
+        <div id="inlineSearchList" class="flex flex-col overflow-y-auto custom-scrollbar bg-white p-1"></div>
       </div>
     </div>
 
@@ -31,7 +34,6 @@
         <div class="p-3 border-b border-gray-100 bg-gray-50/80 backdrop-blur-sm font-bold text-gray-800 text-sm flex justify-between items-center">
           <span><i class="fa-solid fa-bell text-indigo-500 mr-1.5"></i>알림 내역</span>
           <div class="flex items-center gap-2">
-            <button id="approveAllBtn" onclick="approveAllLeaves()" class="hidden text-[11px] bg-indigo-600 text-white px-2.5 py-1 rounded shadow-sm hover:bg-indigo-700 transition font-bold">일괄 승인</button>
             <button onclick="toggleNotifications()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark"></i></button>
           </div>
         </div>

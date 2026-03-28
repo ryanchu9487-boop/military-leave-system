@@ -342,10 +342,15 @@
               var res = await fetch("/api/gallery", { headers: { Authorization: `Bearer ${token}` } });
               var data = await res.json();
               if (data.success) {
-                currentRole = data.role;
-                currentUserId = data.currentUserId;
-                renderNetflixGrid(data.photos);
-              }
+        currentRole = data.role;
+        currentUserId = data.currentUserId;
+        renderNetflixGrid(data.photos);
+
+        // 🔥 當照片牆畫好後，檢查網址是否有 focus 參數
+        if (typeof window.checkAndHighlightFocus === "function") {
+            setTimeout(window.checkAndHighlightFocus, 200);
+        }
+      }
             } catch (e) {}
           }
 
@@ -390,7 +395,7 @@
               var uRank = getDisplayRank(p.uploaderId);
 
               return `
-                <div class="w-40 md:w-72 shrink-0 snap-start relative group rounded-xl md:rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-300 bg-white" onclick="openPhotoModal(JSON.parse(decodeURIComponent('${photoDataStr}')))">
+                <div id="item-${p._id}" class="w-40 md:w-72 shrink-0 snap-start relative group rounded-xl md:rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-2xl transition-all duration-300 bg-white" onclick="openPhotoModal(JSON.parse(decodeURIComponent('${photoDataStr}')))">
                     <div class="w-full aspect-square relative overflow-hidden bg-slate-100">
                         <img src="${images[0]}" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" onerror="this.onerror=null; this.style.display='none';" />
                         ${multipleIcon}
