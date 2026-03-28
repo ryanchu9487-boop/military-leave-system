@@ -37,6 +37,15 @@ function getDisplayRank(user) {
   return "이병";
 }
 
+// 🔥 [기능 1] 현재 달력 상태를 기억하는 함수
+function saveCalendarState() {
+  sessionStorage.setItem('smartmil_calendar_state', JSON.stringify({
+    year: currentYear,
+    month: currentMonth,
+    mode: currentCalendarMode
+  }));
+}
+
 window.initCalendarPage = async function () {
   console.log("🔥 SmartMil Calendar Initializing...");
   currentToken = localStorage.getItem("token") || "";
@@ -124,17 +133,25 @@ async function initApp() {
   const urlParams = new URLSearchParams(window.location.search);
   const focusId = urlParams.get("focus");
   const targetDateStr = urlParams.get("date");
+  const savedStateStr = sessionStorage.getItem('smartmil_calendar_state');
 
+  // 🔥 [기능 1] URL 파라미터가 없으면, 기억해둔 상태(sessionStorage)로 복구!
   if (focusId && targetDateStr) {
     const targetDate = new Date(targetDateStr);
     currentYear = targetDate.getFullYear();
     currentMonth = targetDate.getMonth();
+  } else if (savedStateStr) {
+    const savedState = JSON.parse(savedStateStr);
+    currentYear = savedState.year;
+    currentMonth = savedState.month;
+    currentCalendarMode = savedState.mode || "personal";
   } else {
     const now = new Date();
     currentYear = now.getFullYear();
     currentMonth = now.getMonth();
   }
   
+  saveCalendarState(); // 시작할 때 현재 상태 저장
   await refreshCalendarData();
   await fetchLeaveRates();
   setupScrollObserver();
@@ -160,6 +177,7 @@ async function refreshCalendarData() {
 async function switchCalendarMode(mode) {
   if (currentCalendarMode === mode) return;
   currentCalendarMode = mode;
+  saveCalendarState(); // 🔥 모드가 변경될 때 기록
   await refreshCalendarData(); 
 }
 
@@ -459,6 +477,7 @@ async function scrollToMonth(year, month, smooth = true) {
     currentYear = year;
     currentMonth = month;
     updateVisualFocus(year, month);
+    saveCalendarState(); // 🔥 페이지 스크롤 이동 시에도 상태 저장
   }
 }
 
@@ -636,7 +655,6 @@ function renderEvents() {
           bar.addEventListener("mousemove", moveProTooltip);
           bar.addEventListener("mouseleave", () => { unhighlightLeave(leave._id); hideProTooltip(); });
           
-          // 🔥 [修改 2-A]：嚴格的角色隔離機制，防止核准者看到檢閱按鈕
           bar.onclick = (e) => {
             e.stopPropagation();
             hideProTooltip();
@@ -650,7 +668,6 @@ function renderEvents() {
                 if (isReviewer || currentUserRole === "superadmin") {
                   spaNavigate(`/review?id=${leave._id}`);
                 } else {
-                  // 核准者點擊檢閱待辦單，只能看 (加上 readonly)
                   spaNavigate(`/review?id=${leave._id}&readonly=true`);
                 }
                 return;
@@ -658,7 +675,6 @@ function renderEvents() {
                 if (isApprover) {
                   spaNavigate(`/approve?id=${leave._id}`);
                 } else {
-                  // 檢閱者點擊核准待辦單，只能看 (加上 readonly)
                   spaNavigate(`/approve?id=${leave._id}&readonly=true`);
                 }
                 return;
@@ -786,6 +802,7 @@ function getLeaveColor(reason, type) {
 function highlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "brightness(1.15)"; el.style.zIndex = "50"; }); }
 function unhighlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "none"; el.style.zIndex = "10"; }); }
 
+
 // ==========================================
 // 勇士自主登錄、讀取假單與送出申請
 // ==========================================
@@ -834,6 +851,7 @@ async function loadMySlots() {
   } catch (err) {}
 }
 
+// 🔥 [升級版] renderSlotList：加入平日/假日防呆 + 外宿必須 >= 2 天防呆
 function renderSlotList() {
   const listEl = document.getElementById("reqSlotList");
   const remainsText = document.getElementById("totalRemainsText");
@@ -850,10 +868,13 @@ function renderSlotList() {
 
   let hasWeekday = false;
   let hasWeekendOrHoliday = false;
+  let diffDays = 0; // 🔥 新增：計算總天數
 
   if (startDate && endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
+    diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1; // 計算請假天數
+
     const holidays = leavesCache.filter((l) => l.isHoliday).map((l) => l.startDate.split("T")[0]);
     let iter = new Date(start);
     while (iter <= end) {
@@ -865,20 +886,27 @@ function renderSlotList() {
     }
   }
 
+  let selectedMainCat = null;
+  let selectedVacationSub = null;
+
+  currentUsedSlots.forEach(us => {
+    const slot = myAvailableSlots.find(s => s._id === us.slotId);
+    if (slot) {
+      const isShort = slot.type === "외박" || slot.type === "외출" || slot.reason.includes("외박") || slot.reason.includes("외출");
+      if (isShort) {
+        selectedMainCat = "단기";
+      } else {
+        selectedMainCat = "휴가";
+        if (slot.reason.includes("기타")) selectedVacationSub = "기타";
+        else selectedVacationSub = "일반";
+      }
+    }
+  });
+
   let totalAvailable = 0;
-  let hasVisibleSlots = false;
   const groupedSlots = { 휴가: [], 외박: [], 외출: [] };
 
   myAvailableSlots.forEach((s) => {
-    const isWeekendOnly = s.type === "외박" || s.reason.includes("주말") || s.reason.includes("정기외박");
-    const isWeekdayOnly = s.reason.includes("평일");
-
-    if (startDate && endDate) {
-      if (isWeekendOnly && hasWeekday) return;
-      if (isWeekdayOnly && hasWeekendOrHoliday) return;
-    }
-
-    hasVisibleSlots = true;
     totalAvailable += s.remains;
     const usedObj = currentUsedSlots.find((u) => u.slotId === s._id);
     const qty = usedObj ? usedObj.qty : 0;
@@ -888,16 +916,59 @@ function renderSlotList() {
     if (s.type === "외박" || s.reason.includes("외박")) typeTag = "외박";
     else if (s.type === "외출" || s.reason.includes("외출")) typeTag = "외출";
 
+    const isWeekendOnly = s.type === "외박" || s.reason.includes("주말") || s.reason.includes("정기외박") || s.reason.includes("특별외박");
+    const isWeekdayOnly = s.reason.includes("평일");
+    
+    const isThisShort = typeTag === "외박" || typeTag === "외출";
+    const isThisOvernight = typeTag === "외박"; // 🔥 判斷是不是外宿
+    const isThisGita = s.reason.includes("기타");
+    
+    let isDisabled = false;
+    let lockReason = "";
+
+    // 🔥 1. 檢查日期相容性 (平日/假日互斥 & 外宿天數限制)
+    if (startDate && endDate) {
+      if (isWeekendOnly && hasWeekday) {
+        isDisabled = true; lockReason = "주말/공휴일 전용"; 
+      } else if (isWeekdayOnly && hasWeekendOrHoliday) {
+        isDisabled = true; lockReason = "평일 전용"; 
+      } else if (isThisOvernight && diffDays === 1) {
+        // 🔥 新增：如果只有 1 天，外宿強制鎖死
+        isDisabled = true; lockReason = "외박은 2일 이상 신청"; 
+      }
+    }
+
+    // 🔥 2. 檢查大分類相容性
+    if (!isDisabled) {
+      if (selectedMainCat === "휴가" && isThisShort) { 
+          isDisabled = true; lockReason = "휴가와 혼합 불가"; 
+      }
+      if (selectedMainCat === "단기" && !isThisShort) { 
+          isDisabled = true; lockReason = "외출/외박과 혼합 불가"; 
+      }
+      if (selectedMainCat === "휴가" && !isThisShort) {
+        if (selectedVacationSub === "기타" && !isThisGita) { 
+            isDisabled = true; lockReason = "기타 휴가와 혼합 불가"; 
+        }
+        if (selectedVacationSub === "일반" && isThisGita) { 
+            isDisabled = true; lockReason = "일반 휴가와 혼합 불가"; 
+        }
+      }
+    }
+
+    const opacityClass = isDisabled ? "opacity-40 grayscale" : "";
+    const disableAttr = isDisabled ? "disabled" : "";
+
     const itemHtml = `
-      <div class="flex items-center justify-between p-3 rounded-xl border ${isUsed ? "border-indigo-400 bg-indigo-50/40" : "border-gray-200 bg-white"} shadow-sm transition-all mb-2">
+      <div class="flex items-center justify-between p-3 rounded-xl border ${isUsed ? "border-indigo-400 bg-indigo-50/40" : "border-gray-200 bg-white"} shadow-sm transition-all mb-2 ${opacityClass}">
         <div class="flex-1 min-w-0 pr-2">
-          <p class="text-sm font-bold text-gray-800 truncate">[${typeTag}] ${s.reason}</p>
+          <p class="text-sm font-bold text-gray-800 truncate">[${typeTag}] ${s.reason} ${isDisabled ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">${lockReason}</span>` : ''}</p>
           <p class="text-[11px] text-gray-500 font-medium">잔여 ${s.remains}일</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <button type="button" onclick="changeManualQty('${s._id}', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">-</button>
+          <button type="button" onclick="changeManualQty('${s._id}', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition disabled:cursor-not-allowed" ${disableAttr}>-</button>
           <span class="w-5 text-center font-bold text-indigo-700">${qty}</span>
-          <button type="button" onclick="changeManualQty('${s._id}', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition">+</button>
+          <button type="button" onclick="changeManualQty('${s._id}', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition disabled:cursor-not-allowed" ${disableAttr}>+</button>
         </div>
       </div>`;
 
@@ -905,16 +976,12 @@ function renderSlotList() {
   });
 
   let finalHtml = "";
-  if (!hasVisibleSlots && startDate && endDate) {
-    finalHtml = '<div class="text-sm text-red-500 text-center py-6 font-bold"><i class="fa-solid fa-triangle-exclamation mb-2 text-xl block"></i>선택하신 날짜(평일/주말)에 사용할 수 있는 휴가가 없습니다.</div>';
-  } else {
-    ["휴가", "외박", "외출"].forEach((cat) => {
-      if (groupedSlots[cat].length > 0) {
-        finalHtml += `<div class="text-xs font-black text-indigo-500 mb-2 mt-4 px-1 border-b border-indigo-100 pb-1 flex items-center"><i class="fa-solid fa-layer-group mr-1.5"></i>${cat} 목록</div>`;
-        finalHtml += groupedSlots[cat].join("");
-      }
-    });
-  }
+  ["휴가", "외박", "외출"].forEach((cat) => {
+    if (groupedSlots[cat].length > 0) {
+      finalHtml += `<div class="text-xs font-black text-indigo-500 mb-2 mt-4 px-1 border-b border-indigo-100 pb-1 flex items-center"><i class="fa-solid fa-layer-group mr-1.5"></i>${cat} 목록</div>`;
+      finalHtml += groupedSlots[cat].join("");
+    }
+  });
 
   listEl.innerHTML = finalHtml;
   if (remainsText) remainsText.innerText = `총 ${totalAvailable}일`;
@@ -951,7 +1018,7 @@ function changeManualQty(slotId, delta) {
   usedObj.qty = newQty;
   currentUsedSlots = currentUsedSlots.filter((u) => u.qty > 0);
 
-  renderSlotList();
+  renderSlotList(); // 상태가 변했으므로 방어 로직 갱신
 
   const calcText = document.getElementById("daysCalcText");
   const calcBox = document.getElementById("daysCalcBox");
@@ -968,7 +1035,7 @@ function changeManualQty(slotId, delta) {
 }
 
 function calculateReqDays() {
-  currentUsedSlots = [];
+  currentUsedSlots = []; // 기간이 변경되면 장바구니 초기화 (방어선 해제)
 
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
@@ -1031,6 +1098,21 @@ async function submitRequest() {
     if (isWeekdayOnly && hasWeekendOrHoliday) return alert(`[${slot.type}] ${slot.reason} 은(는) 평일에만 사용할 수 있습니다. (주말/공휴일 포함 불가)`);
   }
 
+  // 🔥 [기능 2] 우선순위 마법 정렬 (연가 -> 포상 -> 위로 -> 보상)
+  const priorityMap = { "연가": 1, "포상": 2, "위로": 3, "보상": 4 };
+  currentUsedSlots.sort((a, b) => {
+    const slotA = myAvailableSlots.find(s => s._id === a.slotId);
+    const slotB = myAvailableSlots.find(s => s._id === b.slotId);
+    const getP = (rsn) => {
+      if(rsn.includes("연가")) return priorityMap["연가"];
+      if(rsn.includes("포상")) return priorityMap["포상"];
+      if(rsn.includes("위로")) return priorityMap["위로"];
+      if(rsn.includes("보상")) return priorityMap["보상"];
+      return 99; // 기타 휴가 등
+    };
+    return getP(slotA.reason) - getP(slotB.reason);
+  });
+
   const formData = new FormData();
   formData.append("startDate", startDate);
   formData.append("endDate", endDate);
@@ -1068,7 +1150,7 @@ async function submitRequest() {
 }
 
 // ==========================================
-// 🔥 檢討者專用：底部抽屜選單互動邏輯 (導入軍階計算)
+// 🔥 檢討者專용：底部抽屜選單互動邏輯 (導入軍階計算)
 // ==========================================
 var draggedLeaveId = null;
 var draggedLeaveName = null;
@@ -1169,7 +1251,6 @@ async function toggleWaitlistStatus(leaveId) {
     if (data.success) {
       await refreshCalendarData(); 
       closeBottomSheet(); 
-      // 🔥 [修改 2-B] 立刻刷新小鈴鐺通知
       if (typeof checkPendingLeaves === "function") checkPendingLeaves(); 
       alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
     }
@@ -1305,7 +1386,6 @@ async function handleDrop(e, targetId, targetName) {
       if (data.success) {
         closeBottomSheet(); 
         await refreshCalendarData(); 
-        // 🔥 [修改 2-B] 立刻刷新小鈴鐺通知
         if (typeof checkPendingLeaves === "function") checkPendingLeaves(); 
       }
     } catch(err) {

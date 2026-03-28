@@ -93,7 +93,11 @@
                 <span class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block">상세 사유 / 행선지</span>
                 <p id="leaveReason" class="text-gray-700 font-medium leading-relaxed"></p>
               </div>
-
+              <div class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm">
+                <span class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block"><i class="fa-solid fa-list-check"></i> 사용된 출타 항목 </span>
+                <div id="usedSlotsContainer" class="flex flex-wrap gap-2 mt-1">
+                  </div>
+              </div>
               <div id="evidenceSection" class="col-span-2 p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm transition-colors">
                 <span class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
                   <i class="fa-solid fa-paperclip"></i> 첨부된 증빙 서류
@@ -285,6 +289,24 @@
             document.getElementById("leaveDates").innerText = `${startDateOnly.replace(/-/g, ".")} ~ ${endDateOnly.replace(/-/g, ".")}`;
             document.getElementById("totalDays").innerText = leave.totalDaysUsed;
             document.getElementById("leaveReason").innerText = leave.reason;
+
+            // 🔥 [新增] 渲染扣除明細標籤 (專屬紫色版)
+            const usedSlotsContainer = document.getElementById("usedSlotsContainer");
+            if (leave.usedSlots && leave.usedSlots.length > 0) {
+              usedSlotsContainer.innerHTML = leave.usedSlots.map(us => {
+                const slotName = us.slotId?.reason || "알 수 없는 항목";
+                const slotType = us.slotId?.type || "기타";
+                return `
+                  <span class="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-100 text-purple-700 text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-sm">
+                    <span class="opacity-70">[${slotType}]</span> 
+                    ${slotName} 
+                    <span class="ml-1 bg-white text-purple-500 px-1.5 rounded text-[10px]">${us.qty}일</span>
+                  </span>
+                `;
+              }).join("");
+            } else {
+              usedSlotsContainer.innerHTML = `<span class="text-xs text-gray-400 font-medium">상세 항목 정보가 없습니다. (기존 데이터)</span>`;
+            }
 
             if (!isCancelRequest) {
               const aiPanel = document.getElementById("aiAssistPanel");

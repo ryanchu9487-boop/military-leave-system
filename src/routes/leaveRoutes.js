@@ -1054,8 +1054,12 @@ router.get("/leaves/detail/:id", authMiddleware, async (req, res) => {
   try {
     const leave = await Leave.findById(req.params.id)
       .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
+      // 🔥 [新增] 魔法 Populate：把申請單裡使用的休假 ID (slotId)，還原成真實的假單名字和類型
+      .populate("usedSlots.slotId", "type reason") 
       .lean();
+      
     if (!leave) return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
+    
     res.json({ success: true, leave });
   } catch (error) {
     res.status(500).json({ error: "상세 조회 실패" });

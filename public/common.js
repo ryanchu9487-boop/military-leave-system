@@ -506,7 +506,12 @@ window.renderInlineResults = function(results, query) {
   const resultsBox = document.getElementById("inlineSearchList");
   let html = "";
   
-  const hasUsers = results.users && results.users.length > 0;
+  // 🔥 [新增] 權限防護：判斷當前使用者是不是長官
+  const userRole = localStorage.getItem("role") || "soldier";
+  const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(userRole);
+
+  // 🔥 [修改] 只有長官 (isManager) 才能看到 users (부대원) 的結果
+  const hasUsers = isManager && results.users && results.users.length > 0;
   const hasLeaves = results.leaves && results.leaves.length > 0;
   const hasNotices = results.notices && results.notices.length > 0;
   const hasGalleries = results.galleries && results.galleries.length > 0;
@@ -516,7 +521,7 @@ window.renderInlineResults = function(results, query) {
     return;
   }
 
-  // 1. 人員
+  // 1. 人員 (現在只有長官能進入這塊邏輯)
   if (hasUsers) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-blue-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-users mr-1"></i>부대원</h4><div class="flex flex-col gap-0.5">`;
     results.users.forEach(u => {
