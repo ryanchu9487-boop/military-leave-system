@@ -6,31 +6,8 @@ const roleMap = {
 };
 
 // ==========================================
-// 💡 全局聚光燈特效引擎 (無視 !important 升級版)
+// 💡 全局聚光燈特效引擎 (終極 JS 實體渲染版 - 無視任何 CSS 衝突)
 // ==========================================
-const spotlightStyle = document.createElement('style');
-spotlightStyle.innerHTML = `
-/* 升級版：使用 ::after 疊加層，完美迴避任何 !important 背景鎖定 */
-@keyframes global-highlight-flash {
-  0% { background-color: rgba(99, 102, 241, 0.25); box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.6); opacity: 1; }
-  50% { background-color: rgba(99, 102, 241, 0.1); box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3); opacity: 1; }
-  100% { background-color: transparent; box-shadow: 0 0 0 0 transparent; opacity: 0; }
-}
-.global-flash-target {
-  position: relative !important; /* 確保疊加層定位正確 */
-}
-.global-flash-target::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  border-radius: inherit; /* 自動貼合原本卡片的圓角 */
-  pointer-events: none; /* 確保不阻擋滑鼠點擊 */
-  animation: global-highlight-flash 2.5s ease-out forwards;
-  z-index: 50;
-}
-`;
-document.head.appendChild(spotlightStyle);
-
 window.checkAndHighlightFocus = function() {
   const urlParams = new URLSearchParams(window.location.search);
   const focusId = urlParams.get('focus');
@@ -44,28 +21,42 @@ window.checkAndHighlightFocus = function() {
       if (targetElement) {
           window.__focusHandled = focusId; // 鎖定
 
+          // 1. 平滑捲動
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           
+          // 2. 暴力發光動畫 (使用 JS 直接修改 Shadow，無視層級)
           setTimeout(() => {
-              targetElement.classList.add('global-flash-target');
-              
-              const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-              window.history.replaceState({path: newUrl}, '', newUrl);
+              const originalTransition = targetElement.style.transition;
+              const originalBoxShadow = targetElement.style.boxShadow;
+              const originalZIndex = targetElement.style.zIndex;
 
+              // 施放紫色光環魔法
+              targetElement.style.transition = "all 0.5s ease-out";
+              targetElement.style.zIndex = "100";
+              targetElement.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.8), 0 0 40px rgba(99, 102, 241, 0.6)";
+              
+              // 保持 2 秒後優雅消失
               setTimeout(() => {
-                  targetElement.classList.remove('global-flash-target');
-                  window.__focusHandled = null; // 解鎖，讓使用者下次搜尋同一個人還是會亮
-              }, 2600);
-          }, 500); 
+                  targetElement.style.boxShadow = originalBoxShadow;
+                  setTimeout(() => {
+                      targetElement.style.transition = originalTransition;
+                      targetElement.style.zIndex = originalZIndex;
+                      window.__focusHandled = null; // 解鎖
+                  }, 500);
+              }, 2000);
+
+              // 擦掉網址列參數
+              const newUrl = window.location.origin + window.location.pathname;
+              window.history.replaceState({}, '', newUrl);
+          }, 600); 
           
       } else if (attempts < 20) {
           attempts++;
-          setTimeout(tryHighlight, 100);
+          setTimeout(tryHighlight, 150);
       }
   };
   tryHighlight();
 };
-
 
 // ==========================================
 // 🚀 SmartMil 終極 SPA 導航引擎
@@ -328,11 +319,19 @@ function renderNotifications(notifications, role) {
       icon = "fa-medal"; color = "text-purple-600"; bgColor = "bg-purple-50 border-purple-100";
       statusText = "오늘 전역 예정입니다.";
       clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
+    } else if (noti.status === "SYSTEM_NOTICE" || noti.type === "NOTICE") {
+      // 🔥 修正：必讀公告的專屬推播樣式與跳轉邏輯
+      icon = "fa-bullhorn"; 
+      color = "text-red-500"; 
+      bgColor = "bg-red-50 border-red-100";
+      statusText = "새로운 필독 공지"; // 這裡固定寫「新必讀公告」，不然後面的 reason 重複會很醜
+      clickAction = `window.closeNotifications(); spaNavigate('/notice?focus=${noti._id}');`;
     } else if (noti.status === "PASSWORD_RESET_REQ") {
       icon = "fa-key"; color = "text-rose-600"; bgColor = "bg-rose-50 border-rose-100";
       statusText = "비밀번호 초기화 요청";
       clickAction = `window.closeNotifications();`;
     }
+
     return `
       <div id="noti-${noti._id}" class="noti-item p-4 hover:bg-slate-50 border-b border-slate-100 transition-all flex items-start gap-3.5 group cursor-pointer" onclick="${clickAction}">
         <div class="w-9 h-9 rounded-full ${bgColor} border flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover:scale-105">
@@ -341,14 +340,14 @@ function renderNotifications(notifications, role) {
         <div class="flex-1 min-w-0">
           <div class="flex justify-between items-start mb-1">
             <p class="text-[13px] font-black text-slate-800 truncate pr-2">
-  ${noti.userId ? (noti.userId.name || "알 수 없음") : "시스템 알림"} 
-  <span class="text-[10px] text-slate-500 font-medium">
-    (${noti.userId?.rank || '정보 없음'})
-  </span>
-</p>
+              ${noti.userId ? (noti.userId.name || "알 수 없음") : "시스템 알림"} 
+              <span class="text-[10px] text-slate-500 font-medium">
+                (${noti.userId?.rank || '정보 없음'})
+              </span>
+            </p>
             <span class="text-[10px] font-bold text-indigo-400 whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded">
-  ${timeAgo(noti.updatedAt || noti.createdAt || new Date())}
-</span>
+              ${timeAgo(noti.updatedAt || noti.createdAt || new Date())}
+            </span>
           </div>
           <p class="text-xs text-slate-600 line-clamp-1 font-medium">${statusText} <span class="text-slate-400 font-normal">- ${noti.reason}</span></p>
           ${actionButtons}
@@ -487,7 +486,7 @@ window.renderInlineResults = function(results, query) {
     return;
   }
 
-  // 1. 人員 (加入 focus 跳轉)
+  // 1. 人員
   if (hasUsers) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-blue-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-users mr-1"></i>부대원</h4><div class="flex flex-col gap-0.5">`;
     results.users.forEach(u => {
@@ -504,14 +503,20 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 2. 假單 (Leaves)
+  // 2. 假單 (Leaves) - 🔥 加上了跳轉月曆頁的智能判斷
   if (hasLeaves) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-emerald-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-calendar-check mr-1"></i>출타 내역</h4><div class="flex flex-col gap-0.5">`;
     results.leaves.forEach(l => {
       const sDate = l.startDate.split("T")[0];
       const isApproved = l.status === "APPROVED";
+      
+      const isCalPage = ['/', '/index.html'].includes(window.location.pathname);
+      const clickAction = isCalPage 
+        ? `document.getElementById('inlineSearchDropdown').classList.add('hidden'); window.executeSearchNavigation('${l._id}', '${l.type}', '${sDate}');` 
+        : `document.getElementById('inlineSearchDropdown').classList.add('hidden'); window.spaNavigate('/?focus=${l._id}&date=${sDate}&type=${l.type}');`;
+
       html += `
-        <button onclick="document.getElementById('inlineSearchDropdown').classList.add('hidden'); if(typeof window.executeSearchNavigation === 'function'){ window.executeSearchNavigation('${l._id}', '${l.type}', '${sDate}'); } else { window.spaNavigate('/?focus=${l._id}&date=${sDate}&type=${l.type}'); }" class="flex flex-col p-2 rounded-lg hover:bg-emerald-50 border border-transparent transition text-left group">
+        <button onclick="${clickAction}" class="flex flex-col p-2 rounded-lg hover:bg-emerald-50 border border-transparent transition text-left group">
           <div class="flex justify-between items-center w-full mb-0.5">
             <span class="text-xs font-bold text-gray-800"><span class="text-emerald-600 mr-1">[${l.type}]</span>${l.userId?.name || "알수없음"}</span>
             ${isApproved ? '<i class="fa-solid fa-check text-emerald-500 text-[9px]"></i>' : '<i class="fa-solid fa-clock text-amber-500 text-[9px]"></i>'}
@@ -522,7 +527,7 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 3. 公告 (加入 focus 跳轉)
+  // 3. 公告
   if (hasNotices) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-amber-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-bullhorn mr-1"></i>공지사항</h4><div class="flex flex-col gap-0.5">`;
     results.notices.forEach(n => {
@@ -536,7 +541,7 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 4. 相簿 (加入 focus 跳轉)
+  // 4. 相簿
   if (hasGalleries) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-pink-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-regular fa-image mr-1"></i>사진첩</h4><div class="flex flex-col gap-0.5">`;
     results.galleries.forEach(g => {

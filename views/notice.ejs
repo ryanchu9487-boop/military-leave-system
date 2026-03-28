@@ -54,7 +54,7 @@
           <div class="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform flex flex-col max-h-[90vh]" id="createModalContent">
             
             <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <h2 class="text-lg font-black text-slate-800">새 공지 작성</h2>
+              <h2 id="modalTitle" class="text-lg font-black text-slate-800">새 공지 작성</h2>
               <button onclick="closeModal('createModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
@@ -100,6 +100,8 @@
         <script>
           var currentRole = "soldier";
           var currentUserId = "";
+          var editNoticeId = null; 
+          var selectedNoticeFiles = [];
           
           function getDisplayRank(user) {
               if (!user) return "";
@@ -116,51 +118,32 @@
               return "이병";
           }
 
-          var selectedNoticeFiles = [];
-
-          // 🔥 修改 3：升級版鐵血防呆 + 自動壓縮邏輯
           async function handleNoticeFileSelect(input) {
               if (!input.files || input.files.length === 0) return;
-
               const newFiles = Array.from(input.files);
               let processedFiles = [];
-
-              const options = {
-                  maxSizeMB: 1, 
-                  maxWidthOrHeight: 1920,
-                  useWebWorker: true
-              };
-
+              const options = { maxSizeMB: 1, maxWidthOrHeight: 1920, useWebWorker: true };
               const submitBtn = document.getElementById("submitNoticeBtn");
+              
               submitBtn.disabled = true;
               submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 파일 처리 중...`;
 
               try {
                   for (let i = 0; i < newFiles.length; i++) {
                       let file = newFiles[i];
-
-                      // 💡 只有常見的網頁圖片格式才進行壓縮
                       if (file.type.match(/image\/(jpeg|png|webp)/i)) {
                           try {
-                              console.log(`壓縮前: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`);
                               const compressedBlob = await imageCompression(file, options);
                               const compressedFile = new File([compressedBlob], file.name, { type: file.type });
-                              console.log(`壓縮後: ${compressedFile.name} (${(compressedFile.size/1024/1024).toFixed(2)} MB)`);
-                              
                               processedFiles.push(compressedFile);
                           } catch (error) {
-                              console.warn("壓縮失敗:", error);
-                              // 🚨 鐵血防線：壓縮失敗且原圖超過 10MB，踢掉！
                               if (file.size > 10 * 1024 * 1024) {
-                                  alert(`"${file.name}" 사진 압축에 실패했으며, 용량이 너무 큽니다 (최대 10MB).`);
+                                  alert(`"${file.name}" 사진 용량이 너무 큽니다 (최대 10MB).`);
                                   continue; 
                               }
                               processedFiles.push(file); 
                           }
-                      } 
-                      // 💡 其他檔案（PDF, DOC 等）直接檢查大小
-                      else {
-                          // 🚨 鐵血防線：非圖片檔只要超過 10MB，踢掉！
+                      } else {
                           if (file.size > 10 * 1024 * 1024) {
                               alert(`"${file.name}" 파일이 너무 큽니다! (최대 10MB까지만 가능)`);
                               continue; 
@@ -179,53 +162,33 @@
 
                   input.value = ""; 
                   updateNoticeFileUI();
-                  
               } catch (error) {
-                  console.error("檔案處理發生錯誤:", error);
+                  console.error("파일 처리 오류:", error);
               } finally {
                   submitBtn.disabled = false;
-                  submitBtn.innerHTML = `공유하기`;
+                  submitBtn.innerHTML = editNoticeId ? `수정하기` : `공유하기`;
               }
           }
 
-          function removeNoticeFile(index) {
-              selectedNoticeFiles.splice(index, 1);
-              updateNoticeFileUI();
-          }
-
-          function removeAllNoticeFiles() {
-              selectedNoticeFiles = [];
-              updateNoticeFileUI();
-          }
+          function removeNoticeFile(index) { selectedNoticeFiles.splice(index, 1); updateNoticeFileUI(); }
+          function removeAllNoticeFiles() { selectedNoticeFiles = []; updateNoticeFileUI(); }
 
           function updateNoticeFileUI() {
               const box = document.getElementById('noticeSelectedFilesBox');
               const list = document.getElementById('noticeFilePreviewList');
               const indicator = document.getElementById('noticeFileIndicator');
-              
               list.innerHTML = '';
               indicator.innerText = selectedNoticeFiles.length;
 
               if (selectedNoticeFiles.length > 0) {
                   box.classList.remove('hidden');
-                  
                   selectedNoticeFiles.forEach((file, index) => {
                       const div = document.createElement('div');
                       div.className = "flex justify-between items-center bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm";
-                      
-                      let icon = '<i class="fa-solid fa-file text-slate-400"></i>';
-                      if (file.type.startsWith('image/')) {
-                          icon = '<i class="fa-solid fa-image text-indigo-400"></i>';
-                      }
-                      
+                      let icon = file.type.startsWith('image/') ? '<i class="fa-solid fa-image text-indigo-400"></i>' : '<i class="fa-solid fa-file text-slate-400"></i>';
                       div.innerHTML = `
-                          <div class="flex items-center gap-2 overflow-hidden text-sm">
-                              ${icon}
-                              <span class="truncate text-slate-700 font-medium">${file.name}</span>
-                          </div>
-                          <button type="button" onclick="removeNoticeFile(${index})" class="text-slate-300 hover:text-rose-500 ml-2">
-                              <i class="fa-solid fa-xmark"></i>
-                          </button>
+                          <div class="flex items-center gap-2 overflow-hidden text-sm">${icon}<span class="truncate text-slate-700 font-medium">${file.name}</span></div>
+                          <button type="button" onclick="removeNoticeFile(${index})" class="text-slate-300 hover:text-rose-500 ml-2"><i class="fa-solid fa-xmark"></i></button>
                       `;
                       list.appendChild(div);
                   });
@@ -247,136 +210,147 @@
                 currentUserId = data.currentUserId;
                 
                 if (["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole)) {
-                const createBtn = document.getElementById("createNoticeBtn");
-                if (createBtn) createBtn.classList.remove("hidden");
+                  const createBtn = document.getElementById("createNoticeBtn");
+                  if (createBtn) createBtn.classList.remove("hidden");
+                }
+                
+                renderFeed(data.notices);
+
+                if (typeof window.checkAndHighlightFocus === "function") {
+                    setTimeout(window.checkAndHighlightFocus, 100);
+                }
               }
-              renderFeed(data.notices);
-              
-              // 🔥 資料畫完之後，呼叫聚光燈引擎來找目標！
-              if (typeof window.checkAndHighlightFocus === "function") {
-                  setTimeout(window.checkAndHighlightFocus, 100);
-              }
+            } catch (e) { console.error("Error:", e); }
+          }
+
+          // 🔥 智能排序與摺疊的 renderFeed
+          function renderFeed(notices) {
+            const container = document.getElementById("feedContainer");
+            if (notices.length === 0) {
+              container.innerHTML = `<div class="text-center text-slate-400 py-20"><i class="fa-solid fa-folder-open text-4xl mb-4 text-slate-300"></i><p class="font-bold text-base md:text-lg">등록된 공지사항이 없습니다.</p></div>`;
+              return;
             }
-          } catch (e) { console.error("Error:", e); }
-        }
 
-function renderFeed(notices) {
-  const container = document.getElementById("feedContainer");
-  if (notices.length === 0) {
-    container.innerHTML = `<div class="text-center text-slate-400 py-20"><i class="fa-solid fa-folder-open text-4xl mb-4 text-slate-300"></i><p class="font-bold text-base md:text-lg">등록된 공지사항이 없습니다.</p></div>`;
-    return;
-  }
+            const importantNotices = notices.filter(n => n.isImportant);
+            const normalNotices = notices.filter(n => !n.isImportant);
+            let html = '';
 
-  container.innerHTML = notices.map(n => {
-    const date = new Date(n.createdAt);
-    const diffDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
-    const timeAgo = diffDays === 0 ? '오늘' : (diffDays < 30 ? `${diffDays}일 전` : date.toLocaleDateString());
+            const createCardHtml = (n) => {
+              const date = new Date(n.createdAt);
+              const diffDays = Math.floor((new Date() - date) / (1000 * 60 * 60 * 24));
+              const timeAgo = diffDays === 0 ? '오늘' : (diffDays < 30 ? `${diffDays}일 전` : date.toLocaleDateString());
 
-    const isLiked = n.likes.some(u => (u._id || u).toString() === currentUserId.toString());
-    const heartClass = isLiked ? 'fa-solid text-rose-500 heart-pop' : 'fa-regular text-slate-400 hover:text-slate-600';
-    
-    let likesListText = "아직 좋아요가 없습니다";
-    if (n.likes.length > 0) {
-        likesListText = n.likes.map(u => `${getDisplayRank(u)} ${u.name || '알수없음'}`.trim()).join("<br>");
-    }
+              const isLiked = n.likes.some(u => (u._id || u).toString() === currentUserId.toString());
+              const heartClass = isLiked ? 'fa-solid text-rose-500 heart-pop' : 'fa-regular text-slate-400 hover:text-slate-600';
+              let likesListText = n.likes.length > 0 ? n.likes.map(u => `${getDisplayRank(u)} ${u.name || '알수없음'}`.trim()).join("<br>") : "아직 좋아요가 없습니다";
+              
+              const commentsHtml = n.comments.map(c => {
+                const isCommentAuthor = (c.userId._id || c.userId).toString() === currentUserId.toString();
+                const encodedText = encodeURIComponent(c.text);
+                
+                return `
+                <div class="text-[13px] md:text-[15px] leading-relaxed flex items-start gap-1.5 md:gap-2 mb-1.5 group/comment">
+                  <span class="font-black text-slate-800 whitespace-nowrap">${getDisplayRank(c.userId)} ${c.userId?.name || '익명'}</span>
+                  <span class="text-slate-600 break-words flex-1">${c.text}</span>
+                  
+                  ${isCommentAuthor ? `
+                  <button onclick="editNoticeComment('${n._id}', '${c._id}', '${encodedText}')" class="text-slate-300 hover:text-indigo-500 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+                    <i class="fa-solid fa-pen text-[10px]"></i>
+                  </button>` : ''}
+                </div>
+              `}).join("");
 
-    const commentsHtml = n.comments.map(c => {
-        let cRank = getDisplayRank(c.userId);
-        return `
-          <div class="text-[13px] md:text-[15px] leading-relaxed flex items-start gap-1.5 md:gap-2 mb-1.5">
-            <span class="font-black text-slate-800 whitespace-nowrap">${cRank} ${c.userId?.name || '익명'}</span>
-            <span class="text-slate-600 break-words flex-1">${c.text}</span>
-          </div>
-        `;
-    }).join("");
+              let imagesHtml = "", filesHtml = "";
+              if (n.attachedFiles && n.attachedFiles.length > 0) {
+                const images = n.attachedFiles.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                const docs = n.attachedFiles.filter(f => !f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
 
-    let imagesHtml = "";
-    let filesHtml = "";
-    if (n.attachedFiles && n.attachedFiles.length > 0) {
-      const images = n.attachedFiles.filter(f => f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
-      const docs = n.attachedFiles.filter(f => !f.match(/\.(jpg|jpeg|png|gif|webp)$/i));
+                if (images.length > 0) {
+                  imagesHtml = `<div class="mt-3 md:mt-4 grid ${images.length > 1 ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5 md:gap-2">` + 
+                    images.map(img => `<img src="${img}" class="w-full h-auto max-h-60 md:max-h-80 object-cover rounded-lg border border-slate-100 shadow-sm cursor-pointer hover:opacity-90" onclick="window.open('${img}', '_blank')" />`).join('') + `</div>`;
+                }
+                if (docs.length > 0) {
+                  filesHtml = `<div class="mt-2.5 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">` + docs.map(f => {
+                    const displayName = f.split('/').pop().substring(f.split('/').pop().indexOf('-') + 1) || "첨부파일";
+                    return `<a href="${f}" target="_blank" class="inline-flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-2.5 py-1.5 rounded-lg text-xs font-bold text-indigo-600 shadow-sm"><i class="fa-solid fa-file-arrow-down"></i> ${displayName}</a>`;
+                  }).join("") + `</div>`;
+                }
+              }
 
-      if (images.length > 0) {
-        const gridClass = images.length > 1 ? 'grid-cols-2' : 'grid-cols-1';
-        imagesHtml = `<div class="mt-3 md:mt-4 grid ${gridClass} gap-1.5 md:gap-2">` + 
-          images.map(img => `<img src="${img}" class="w-full h-auto max-h-60 md:max-h-80 object-cover rounded-lg md:rounded-xl border border-slate-100 shadow-sm cursor-pointer hover:opacity-90 transition-opacity" onclick="window.open('${img}', '_blank')" />`).join('') + 
-        `</div>`;
-      }
+              const isAuthorControl = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
+              const authorIdStr = n.authorId ? (n.authorId._id || n.authorId).toString() : '';
+              const isAuthor = authorIdStr === currentUserId.toString();
+              const noticeDataStr = encodeURIComponent(JSON.stringify(n));
+              const authorRank = getDisplayRank(n.authorId);
 
-      if (docs.length > 0) {
-        filesHtml = `<div class="mt-2.5 md:mt-3 flex flex-wrap gap-1.5 md:gap-2">` + 
-          docs.map(f => {
-            const rawName = f.split('/').pop();
-            const displayName = rawName.substring(rawName.indexOf('-') + 1) || "첨부파일";
-            return `<a href="${f}" target="_blank" class="inline-flex items-center gap-1.5 bg-slate-100/80 border border-slate-200 px-2.5 py-1.5 md:px-3 md:py-1.5 rounded-lg text-xs md:text-sm font-bold text-indigo-600 hover:bg-indigo-50 transition shadow-sm"><i class="fa-solid fa-file-arrow-down"></i> ${displayName}</a>`;
-          }).join("") + `</div>`;
-      }
-    }
+              return `
+                <article id="item-${n._id}" class="glass-card overflow-hidden flex flex-col mb-4 md:mb-5"> 
+                  <div class="p-4 md:p-5 border-b border-slate-100/50 shrink-0">
+                    <div class="flex justify-between items-start mb-2.5 md:mb-3">
+                      <div class="flex items-center gap-2.5 md:gap-3">
+                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm md:text-base font-black shadow-md">${(n.authorId?.name || '관').charAt(0)}</div>
+                        <div class="flex flex-col"><span class="text-sm md:text-base font-black text-slate-800">${authorRank} ${n.authorId?.name || '관리자'}</span><span class="text-xs text-slate-400 font-bold">${timeAgo}</span></div>
+                      </div>
+                      <div class="flex items-center gap-2">
+                        ${n.isImportant ? `<span class="bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 rounded text-[11px] font-black tracking-wider">필독</span>` : ''}
+                        ${isAuthor ? `<button onclick="openEditModal('${noticeDataStr}')" class="text-slate-400 hover:text-indigo-500 bg-slate-50 hover:bg-indigo-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-pen text-xs"></i></button>` : ''}
+                        ${isAuthorControl || isAuthor ? `<button onclick="deleteNotice('${n._id}')" class="text-slate-400 hover:text-red-500 bg-slate-50 hover:bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition-colors"><i class="fa-solid fa-trash-can text-xs"></i></button>` : ''}
+                      </div>
+                    </div>
+                    <h3 class="font-black text-lg md:text-xl text-slate-800 mb-1.5 leading-tight">${n.title}</h3>
+                    <div class="max-h-[150px] md:max-h-[200px] overflow-y-auto custom-scrollbar pr-2"><p class="text-[15px] md:text-base text-slate-700 whitespace-pre-wrap leading-relaxed">${n.content}</p></div>
+                    ${imagesHtml}
+                    ${filesHtml}
+                  </div>
+                  <div class="px-4 py-2.5 flex items-center gap-3.5"><button onclick="toggleLike('${n._id}', this)" class="text-xl focus:outline-none transition-transform group"><i class="${heartClass} heart-icon fa-heart"></i></button><button onclick="focusCommentInput('${n._id}')" class="text-xl text-slate-400 hover:text-indigo-500 focus:outline-none"><i class="fa-regular fa-comment"></i></button></div>
+                  <div class="px-4 pb-1 relative group w-max cursor-help"><span class="text-xs font-black text-slate-800 likes-count">좋아요 ${n.likes.length}개</span><div class="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-slate-800/95 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl z-20">${likesListText}</div></div>
+                  <div class="px-4 pt-1"><span class="text-[11px] font-bold text-slate-400">댓글 ${n.comments.length}개</span></div>
+                  <div class="px-4 pb-2 mt-1.5 overflow-y-auto custom-scrollbar max-h-[150px]" id="comment-list-${n._id}">${commentsHtml}</div>
+                  <div class="px-4 py-2.5 border-t border-slate-100/50 flex items-center gap-2.5 bg-white/50"><input type="text" id="comment-${n._id}" class="flex-1 text-[14px] outline-none placeholder-slate-400 bg-transparent font-medium mobile-input" placeholder="댓글 달기..." onkeypress="handleCommentEnter(event, '${n._id}')"><button onclick="postComment('${n._id}')" class="text-indigo-600 text-[14px] font-black">게시</button></div>
+                </article>
+              `;
+            };
 
-    const isAuthorControl = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
-    let authorRank = getDisplayRank(n.authorId);
+            // 렌더링: 필독 공지
+            if (importantNotices.length > 0) {
+              const top5 = importantNotices.slice(0, 5);
+              const rest = importantNotices.slice(5);
+              html += `<div class="mb-8">
+                         <div class="flex items-center gap-2 mb-3 px-2"><div class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.8)]"></div><h3 class="text-lg font-black text-slate-800">필독 공지</h3></div>
+                         <div>${top5.map(n => createCardHtml(n)).join('')}</div>`;
+              if (rest.length > 0) {
+                html += `
+                  <button onclick="document.getElementById('extraImportant').classList.toggle('hidden')" class="w-full py-3 mt-1 mb-4 bg-white border border-red-200 text-red-500 font-bold rounded-xl hover:bg-red-50 transition flex justify-center items-center gap-2 shadow-sm">
+                      이전 필독 공지 ${rest.length}개 더보기 <i class="fa-solid fa-chevron-down"></i>
+                  </button>
+                  <div id="extraImportant" class="hidden flex flex-col">${rest.map(n => createCardHtml(n)).join('')}</div>`;
+              }
+              html += `</div><hr class="border-slate-200 mb-8 border-dashed" />`;
+            }
 
-    return `
-      <article id="item-${n._id}" class="glass-card overflow-hidden flex flex-col max-h-[750px] mb-2 md:mb-0"> 
-        <div class="p-4 md:p-5 border-b border-slate-100/50 shrink-0">
-          <div class="flex justify-between items-start mb-2.5 md:mb-3">
-            <div class="flex items-center gap-2.5 md:gap-3">
-              <div class="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-sm md:text-base font-black shadow-md">
-                ${(n.authorId?.name || '관').charAt(0)}
-              </div>
-              <div class="flex flex-col">
-                <span class="text-sm md:text-base font-black text-slate-800">${authorRank} ${n.authorId?.name || '관리자'}</span>
-                <span class="text-xs md:text-sm text-slate-400 font-bold tracking-wide">${timeAgo}</span>
-              </div>
-            </div>
-            <div class="flex items-center gap-2">
-              ${n.isImportant ? `<span class="bg-red-50 text-red-500 border border-red-200 px-2 py-0.5 md:px-2.5 md:py-1 rounded text-[11px] md:text-xs font-black tracking-wider shadow-sm">필독</span>` : ''}
-              ${isAuthorControl ? `<button onclick="deleteNotice('${n._id}')" class="text-slate-300 hover:text-red-500 transition-colors"><i class="fa-solid fa-trash-can text-base md:text-lg"></i></button>` : ''}
-            </div>
-          </div>
-          
-          <h3 class="font-black text-lg md:text-xl text-slate-800 mb-1.5 md:mb-2 leading-tight">${n.title}</h3>
-          
-          <div class="max-h-[150px] md:max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
-            <p class="text-[15px] md:text-base text-slate-700 whitespace-pre-wrap leading-relaxed">${n.content}</p>
-          </div>
-          
-          ${imagesHtml}
-          ${filesHtml}
-        </div>
+            // 렌더링: 일반 공지
+            if (normalNotices.length > 0) {
+              const top5Normal = normalNotices.slice(0, 5);
+              const restNormal = normalNotices.slice(5);
 
-        <div class="px-4 py-2.5 md:px-5 md:py-3 flex items-center gap-3.5 md:gap-4 shrink-0">
-          <button onclick="toggleLike('${n._id}', this)" class="text-xl md:text-2xl focus:outline-none transition-transform flex items-center gap-2 group">
-            <i class="${heartClass} heart-icon fa-heart"></i>
-          </button>
-          <button onclick="focusCommentInput('${n._id}')" class="text-xl md:text-2xl text-slate-400 hover:text-indigo-500 transition-colors focus:outline-none">
-            <i class="fa-regular fa-comment"></i>
-          </button>
-        </div>
-
-        <div class="px-4 md:px-5 pb-1 relative group w-max cursor-help shrink-0">
-          <span class="text-xs md:text-sm font-black text-slate-800 likes-count">좋아요 ${n.likes.length}개</span>
-          <div class="absolute left-0 bottom-full mb-2 hidden group-hover:block bg-slate-800/95 backdrop-blur-sm text-white text-xs font-bold px-3 py-2 md:py-2.5 rounded-lg shadow-xl z-20 pointer-events-none max-w-[200px] max-h-[150px] overflow-y-auto custom-scrollbar">
-            ${likesListText}
-          </div>
-        </div>
-
-        <div class="px-4 md:px-5 pt-1 md:pt-2 flex items-center justify-between shrink-0">
-            <span class="text-xs md:text-sm font-bold text-slate-400">댓글 ${n.comments.length}개</span>
-        </div>
-
-        <div class="px-4 md:px-5 pb-2 mt-1.5 md:mt-2 overflow-y-auto custom-scrollbar flex-1 min-h-[50px] max-h-[150px] md:max-h-[180px]" id="comment-list-${n._id}">
-          ${commentsHtml}
-        </div>
-
-        <div class="px-4 py-2.5 md:px-5 md:py-3 border-t border-slate-100/50 flex items-center gap-2.5 md:gap-3 bg-white/50 shrink-0">
-          <input type="text" id="comment-${n._id}" class="flex-1 text-[14px] md:text-[15px] outline-none placeholder-slate-400 bg-transparent font-medium mobile-input" placeholder="댓글 달기..." onkeypress="handleCommentEnter(event, '${n._id}')">
-          <button onclick="postComment('${n._id}')" class="text-indigo-600 text-[14px] md:text-[15px] font-black hover:text-indigo-800 transition-colors">게시</button>
-        </div>
-      </article>
-    `;
-  }).join("");
-}
+              html += `<div>
+                         <div class="flex items-center gap-2 mb-3 px-2">
+                             <div class="w-2.5 h-2.5 rounded-full bg-indigo-400"></div>
+                             <h3 class="text-lg font-black text-slate-800">일반 공지</h3>
+                         </div>
+                         <div>${top5Normal.map(n => createCardHtml(n)).join('')}</div>`;
+              
+              if (restNormal.length > 0) {
+                html += `
+                  <button onclick="document.getElementById('extraNormal').classList.toggle('hidden')" class="w-full py-3 mt-1 mb-4 bg-white border border-indigo-200 text-indigo-500 font-bold rounded-xl hover:bg-indigo-50 transition flex justify-center items-center gap-2 shadow-sm">
+                      이전 일반 공지 ${restNormal.length}개 더보기 <i class="fa-solid fa-chevron-down"></i>
+                  </button>
+                  <div id="extraNormal" class="hidden flex flex-col">${restNormal.map(n => createCardHtml(n)).join('')}</div>`;
+              }
+              html += `</div>`;
+            }
+            container.innerHTML = html;
+          } // 🔥 這裡就是剛剛不見的下大括號！終於補上去了！
 
           async function submitNotice(e) {
             e.preventDefault();
@@ -387,27 +361,22 @@ function renderFeed(notices) {
             formData.append("title", document.getElementById("titleInput").value);
             formData.append("content", document.getElementById("contentInput").value);
             formData.append("isImportant", document.getElementById("importantCheck").checked);
-            
-            for(let i = 0; i < selectedNoticeFiles.length; i++) {
-                formData.append("files", selectedNoticeFiles[i]);
-            }
+            for(let i = 0; i < selectedNoticeFiles.length; i++) formData.append("files", selectedNoticeFiles[i]);
 
             btn.disabled = true;
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 전송 중...`;
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> 처리 중...`;
+
+            const url = editNoticeId ? `/api/notices/${editNoticeId}` : "/api/notices";
+            const method = editNoticeId ? "PUT" : "POST";
 
             try {
-              const res = await fetch("/api/notices", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+              const res = await fetch(url, { method: method, headers: { Authorization: `Bearer ${token}` }, body: formData });
               if ((await res.json()).success) {
                 closeModal("createModal");
-                document.getElementById("noticeForm").reset();
-                removeAllNoticeFiles(); 
-                fetchNotices();
+                fetchNotices(); 
               }
             } catch (err) { alert("오류 발생"); }
-            finally {
-              btn.disabled = false;
-              btn.innerHTML = `공유하기`;
-            }
+            finally { btn.disabled = false; }
           }
 
           async function toggleLike(id, btnEl) {
@@ -467,32 +436,44 @@ function renderFeed(notices) {
           }
           
           function openCreateModal() { 
+              editNoticeId = null;
+              document.getElementById("noticeForm").reset();
+              document.getElementById("modalTitle").innerText = "새 공지 작성";
+              document.getElementById("submitNoticeBtn").innerHTML = "공유하기";
               removeAllNoticeFiles(); 
               showModal("createModal"); 
           }
+
+          window.openEditModal = function(dataStr) {
+              const notice = JSON.parse(decodeURIComponent(dataStr));
+              editNoticeId = notice._id; 
+              
+              document.getElementById("titleInput").value = notice.title;
+              document.getElementById("contentInput").value = notice.content;
+              document.getElementById("importantCheck").checked = notice.isImportant;
+              
+              document.getElementById("modalTitle").innerText = "공지 수정";
+              document.getElementById("submitNoticeBtn").innerHTML = "수정하기";
+              removeAllNoticeFiles(); 
+              showModal("createModal"); 
+          };
 
           function handleMobileFocus(inputEl) {
               const spacer = document.getElementById('keyboardSpacer');
               if(spacer && window.innerWidth < 768) {
                   spacer.style.height = '40vh';
-                  setTimeout(() => {
-                      inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }, 300);
+                  setTimeout(() => { inputEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
               }
           }
 
           function handleMobileBlur() {
               const spacer = document.getElementById('keyboardSpacer');
-              if(spacer) {
-                  spacer.style.height = '0px';
-              }
+              if(spacer) spacer.style.height = '0px';
           }
 
           function focusCommentInput(id) {
               const input = document.getElementById(`comment-${id}`);
-              if(input) {
-                  input.focus();
-              }
+              if(input) input.focus();
           }
 
           document.addEventListener('DOMContentLoaded', () => {
@@ -516,6 +497,24 @@ function renderFeed(notices) {
             fetchNotices();
             if(typeof fetchNotifications === "function") fetchNotifications(); 
           }, 50);
+
+          // 🔥 修改公告留言
+          async function editNoticeComment(noticeId, commentId, oldTextEncoded) {
+              const oldText = decodeURIComponent(oldTextEncoded);
+              const newText = prompt("댓글 수정 (修改留言):", oldText);
+              
+              if (newText && newText.trim() !== "" && newText !== oldText) {
+                  try {
+                      const token = localStorage.getItem("token");
+                      const res = await fetch(`/api/notices/${noticeId}/comment/${commentId}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ text: newText.trim() })
+                      });
+                      if ((await res.json()).success) fetchNotices(); // 刷新畫面
+                  } catch(e) { alert("댓글 수정 실패"); }
+              }
+          }
 
         </script>
     </div>

@@ -61,7 +61,26 @@ window.initCalendarPage = async function () {
   injectFloatingUI();
   setupProUX();
   bindGlobalEventsOnce(); 
-  await initApp();
+  await initApp(); // 讓月曆的核心邏輯先跑完
+
+  // ====================================================
+  // 🔥 [新增] 攔截跨頁面搜尋的跳轉參數 (從別的頁面飛回月曆)
+  // ====================================================
+  const urlParams = new URLSearchParams(window.location.search);
+  const focusId = urlParams.get('focus');
+  const focusDate = urlParams.get('date');
+  const focusType = urlParams.get('type');
+
+  // 如果網址有帶搜尋參數，等月曆載入完後，自動發射定位！
+  if (focusId && focusDate && typeof window.executeSearchNavigation === 'function') {
+      setTimeout(() => {
+          window.executeSearchNavigation(focusId, focusType, focusDate);
+          
+          // 擦掉網址，避免重新整理又飛過去一次
+          const newUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+      }, 500); // 給月曆 0.5 秒的時間把格子畫好
+  }
 };
 
 function bindGlobalEventsOnce() {

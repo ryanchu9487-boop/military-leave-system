@@ -60,7 +60,7 @@
           <div class="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden transform scale-95 transition-transform flex flex-col max-h-[90vh]" id="uploadGalleryModalContent">
             
             <div class="px-6 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
-              <h2 class="text-lg font-black text-slate-800">추억 공유하기</h2>
+              <h2 id="galleryModalTitle" class="text-lg font-black text-slate-800">추억 공유하기</h2>
               <button onclick="closeGalleryModal('uploadGalleryModal')" class="text-slate-400 hover:text-rose-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
@@ -80,6 +80,7 @@
               <div id="galleryDropZone" class="border-4 border-dashed border-slate-300 rounded-2xl min-h-[150px] flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-500 hover:bg-slate-50 transition-all cursor-pointer p-6 gap-2" onclick="document.getElementById('galleryImageInput').click()">
                   <i class="fa-solid fa-images text-4xl mb-1"></i>
                   <span class="text-sm font-bold text-center">사진을 드래그하거나 클릭하여 선택하세요.</span>
+                  <p id="editPhotoHint" class="text-xs text-indigo-500 font-bold mt-1 text-center hidden">새로운 사진을 선택하지 않으면 기존 사진이 유지됩니다.</p>
                   <input type="file" id="galleryImageInput" accept="image/*" multiple class="hidden" onchange="handleFileSelect(this)">
               </div>
 
@@ -142,7 +143,10 @@
                                 <span class="text-[11px] text-slate-400 font-bold" id="viewGalleryDate"></span>
                             </div>
                         </div>
-                        <button id="deleteGalleryBtn" class="text-slate-300 hover:text-red-500 p-2 hidden transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                        <div class="flex items-center gap-1">
+                            <button id="editGalleryBtn" class="text-slate-300 hover:text-indigo-500 p-2 hidden transition-colors"><i class="fa-solid fa-pen"></i></button>
+                            <button id="deleteGalleryBtn" class="text-slate-300 hover:text-red-500 p-2 hidden transition-colors"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
                     </div>
                     
                     <div class="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-4">
@@ -167,7 +171,7 @@
 
         <div id="toastAlert" class="fixed top-20 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur-sm text-white px-8 py-4 rounded-full font-black shadow-2xl z-[200] transform -translate-y-20 opacity-0 transition-all duration-500 flex items-center gap-3 pointer-events-none">
             <div class="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shadow-lg"><i class="fa-solid fa-check text-base"></i></div>
-            <span class="tracking-tight">추억을 성공적으로 공유했습니다!</span>
+            <span class="tracking-tight">작업을 성공적으로 완료했습니다!</span>
         </div>
 
         <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.5.13/dist/cropper.min.js"></script>
@@ -181,8 +185,10 @@
           var reactionTypes = [{id:'heart',emoji:'❤️'},{id:'laugh',emoji:'😂'},{id:'fire',emoji:'🔥'},{id:'clap',emoji:'👏'},{id:'party',emoji:'🎉'}];
           var cropper = null;
           var currentCropIndex = -1;
+          
+          // 🔥 記錄目前正在修改的貼文 ID
+          var editGalleryId = null;
 
-          // 🔥 動態階級計算機
           function getDisplayRank(user) {
               if (!user) return "";
               if (user.role !== "soldier" || !user.promoToIlbyung) {
@@ -207,38 +213,23 @@
                   var image = document.getElementById('cropperImage');
                   var modal = document.getElementById('cropModal');
                   
-                  // 1. 徹底清除舊的裁切器，防止兩張圖疊在一起
-                  if(cropper) { 
-                      cropper.destroy(); 
-                      cropper = null; 
-                  }
+                  if(cropper) { cropper.destroy(); cropper = null; }
                   
-                  // 2. 先把 Modal 顯示出來 (開始播淡入動畫)
                   modal.classList.remove('hidden');
                   modal.classList.add('flex');
-                  void modal.offsetWidth; // 強制重繪
+                  void modal.offsetWidth; 
                   modal.classList.remove('opacity-0');
 
-                  // 3. ⭐️ 關鍵修正：先綁定 onload 事件，再去賦予 src！
                   image.onload = function() {
-                      // 確保 Modal 的 300ms 動畫「完全」結束後，才讓 Cropper 去抓取寬高
                       setTimeout(() => {
                           cropper = new Cropper(image, { 
-                              viewMode: 1, 
-                              dragMode: 'move', 
-                              autoCropArea: 0.8, 
-                              restore: false,
-                              guides: true, 
-                              center: true, 
-                              highlight: false, 
-                              cropBoxMovable: true,
-                              cropBoxResizable: true, 
-                              toggleDragModeOnDblclick: false,
+                              viewMode: 1, dragMode: 'move', autoCropArea: 0.8, restore: false,
+                              guides: true, center: true, highlight: false, cropBoxMovable: true,
+                              cropBoxResizable: true, toggleDragModeOnDblclick: false,
                           });
-                      }, 400); // 緩衝加長到 400ms，絕對防跑版
+                      }, 400);
                   };
 
-                  // 4. 最後一步：把照片塞進去，觸發上面的 onload
                   image.src = e.target.result;
               }
               reader.readAsDataURL(file);
@@ -300,11 +291,17 @@
               grid.innerHTML = '';
               indicator.innerText = selectedGalleryFiles.length;
 
-              if(selectedGalleryFiles.length > 0) {
-                  container.classList.remove('hidden');
+              // 當使用者在編輯模式，且還沒有選新檔案時，保持按鈕可點擊狀態 (因為可以只改文字)
+              if(selectedGalleryFiles.length > 0 || editGalleryId !== null) {
                   submitBtn.disabled = false;
                   submitBtn.classList.replace('bg-indigo-300', 'bg-indigo-600');
+              } else {
+                  submitBtn.disabled = true; 
+                  submitBtn.classList.replace('bg-indigo-600', 'bg-indigo-300');
+              }
 
+              if(selectedGalleryFiles.length > 0) {
+                  container.classList.remove('hidden');
                   selectedGalleryFiles.forEach((file, index) => {
                       var reader = new FileReader();
                       reader.onload = function(e) {
@@ -326,14 +323,49 @@
                   });
               } else {
                   container.classList.add('hidden');
-                  submitBtn.disabled = true; 
-                  submitBtn.classList.replace('bg-indigo-600', 'bg-indigo-300');
               }
           }
 
           function removeSingleFile(index) { selectedGalleryFiles.splice(index, 1); updateFilePreviews(); }
           function removeAllFiles() { selectedGalleryFiles = []; updateFilePreviews(); }
-          function openUploadModal() { selectedGalleryFiles = []; updateFilePreviews(); initDragAndDrop(); openGalleryModal('uploadGalleryModal'); }
+          
+          // 🔥 開啟「發文」模式
+          function openUploadModal() { 
+              editGalleryId = null;
+              document.getElementById('galleryForm').reset();
+              document.getElementById('galleryModalTitle').innerText = "추억 공유하기";
+              document.getElementById('uploadSubmitBtn').innerHTML = "<span>공유하기</span>";
+              
+              const hint = document.getElementById('editPhotoHint');
+              if(hint) hint.classList.add('hidden');
+
+              selectedGalleryFiles = []; 
+              updateFilePreviews(); 
+              initDragAndDrop(); 
+              openGalleryModal('uploadGalleryModal'); 
+          }
+
+          // 🔥 開啟「修改貼文」模式
+          window.openEditGalleryModal = function(p) {
+              editGalleryId = p._id;
+              document.getElementById('galleryForm').reset();
+              
+              document.getElementById('galleryCategoryInput').value = p.category || "";
+              document.getElementById('galleryDescInput').value = p.description || "";
+              
+              document.getElementById('galleryModalTitle').innerText = "추억 수정하기 (修改貼文)";
+              document.getElementById('uploadSubmitBtn').innerHTML = "<span>수정하기</span>";
+              
+              // 提示使用者可以不選照片
+              const hint = document.getElementById('editPhotoHint');
+              if(hint) hint.classList.remove('hidden');
+
+              selectedGalleryFiles = []; 
+              updateFilePreviews(); // 進入修改模式時，因為 editGalleryId 存在，按鈕會解鎖
+              initDragAndDrop(); 
+              closeGalleryModal('viewGalleryModal'); // 關掉看照片的視窗
+              openGalleryModal('uploadGalleryModal'); // 打開發文視窗
+          };
 
           async function fetchGallery() {
             var token = localStorage.getItem("token");
@@ -342,15 +374,14 @@
               var res = await fetch("/api/gallery", { headers: { Authorization: `Bearer ${token}` } });
               var data = await res.json();
               if (data.success) {
-        currentRole = data.role;
-        currentUserId = data.currentUserId;
-        renderNetflixGrid(data.photos);
+                currentRole = data.role;
+                currentUserId = data.currentUserId;
+                renderNetflixGrid(data.photos);
 
-        // 🔥 當照片牆畫好後，檢查網址是否有 focus 參數
-        if (typeof window.checkAndHighlightFocus === "function") {
-            setTimeout(window.checkAndHighlightFocus, 200);
-        }
-      }
+                if (typeof window.checkAndHighlightFocus === "function") {
+                    setTimeout(window.checkAndHighlightFocus, 200);
+                }
+              }
             } catch (e) {}
           }
 
@@ -391,7 +422,6 @@
               var multipleIcon = images.length > 1 ? `<div class="absolute top-3 right-3 bg-gray-950/60 backdrop-blur-sm text-white/90 w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-xl"><i class="fa-solid fa-clone text-xs"></i></div>` : '';
 
               var uName = p.uploaderId?.name || '알수없음';
-              // 🔥 套用動態階級計算機
               var uRank = getDisplayRank(p.uploaderId);
 
               return `
@@ -423,7 +453,6 @@
 
             var uploader = p.uploaderId || {};
             var uName = uploader.name || '알수없음';
-            // 🔥 發文者：套用動態階級計算機
             var uRank = getDisplayRank(uploader);
 
             document.getElementById('viewGalleryAvatar').innerText = uName.charAt(0);
@@ -431,23 +460,38 @@
             document.getElementById('viewGalleryDate').innerText = new Date(p.createdAt).toLocaleDateString();
             document.getElementById('viewGalleryDesc').innerText = p.description || "";
             
-            var isUploader = (uploader._id || uploader) === currentUserId;
+            var isUploader = (uploader._id || uploader).toString() === currentUserId.toString();
             var isAdmin = ["officer", "reviewer", "approver", "admin", "superadmin"].includes(currentRole);
+            
             var delBtn = document.getElementById('deleteGalleryBtn');
+            var editBtn = document.getElementById('editGalleryBtn'); 
+            
             if(isUploader || isAdmin) {
                 delBtn.classList.remove('hidden');
                 delBtn.onclick = () => deletePhoto(p._id);
             } else { delBtn.classList.add('hidden'); }
 
+            if(isUploader && editBtn) {
+                editBtn.classList.remove('hidden');
+                editBtn.onclick = () => openEditGalleryModal(p);
+            } else if(editBtn) { editBtn.classList.add('hidden'); }
+
+            // 🔥 留言渲染 (加入修改按鈕)
             var commentsHtml = p.comments.map(c => {
                 var cUploader = c.userId || {};
-                // 🔥 留言者：套用動態階級計算機
                 var cRank = getDisplayRank(cUploader);
+                var isCommentAuthor = (cUploader._id || cUploader).toString() === currentUserId.toString();
+                var encodedText = encodeURIComponent(c.text);
 
                 return `
-                <div class="flex gap-1.5 md:gap-2 text-xs md:text-[13px] leading-snug">
+                <div class="flex gap-1.5 md:gap-2 text-xs md:text-[13px] leading-snug group/comment relative">
                     <span class="font-black text-slate-800 whitespace-nowrap">${cRank} ${cUploader.name || '익명'}</span>
                     <span class="text-slate-600 break-words flex-1">${c.text}</span>
+                    
+                    ${isCommentAuthor ? `
+                    <button onclick="editGalleryComment('${p._id}', '${c._id}', '${encodedText}')" class="text-slate-300 hover:text-indigo-500 opacity-0 group-hover/comment:opacity-100 transition-opacity shrink-0">
+                        <i class="fa-solid fa-pen text-[10px]"></i>
+                    </button>` : ''}
                 </div>
             `}).join("");
             
@@ -543,17 +587,35 @@
               });
               if((await res.json()).success) { 
                 input.value = ""; 
-                fetchGallery();
-                document.getElementById('viewGalleryComments').innerHTML += `
-                    <div class="flex gap-2 text-[13px] leading-snug animate-pulse">
-                        <span class="font-black text-indigo-600 whitespace-nowrap">방금 전</span>
-                        <span class="text-slate-800 break-words flex-1">${text}</span>
-                    </div>`;
+                closeGalleryModal('viewGalleryModal');
+                fetchGallery(); // 關閉並刷新以載入新留言
               }
             } catch(e) {}
           }
           function handleGalleryCommentEnter(e) { if (e.key === 'Enter') postGalleryComment(); }
 
+          // 🔥 修改相簿留言
+          window.editGalleryComment = async function(galleryId, commentId, oldTextEncoded) {
+              const oldText = decodeURIComponent(oldTextEncoded);
+              const newText = prompt("댓글 수정 (修改留言):", oldText);
+              
+              if (newText && newText.trim() !== "" && newText !== oldText) {
+                  try {
+                      const token = localStorage.getItem("token");
+                      const res = await fetch(`/api/gallery/${galleryId}/comment/${commentId}`, {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                          body: JSON.stringify({ text: newText.trim() })
+                      });
+                      if ((await res.json()).success) {
+                          closeGalleryModal('viewGalleryModal');
+                          fetchGallery(); 
+                      }
+                  } catch(e) { alert("댓글 수정 실패"); }
+              }
+          };
+
+          // 🔥 發文與修改貼文的 Submit
           async function submitGallery(e) {
             e.preventDefault();
             var token = localStorage.getItem("token");
@@ -562,7 +624,8 @@
             var desc = document.getElementById("galleryDescInput").value;
             var category = document.getElementById("galleryCategoryInput").value;
             
-            if(selectedGalleryFiles.length === 0) { alert("사진을 선택해주세요!"); return; }
+            // 如果是新增模式，必須選照片
+            if(!editGalleryId && selectedGalleryFiles.length === 0) { alert("사진을 선택해주세요!"); return; }
 
             formData.append("description", desc);
             formData.append("category", category);
@@ -570,8 +633,11 @@
 
             btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-xl"></i>`; btn.classList.replace('bg-indigo-600', 'bg-indigo-400');
 
+            const url = editGalleryId ? `/api/gallery/${editGalleryId}` : "/api/gallery";
+            const method = editGalleryId ? "PUT" : "POST";
+
             try {
-              var res = await fetch("/api/gallery", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: formData });
+              var res = await fetch(url, { method: method, headers: { Authorization: `Bearer ${token}` }, body: formData });
               var data = await res.json();
               if (data.success) {
                 closeGalleryModal("uploadGalleryModal");
@@ -583,7 +649,7 @@
               } else { alert(data.error); }
             } catch (err) { alert("업로드 실패"); }
             finally {
-              btn.disabled = false; btn.innerHTML = `공유하기`; btn.classList.replace('bg-indigo-400', 'bg-indigo-600');
+              btn.disabled = false; btn.innerHTML = `<span>공유하기</span>`; btn.classList.replace('bg-indigo-400', 'bg-indigo-600');
             }
           }
 
@@ -610,9 +676,7 @@
             el.classList.add("opacity-0"); content.classList.add("scale-95"); setTimeout(() => el.classList.add("hidden"), 300);
           }
 
-          // 🔥 終極手機防擋鍵盤 Spacer 魔法
           function setupMobileKeyboardSpacer() {
-              // 處理發文 Modal 裡的輸入框
               const formInputs = ['galleryCategoryInput', 'galleryDescInput'];
               formInputs.forEach(id => {
                   const el = document.getElementById(id);
@@ -620,7 +684,7 @@
                       el.addEventListener('focus', function() {
                           const spacer = document.getElementById('galleryKeyboardSpacer');
                           if(spacer && window.innerWidth < 768) {
-                              spacer.style.height = '40vh'; // 強制撐開表單底部空間
+                              spacer.style.height = '40vh'; 
                               setTimeout(() => { this.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
                           }
                       });
@@ -631,7 +695,6 @@
                   }
               });
 
-              // 處理留言 Modal 裡的輸入框 (使用事件委派)
               document.body.addEventListener('focus', (e) => {
                   if (e.target && e.target.classList.contains('gallery-mobile-input')) {
                       setTimeout(() => { e.target.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 300);
