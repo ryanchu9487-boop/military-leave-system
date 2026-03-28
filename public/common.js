@@ -248,13 +248,34 @@ function toggleNotifications() {
   if (dropdown) dropdown.classList.toggle("hidden");
 }
 
+// 🔥 [新增] 紀錄已讀公告的魔法函數
+window.markNoticeAsRead = function(noticeId) {
+  let readNotices = JSON.parse(localStorage.getItem('readNotices') || '[]');
+  if (!readNotices.includes(noticeId)) {
+    readNotices.push(noticeId);
+    localStorage.setItem('readNotices', JSON.stringify(readNotices));
+  }
+  window.closeNotifications();
+  // 關閉並前往公告發光定位
+  spaNavigate(`/notice?focus=${noticeId}`);
+};
+
 function renderNotifications(notifications, role) {
   const listEl = document.getElementById("notificationList");
   const badgeEl = document.getElementById("notificationBadge");
 
   if (!listEl) return;
 
-  if (!notifications || notifications.length === 0) {
+  // 🔥 [新增] 拿出已讀清單，把讀過的公告過濾掉！
+  const readNotices = JSON.parse(localStorage.getItem('readNotices') || '[]');
+  const unreadNotifications = notifications.filter(noti => {
+    if (noti.status === "SYSTEM_NOTICE" || noti.type === "NOTICE") {
+      return !readNotices.includes(noti._id);
+    }
+    return true;
+  });
+
+  if (!unreadNotifications || unreadNotifications.length === 0) {
     listEl.innerHTML = `
       <div class="p-8 text-center text-slate-400">
         <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -267,14 +288,14 @@ function renderNotifications(notifications, role) {
   }
 
   if (badgeEl) {
-    badgeEl.innerText = notifications.length;
+    badgeEl.innerText = unreadNotifications.length;
     badgeEl.className = "absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4 bg-red-500 text-white text-[10px] font-bold px-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white shadow-sm z-10";
     badgeEl.classList.remove("hidden");
   }
 
   const isIndex = window.location.pathname === '/' || window.location.pathname === '/index.html' || window.location.pathname === '';
 
-  listEl.innerHTML = notifications.map(noti => {
+  listEl.innerHTML = unreadNotifications.map(noti => {
     let icon = "fa-bell", color = "text-indigo-600", bgColor = "bg-indigo-50 border-indigo-100", actionButtons = "", clickAction = "";
     let statusText = noti.reason;
     
@@ -282,20 +303,33 @@ function renderNotifications(notifications, role) {
       icon = "fa-clipboard-check"; color = "text-amber-600"; bgColor = "bg-amber-50 border-amber-100";
       statusText = noti.status.includes("CANCEL") ? "취소 검토 요청" : "새로운 출타 검토 요청";
       clickAction = `window.closeNotifications(); spaNavigate('/review?id=${noti._id}');`; 
-      actionButtons = `
-        <div class="flex gap-2 mt-2.5">
-          <button onclick="event.stopPropagation(); window.closeNotifications(); quickReview('${noti._id}', 'approve')" class="flex-1 text-[11px] font-bold bg-indigo-600 text-white py-1.5 rounded-md hover:bg-indigo-700 transition shadow-sm">검토완료</button>
-          <button onclick="event.stopPropagation(); window.closeNotifications(); quickReview('${noti._id}', 'reject')" class="flex-1 text-[11px] font-bold bg-white border border-red-200 text-red-500 py-1.5 rounded-md hover:bg-red-50 transition shadow-sm">반려</button>
-        </div>`;
+      
+      // 🔥 [修改 1]：只有檢閱者(reviewer)和長官(officer)可以有快捷按鈕！
+      if (["reviewer", "officer", "superadmin"].includes(role)) {
+        actionButtons = `
+          <div class="flex gap-2 mt-2.5">
+            <button onclick="event.stopPropagation(); window.closeNotifications(); quickReview('${noti._id}', 'approve')" class="flex-1 text-[11px] font-bold bg-indigo-600 text-white py-1.5 rounded-md hover:bg-indigo-700 transition shadow-sm">검토완료</button>
+            <button onclick="event.stopPropagation(); window.closeNotifications(); quickReview('${noti._id}', 'reject')" class="flex-1 text-[11px] font-bold bg-white border border-red-200 text-red-500 py-1.5 rounded-md hover:bg-red-50 transition shadow-sm">반려</button>
+          </div>`;
+      } else {
+        actionButtons = ``; // 核准者看不到這些按鈕！
+      }
+
     } else if (noti.status === "PENDING_APPROVAL" || noti.status === "CANCEL_REQ_APPROVAL") {
       icon = "fa-file-signature"; color = "text-blue-600"; bgColor = "bg-blue-50 border-blue-100";
       statusText = noti.status.includes("CANCEL") ? "취소 승인 대기" : "최종 승인 대기 문서";
       clickAction = `window.closeNotifications(); spaNavigate('/approve?id=${noti._id}');`;
-      actionButtons = `
-        <div class="flex gap-2 mt-2.5">
-          <button onclick="event.stopPropagation(); window.closeNotifications(); quickApprove('${noti._id}', 'approve')" class="flex-1 text-[11px] font-bold bg-indigo-600 text-white py-1.5 rounded-md hover:bg-indigo-700 transition shadow-sm">최종승인</button>
-          <button onclick="event.stopPropagation(); window.closeNotifications(); quickApprove('${noti._id}', 'reject')" class="flex-1 text-[11px] font-bold bg-white border border-red-200 text-red-500 py-1.5 rounded-md hover:bg-red-50 transition shadow-sm">반려</button>
-        </div>`;
+      
+      // 🔥 [修改 1]：只有核准者(approver)可以有快捷按鈕！
+      if (["approver", "superadmin"].includes(role)) {
+        actionButtons = `
+          <div class="flex gap-2 mt-2.5">
+            <button onclick="event.stopPropagation(); window.closeNotifications(); quickApprove('${noti._id}', 'approve')" class="flex-1 text-[11px] font-bold bg-indigo-600 text-white py-1.5 rounded-md hover:bg-indigo-700 transition shadow-sm">최종승인</button>
+            <button onclick="event.stopPropagation(); window.closeNotifications(); quickApprove('${noti._id}', 'reject')" class="flex-1 text-[11px] font-bold bg-white border border-red-200 text-red-500 py-1.5 rounded-md hover:bg-red-50 transition shadow-sm">반려</button>
+          </div>`;
+      } else {
+        actionButtons = ``; // 檢閱者看不到這些按鈕！
+      }
     } else if (noti.status === "NEW_MEMBER_PENDING") {
       icon = "fa-user-plus"; color = "text-emerald-600"; bgColor = "bg-emerald-50 border-emerald-100"; 
       statusText = "신규 부대원 가입 대기";
@@ -304,32 +338,32 @@ function renderNotifications(notifications, role) {
       if (noti.status === "CANCEL_APPROVED") {
         icon = "fa-calendar-minus"; color = "text-gray-500"; bgColor = "bg-gray-100 border-gray-200";
         statusText = "휴가 취소가 최종 승인되어 일수가 반환되었습니다.";
-      } 
-      else {
+      } else {
         icon = "fa-circle-xmark"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
         statusText = "출타 신청이 반려되었습니다.";
       }
-      
       const targetDate = noti.startDate ? noti.startDate.split('T')[0] : '';
       clickAction = isIndex 
         ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');` 
         : `window.closeNotifications(); spaNavigate('/?focus=${noti._id}&date=${targetDate}&type=${noti.type}');`;
-        
     } else if (noti.status === "DISCHARGE_TODAY") {
       icon = "fa-medal"; color = "text-purple-600"; bgColor = "bg-purple-50 border-purple-100";
       statusText = "오늘 전역 예정입니다.";
       clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
     } else if (noti.status === "SYSTEM_NOTICE" || noti.type === "NOTICE") {
-      // 🔥 修正：必讀公告的專屬推播樣式與跳轉邏輯
-      icon = "fa-bullhorn"; 
-      color = "text-red-500"; 
-      bgColor = "bg-red-50 border-red-100";
-      statusText = "새로운 필독 공지"; // 這裡固定寫「新必讀公告」，不然後面的 reason 重複會很醜
-      clickAction = `window.closeNotifications(); spaNavigate('/notice?focus=${noti._id}');`;
+      icon = "fa-bullhorn"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
+      statusText = "새로운 필독 공지"; 
+      // 🔥 [修改] 點擊時呼叫已讀函數！
+      clickAction = `window.markNoticeAsRead('${noti._id}')`;
     } else if (noti.status === "PASSWORD_RESET_REQ") {
       icon = "fa-key"; color = "text-rose-600"; bgColor = "bg-rose-50 border-rose-100";
       statusText = "비밀번호 초기화 요청";
       clickAction = `window.closeNotifications();`;
+    }
+
+    if (noti.isWaitlisted) {
+      actionButtons = ``; 
+      statusText = `[정원초과/후보] ${statusText}`; 
     }
 
     return `
@@ -341,13 +375,9 @@ function renderNotifications(notifications, role) {
           <div class="flex justify-between items-start mb-1">
             <p class="text-[13px] font-black text-slate-800 truncate pr-2">
               ${noti.userId ? (noti.userId.name || "알 수 없음") : "시스템 알림"} 
-              <span class="text-[10px] text-slate-500 font-medium">
-                (${noti.userId?.rank || '정보 없음'})
-              </span>
+              <span class="text-[10px] text-slate-500 font-medium">(${noti.userId?.rank || '정보 없음'})</span>
             </p>
-            <span class="text-[10px] font-bold text-indigo-400 whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded">
-              ${timeAgo(noti.updatedAt || noti.createdAt || new Date())}
-            </span>
+            <span class="text-[10px] font-bold text-indigo-400 whitespace-nowrap bg-indigo-50 px-1.5 py-0.5 rounded">${timeAgo(noti.updatedAt || noti.createdAt || new Date())}</span>
           </div>
           <p class="text-xs text-slate-600 line-clamp-1 font-medium">${statusText} <span class="text-slate-400 font-normal">- ${noti.reason}</span></p>
           ${actionButtons}
@@ -503,7 +533,7 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 2. 假單 (Leaves) - 🔥 加上了跳轉月曆頁的智能判斷
+  // 2. 假單
   if (hasLeaves) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-emerald-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-calendar-check mr-1"></i>출타 내역</h4><div class="flex flex-col gap-0.5">`;
     results.leaves.forEach(l => {
@@ -566,5 +596,5 @@ window.addEventListener("popstate", () => {
 // 初始載入
 document.addEventListener("DOMContentLoaded", () => {
   applyRolePermissions();
-  window.checkAndHighlightFocus(); // 第一次載入也檢查一次聚光燈
+  window.checkAndHighlightFocus(); 
 });

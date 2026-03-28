@@ -15,14 +15,13 @@ var leavesCache = [];
 var currentToken = localStorage.getItem("token") || "";
 var currentUserRole = localStorage.getItem("role") || "soldier";
 
-var currentCalendarMode = "personal"; // 'personal', 'team-long', 'team-short'
+var currentCalendarMode = "personal"; 
 var myAvailableSlots = [];
 var currentUsedSlots = [];
 var isDragging = false;
 var dragStartStr = null;
 var dragEndStr = null;
 
-// 🔥 [修復 3] 導入動態階級計算機
 function getDisplayRank(user) {
   if (!user) return "";
   if (user.role !== "soldier" || !user.promoToIlbyung) {
@@ -38,9 +37,6 @@ function getDisplayRank(user) {
   return "이병";
 }
 
-// ==========================================
-// 🚀 SPA 啟動入口
-// ==========================================
 window.initCalendarPage = async function () {
   console.log("🔥 SmartMil Calendar Initializing...");
   currentToken = localStorage.getItem("token") || "";
@@ -61,25 +57,19 @@ window.initCalendarPage = async function () {
   injectFloatingUI();
   setupProUX();
   bindGlobalEventsOnce(); 
-  await initApp(); // 讓月曆的核心邏輯先跑完
+  await initApp(); 
 
-  // ====================================================
-  // 🔥 [新增] 攔截跨頁面搜尋的跳轉參數 (從別的頁面飛回月曆)
-  // ====================================================
   const urlParams = new URLSearchParams(window.location.search);
   const focusId = urlParams.get('focus');
   const focusDate = urlParams.get('date');
   const focusType = urlParams.get('type');
 
-  // 如果網址有帶搜尋參數，等月曆載入完後，自動發射定位！
   if (focusId && focusDate && typeof window.executeSearchNavigation === 'function') {
       setTimeout(() => {
           window.executeSearchNavigation(focusId, focusType, focusDate);
-          
-          // 擦掉網址，避免重新整理又飛過去一次
           const newUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, '', newUrl);
-      }, 500); // 給月曆 0.5 秒的時間把格子畫好
+      }, 500); 
   }
 };
 
@@ -206,7 +196,6 @@ function updateModeUI() {
   }
 }
 
-// 🔥 [修復 2] 一鍵結算：帶上月份與模式情報，實現單月單類別核准！
 async function batchApprovePhase1() {
   const isApprover = ["approver", "superadmin"].includes(currentUserRole);
   const typeName = currentCalendarMode === "team-long" ? "휴가" : "외출/외박";
@@ -326,7 +315,6 @@ function toggleMonthPicker() {
   }
 }
 
-// 🔥 [修復 1] 讓下拉選單點擊後呼叫 scrollToMonth，平滑捲動到該月份
 function renderMiniPickerLists() {
   const yList = document.getElementById("miniYearList");
   const mList = document.getElementById("miniMonthList");
@@ -343,7 +331,7 @@ function renderMiniPickerLists() {
       currentYear = y;
       document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
       renderMiniPickerLists();
-      await scrollToMonth(currentYear, currentMonth, true); // 修改這裡
+      await scrollToMonth(currentYear, currentMonth, true); 
     };
     yList.appendChild(btn);
     if (active) setTimeout(() => btn.scrollIntoView({ block: "center" }), 10);
@@ -358,7 +346,7 @@ function renderMiniPickerLists() {
       toggleMonthPicker();
       currentMonth = m;
       document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
-      await scrollToMonth(currentYear, currentMonth, true); // 修改這裡
+      await scrollToMonth(currentYear, currentMonth, true); 
     };
     mList.appendChild(btn);
     if (active) setTimeout(() => btn.scrollIntoView({ block: "center" }), 10);
@@ -648,22 +636,39 @@ function renderEvents() {
           bar.addEventListener("mousemove", moveProTooltip);
           bar.addEventListener("mouseleave", () => { unhighlightLeave(leave._id); hideProTooltip(); });
           
+          // 🔥 [修改 2-A]：嚴格的角色隔離機制，防止核准者看到檢閱按鈕
           bar.onclick = (e) => {
             e.stopPropagation();
             hideProTooltip();
             if (typeof window.closeNotifications === "function") window.closeNotifications();
             
-            if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
+            const isReviewer = ["reviewer", "officer"].includes(currentUserRole);
+            const isApprover = ["approver", "superadmin"].includes(currentUserRole);
+
+            if (isReviewer || isApprover) {
               if (leave.status === "PENDING_REVIEW" || leave.status === "CANCEL_REQ_REVIEW") {
-                spaNavigate(`/review.ejs?id=${leave._id}`); 
+                if (isReviewer || currentUserRole === "superadmin") {
+                  spaNavigate(`/review?id=${leave._id}`);
+                } else {
+                  // 核准者點擊檢閱待辦單，只能看 (加上 readonly)
+                  spaNavigate(`/review?id=${leave._id}&readonly=true`);
+                }
                 return;
               } else if (leave.status === "PENDING_APPROVAL" || leave.status === "CANCEL_REQ_APPROVAL") {
-                spaNavigate(`/approve.html?id=${leave._id}`);
+                if (isApprover) {
+                  spaNavigate(`/approve?id=${leave._id}`);
+                } else {
+                  // 檢閱者點擊核准待辦單，只能看 (加上 readonly)
+                  spaNavigate(`/approve?id=${leave._id}&readonly=true`);
+                }
+                return;
+              } else if (leave.status === "APPROVED") {
+                spaNavigate(`/approve?id=${leave._id}&readonly=true`);
                 return;
               }
             }
             
-            if (["PENDING_REVIEW", "PENDING_APPROVAL", "APPROVED"].includes(leave.status)) {
+            if (currentCalendarMode === "personal" && ["PENDING_REVIEW", "PENDING_APPROVAL", "APPROVED"].includes(leave.status)) {
               if (confirm(`일정을 취소/삭제하시겠습니까?\n사유: ${leave.reason}`)) cancelLeave(leave._id);
             }
           };
@@ -1101,7 +1106,6 @@ function openBottomSheet(dateStr) {
     const gripIcon = isApproved ? `<i class="fa-solid fa-lock text-gray-200 mr-3 text-lg" title="최종 승인됨"></i>` : `<i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>`;
     const cursorClass = isApproved ? "cursor-default" : "cursor-move hover:shadow-md";
 
-    // 🔥 [修復 3] 使用動態階級計算機
     const userRank = getDisplayRank(l.userId);
 
     appContainer.innerHTML += `
@@ -1124,8 +1128,6 @@ function openBottomSheet(dateStr) {
   
   waitlistedLeaves.forEach(l => {
     const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
-    
-    // 🔥 [修復 3] 使用動態階級計算機
     const userRank = getDisplayRank(l.userId);
 
     waitContainer.innerHTML += `
@@ -1167,14 +1169,13 @@ async function toggleWaitlistStatus(leaveId) {
     if (data.success) {
       await refreshCalendarData(); 
       closeBottomSheet(); 
+      // 🔥 [修改 2-B] 立刻刷新小鈴鐺通知
+      if (typeof checkPendingLeaves === "function") checkPendingLeaves(); 
       alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
     }
   } catch(e) { alert("수동 개입 처리 중 오류가 발생했습니다."); }
 }
 
-// ==========================================
-// 🔥 出島率與長官特權 API
-// ==========================================
 async function fetchLeaveRates() {
   if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
   try {
@@ -1304,6 +1305,8 @@ async function handleDrop(e, targetId, targetName) {
       if (data.success) {
         closeBottomSheet(); 
         await refreshCalendarData(); 
+        // 🔥 [修改 2-B] 立刻刷新小鈴鐺通知
+        if (typeof checkPendingLeaves === "function") checkPendingLeaves(); 
       }
     } catch(err) {
       alert("교환 중 오류가 발생했습니다.");
