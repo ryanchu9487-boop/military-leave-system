@@ -38,7 +38,6 @@ function getDisplayRank(user) {
   return "이병";
 }
 
-// 🔥 [기능 1] 현재 달력 상태를 기억하는 함수
 function saveCalendarState() {
   sessionStorage.setItem(
     "smartmil_calendar_state",
@@ -214,7 +213,7 @@ function updateModeUI() {
   const btnTeamLong = document.getElementById("btnTeamLong");
   const btnTeamShort = document.getElementById("btnTeamShort");
   const batchApproveBtn = document.getElementById("batchApproveBtn");
-  const batchRejectBtn = document.getElementById("batchRejectBtn"); // 🔥 新增
+  const batchRejectBtn = document.getElementById("batchRejectBtn");
   const settingsModalBtn = document.getElementById("settingsModalBtn");
 
   const activeClass =
@@ -252,7 +251,6 @@ function updateModeUI() {
     }
   }
 
-  // 🔥 確保批次駁回按鈕也能正確顯示/隱藏
   if (batchRejectBtn) {
     if (isManager && currentCalendarMode !== "personal") {
       batchRejectBtn.classList.remove("hidden");
@@ -599,8 +597,26 @@ function renderEvents() {
     .querySelectorAll(".holiday-name")
     .forEach((el) => (el.innerText = ""));
 
+  const dismissed = JSON.parse(localStorage.getItem("dismissedItems") || "[]");
+
   let displayLeaves = leavesCache.filter((leave) => {
     if (leave.isHoliday) return true;
+
+    // 🔥 [修復 1] 確保被退回、取消的假單，永遠不會出現在團隊總月曆上！
+    const isGhostLeave = [
+      "REJECTED_REVIEW",
+      "REJECTED_APPROVAL",
+      "CANCEL_APPROVED",
+      "FORCE_CANCELLED",
+    ].includes(leave.status);
+    if (isGhostLeave && currentCalendarMode !== "personal") {
+      return false;
+    }
+
+    if (currentUserRole === "soldier" && dismissed.includes(leave._id)) {
+      return false;
+    }
+
     if (currentCalendarMode === "personal") return true;
 
     const isLongType =
@@ -717,6 +733,7 @@ function renderEvents() {
             CANCEL_REQ_REVIEW: "(취소대기)",
             CANCEL_REQ_APPROVAL: "(취소대기)",
             CANCEL_APPROVED: "(취소됨)",
+            FORCE_CANCELLED: "(강제취소)",
           }[leave.status] || "";
 
         if (leave.isWaitlisted) sText = "[후보] " + sText;
@@ -732,7 +749,8 @@ function renderEvents() {
 
         if (
           leave.status.includes("REJECTED") ||
-          leave.status === "CANCEL_APPROVED"
+          leave.status === "CANCEL_APPROVED" ||
+          leave.status === "FORCE_CANCELLED"
         ) {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
@@ -745,37 +763,41 @@ function renderEvents() {
             if (typeof window.closeNotifications === "function")
               window.closeNotifications();
 
-            bar.style.transition = "all 0.3s ease";
-            bar.style.opacity = "0";
-            bar.style.transform = "scale(0.9)";
-
-            const notiEl = document.getElementById(`noti-${leave._id}`);
-            if (notiEl) notiEl.remove();
-
-            const notificationList =
-              document.getElementById("notificationList");
-            const badge = document.getElementById("notificationBadge");
-            if (notificationList && badge) {
-              const remaining =
-                notificationList.querySelectorAll(".noti-item").length;
-              if (remaining === 0) {
-                badge.classList.add("hidden");
-                notificationList.innerHTML = `<div class="p-8 text-center text-slate-400"><div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-bell-slash text-xl text-slate-300"></i></div><p class="text-xs font-bold text-slate-500">새로운 알림이 없습니다.</p></div>`;
-              } else {
-                badge.innerText = remaining;
+            if (currentUserRole === "soldier") {
+              let dismissed = JSON.parse(
+                localStorage.getItem("dismissedItems") || "[]"
+              );
+              if (!dismissed.includes(leave._id)) {
+                dismissed.push(leave._id);
+                localStorage.setItem(
+                  "dismissedItems",
+                  JSON.stringify(dismissed)
+                );
               }
-            }
 
-            try {
-              await fetch(`/leaves/${leave._id}/confirm-reject`, {
-                method: "PUT",
-                headers: { Authorization: `Bearer ${currentToken}` },
-              });
-            } catch (err) {
-              console.error("Confirm Reject Error:", err);
-            }
+              document
+                .querySelectorAll(`.leave-bar-${leave._id}`)
+                .forEach((el) => {
+                  el.style.transition = "all 0.3s ease";
+                  el.style.opacity = "0";
+                  el.style.transform = "scale(0.9)";
+                  setTimeout(() => el.remove(), 300);
+                });
 
-            setTimeout(() => refreshCalendarData(), 300);
+              if (typeof window.checkPendingLeaves === "function") {
+                window.checkPendingLeaves();
+              }
+            } else {
+              try {
+                await fetch(`/leaves/${leave._id}/confirm-reject`, {
+                  method: "PUT",
+                  headers: { Authorization: `Bearer ${currentToken}` },
+                });
+              } catch (err) {
+                console.error("Confirm Reject Error:", err);
+              }
+              setTimeout(() => refreshCalendarData(), 300);
+            }
           };
         } else if (leave.isWaitlisted) {
           bar.style.backgroundColor = "rgba(249, 115, 22, 0.15)";
@@ -794,7 +816,8 @@ function renderEvents() {
 
         if (
           !leave.status.includes("REJECTED") &&
-          leave.status !== "CANCEL_APPROVED"
+          leave.status !== "CANCEL_APPROVED" &&
+          leave.status !== "FORCE_CANCELLED"
         ) {
           bar.addEventListener("mouseenter", (e) => {
             highlightLeave(leave._id);
@@ -1076,10 +1099,6 @@ function unhighlightLeave(id) {
     el.style.zIndex = "10";
   });
 }
-
-// ==========================================
-// 勇士自主登錄、讀取假單與送出申請
-// ==========================================
 
 async function submitGrant() {
   const mainCat = document.getElementById("grantMainCategory").value;
@@ -1441,7 +1460,6 @@ async function submitRequest() {
       );
   }
 
-  // 🔥 [기능 2] 우선순위 마법 정렬 (연가 -> 포상 -> 위로 -> 보상)
   const priorityMap = { 연가: 1, 포상: 2, 위로: 3, 보상: 4 };
   currentUsedSlots.sort((a, b) => {
     const slotA = myAvailableSlots.find((s) => s._id === a.slotId);
@@ -1492,12 +1510,10 @@ async function submitRequest() {
   }
 }
 
-// ==========================================
-// 🔥 檢討者專용：底部抽屜選單互動邏輯 (導入軍階計算)
-// ==========================================
 var draggedLeaveId = null;
 var draggedLeaveName = null;
 
+// 🔥 [修復 3] 確保抽屜選單中的軍階可以正確抓取並顯示
 function openBottomSheet(dateStr) {
   const targetDate = new Date(dateStr);
   const dayLeaves = dbLeavesCache.filter((l) => {
@@ -1657,7 +1673,6 @@ async function toggleWaitlistStatus(leaveId) {
   }
 }
 
-// 🔥 [新增] 一鍵批次駁回當月的所有候補人員
 async function batchRejectWaitlistPhase1() {
   const typeName = currentCalendarMode === "team-long" ? "휴가" : "외출/외박";
   const confirmMsg = `🚨 [경고] 현재 표시된 ${currentYear}년 ${
@@ -1974,7 +1989,6 @@ function renderSearchResults(results) {
     .join("");
 }
 
-// 🔥 [修復 2] 修復了 includes 的陣列語法錯誤
 window.executeSearchNavigation = async function (
   leaveId,
   type,
@@ -2016,12 +2030,13 @@ window.executeSearchNavigation = async function (
 
   let attempts = 0;
   const tryHighlight = () => {
-    const targetBar = document.querySelector(`.leave-bar-${leaveId}`);
+    const targetBars = document.querySelectorAll(`.leave-bar-${leaveId}`);
 
-    if (targetBar) {
+    if (targetBars.length > 0) {
       const allBars = document.querySelectorAll('[class*="leave-bar-"]');
+
       allBars.forEach((bar) => {
-        if (bar === targetBar) {
+        if (Array.from(targetBars).includes(bar)) {
           bar.classList.add("spotlight-target");
         } else {
           bar.classList.add("spotlight-dimmed");

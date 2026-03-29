@@ -9,7 +9,6 @@ const LeaveSlot = require("../../models/LeaveSlot");
 const User = require("../../models/User");
 const Organization = require("../../models/Organization");
 
-// 📁 Multer 檔案上傳設定
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, "../../public/uploads/");
@@ -23,9 +22,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ==========================================
-// 🧠 [核心大腦 1] 優先順位計分器 (Priority Score Calculator)
-// ==========================================
 async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
   let score = 0;
   const now = new Date();
@@ -86,9 +82,7 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
   return score;
 }
 
-// ==========================================
-// 🧠 [核心大腦 2] 全自動連帶判定引擎 (加入強制降階防呆)
-// ==========================================
+// 🔥 [核心大腦 2] 重新計算候補引擎 (修正鎖定邏輯與日期洗牌範圍)
 async function recalculateWaitlist(orgId, startDate, endDate) {
   const org = await Organization.findById(orgId);
   if (!org) return;
@@ -109,8 +103,8 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
   );
   const specialRates = org.settings?.specialRates || [];
 
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const queryStart = new Date(startDate);
+  const queryEnd = new Date(endDate);
 
   const overlappingLeaves = await Leave.find({
     organizationId: orgId,
@@ -122,18 +116,29 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
         "FORCE_CANCELLED",
       ],
     },
-    $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
+    $or: [{ startDate: { $lte: queryEnd }, endDate: { $gte: queryStart } }],
   }).populate("userId", "role");
 
   const soldierLeaves = overlappingLeaves.filter(
     (l) => l.userId && l.userId.role === "soldier"
   );
 
+  if (soldierLeaves.length === 0) return;
+
+  // 🔥 關鍵修復 1：把重算的日期範圍「無限擴張」到所有受影響假單的最大/最小日期！
+  // 這樣解鎖 D 的時候，跨週末或長天數的 A、B、C 才會每一天都被重新正確計算。
+  const minStart = new Date(
+    Math.min(...soldierLeaves.map((l) => new Date(l.startDate)))
+  );
+  const maxEnd = new Date(
+    Math.max(...soldierLeaves.map((l) => new Date(l.endDate)))
+  );
+
   let waitlistFlags = {};
   soldierLeaves.forEach((l) => (waitlistFlags[l._id.toString()] = false));
 
-  let iter = new Date(start);
-  while (iter <= end) {
+  let iter = new Date(minStart);
+  while (iter <= maxEnd) {
     const dStr = iter.toISOString().split("T")[0];
     const currentDayLeaves = soldierLeaves.filter(
       (l) => new Date(l.startDate) <= iter && new Date(l.endDate) >= iter
@@ -158,16 +163,21 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
     );
     const manualLeaves = currentDayLeaves.filter((l) => l.isManualOverride);
 
+    // 🔥 關鍵修復 2：鎖定的人(manualLeaves) 視為「特例外掛」，不去扣除基本名額！
+    // 所以 limitLong 依然維持 3，原本的 A B C 就不會掉下來。
+    let availableLimitLong = limitLong;
+    let availableLimitShort = limitShort;
+
     manualLeaves.forEach((l) => (waitlistFlags[l._id.toString()] = false));
 
     normalLongLeaves.sort((a, b) => b.priorityScore - a.priorityScore);
     normalShortLeaves.sort((a, b) => b.priorityScore - a.priorityScore);
 
     normalLongLeaves.forEach((l, index) => {
-      if (index >= limitLong) waitlistFlags[l._id.toString()] = true;
+      if (index >= availableLimitLong) waitlistFlags[l._id.toString()] = true;
     });
     normalShortLeaves.forEach((l, index) => {
-      if (index >= limitShort) waitlistFlags[l._id.toString()] = true;
+      if (index >= availableLimitShort) waitlistFlags[l._id.toString()] = true;
     });
 
     iter.setDate(iter.getDate() + 1);
@@ -196,9 +206,6 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
   }
 }
 
-// ==========================================
-// 1. 幹部發放/勇士登錄 額度
-// ==========================================
 router.post("/leave-slots", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -251,9 +258,6 @@ router.get("/leave-slots/me", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 2. 勇士申請假單
-// ==========================================
 router.post(
   "/leaves",
   authMiddleware,
@@ -380,7 +384,7 @@ router.get("/leaves/my", authMiddleware, async (req, res) => {
   try {
     const leaves = await Leave.find({
       userId: req.user.userId,
-      status: { $nin: ["CANCELLED", "FORCE_CANCELLED"] },
+      status: { $nin: ["CANCELLED"] },
     })
       .populate(
         "userId",
@@ -416,16 +420,14 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
           "CANCEL_REQ_REVIEW",
           "CANCEL_REQ_APPROVAL",
           "CANCEL_APPROVED",
-        ],
-      };
-    } else {
-      query.status = {
-        $nin: [
-          "CANCELLED",
           "REJECTED_REVIEW",
           "REJECTED_APPROVAL",
           "FORCE_CANCELLED",
         ],
+      };
+    } else {
+      query.status = {
+        $nin: ["CANCELLED"],
       };
     }
 
@@ -456,9 +458,6 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 [新增] 勇士取消假單 / 刪除假單 API
-// ==========================================
 router.delete("/leaves/:id", authMiddleware, async (req, res) => {
   try {
     const leave = await Leave.findById(req.params.id);
@@ -514,8 +513,6 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "휴가 취소 중 서버 오류가 발생했습니다." });
   }
 });
-
-// 💡 註：這裡原本有一個 /notifications，已經幫你刪除以避免跟 server.js 衝突。
 
 router.put("/leaves/:id/reject", authMiddleware, async (req, res) => {
   try {
@@ -635,9 +632,6 @@ router.put("/leaves/:id/approve", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 [新增] 지휘관 직권 취소 (長官強制取消假單)
-// ==========================================
 router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
   try {
     const { role } = req.user;
@@ -697,7 +691,6 @@ router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
       leave.reason || "없음"
     })`;
 
-    // 🔥 [중요 수정] 데이터베이스에서 'updatedAt' 시간을 강제로 지금으로 갱신시켜 줍니다!
     leave.updatedAt = new Date();
     await leave.save();
 
@@ -717,9 +710,6 @@ router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 [新增] 長官特權：手動把候補拉成正取 (或取消特權)
-// ==========================================
 router.put("/leaves/:id/manual-override", authMiddleware, async (req, res) => {
   try {
     if (
@@ -744,9 +734,6 @@ router.put("/leaves/:id/manual-override", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 出島率設定 (讀取、更新基本與特殊、刪除特殊)
-// ==========================================
 router.get("/leaves/rates", authMiddleware, async (req, res) => {
   try {
     const org = await Organization.findById(req.user.orgId);
@@ -889,9 +876,6 @@ router.delete(
   }
 );
 
-// ==========================================
-// 🔥 [月曆專屬] 一鍵結算 (自動判斷檢討者與核准者 + 按月份與類別過濾)
-// ==========================================
 router.post(
   "/leaves/approve-calendar-phase1",
   authMiddleware,
@@ -990,9 +974,6 @@ router.post(
   }
 );
 
-// ==========================================
-// 🔥 [新增] 月曆專屬：一鍵批次駁回所有候補 (把沒上的候補刷掉並退回天數)
-// ==========================================
 router.post(
   "/leaves/reject-calendar-waitlist",
   authMiddleware,
@@ -1053,9 +1034,6 @@ router.post(
   }
 );
 
-// ==========================================
-// 🔥 [小鈴鐺專屬] 安全一鍵結算
-// ==========================================
 router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
   try {
     const { orgId, role } = req.user;
@@ -1135,7 +1113,6 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
   }
 });
 
-// 🔥 시간 절단(Time-slice) 이력 조회 API
 router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
   try {
     const { userId } = req.params;

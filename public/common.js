@@ -275,6 +275,65 @@ window.markNoticeAsRead = function (noticeId) {
   spaNavigate(`/notice?focus=${noticeId}`);
 };
 
+// 🔥 [修改] 點擊日曆通知的全局處理函數 (配合兩段式消除邏輯)
+window.handleNotificationClick = function (id, dateStr, type, status, isIndex) {
+  const role = localStorage.getItem("role") || "soldier";
+
+  // 判斷這是不是「退回、強制取消、取消核准」的假單
+  const isReturnedLeave = [
+    "FORCE_CANCELLED",
+    "REJECTED_REVIEW",
+    "REJECTED_APPROVAL",
+    "CANCEL_APPROVED",
+  ].includes(status);
+
+  // 若是勇士，將點擊過的通知 ID 記入口袋 (已讀)
+  if (role === "soldier") {
+    // 🔥 如果「不是」被退回的假單 (例如 APPROVED)，點擊小鈴鐺就直接消除
+    if (!isReturnedLeave) {
+      let dismissed = JSON.parse(
+        localStorage.getItem("dismissedItems") || "[]"
+      );
+      if (!dismissed.includes(id)) {
+        dismissed.push(id);
+        localStorage.setItem("dismissedItems", JSON.stringify(dismissed));
+      }
+      checkPendingLeaves(); // 點擊後立刻更新小鈴鐺
+    }
+    // 如果是退回的假單，我們在這裡「什麼都不做」，保留通知，等待使用者去點擊月曆上的灰色格子
+  }
+
+  window.closeNotifications();
+
+  // 執行跳轉與閃爍特效
+  if (dateStr) {
+    if (isIndex && typeof executeSearchNavigation === "function") {
+      executeSearchNavigation(id, type, dateStr);
+    } else {
+      spaNavigate(`/?focus=${id}&date=${dateStr}&type=${type}`);
+    }
+  }
+};
+
+// 🔥 [新增] 強化版日曆發光函數 (解決跨週末假單只亮一半的問題)
+window.highlightCalendarEvent = function (eventId) {
+  if (!window.calendar) return;
+  const event = window.calendar.getEventById(eventId);
+  if (event) {
+    const origBg = event.backgroundColor;
+    const origBorder = event.borderColor;
+
+    // 透過 setProp 直接修改事件屬性，FullCalendar 會自動把屬於該事件的所有 HTML 區塊都換色！
+    event.setProp("backgroundColor", "#fef08a");
+    event.setProp("borderColor", "#eab308");
+
+    setTimeout(() => {
+      event.setProp("backgroundColor", origBg);
+      event.setProp("borderColor", origBorder);
+    }, 2000);
+  }
+};
+
 function renderNotifications(notifications, role) {
   const listEl = document.getElementById("notificationList");
   const badgeEl = document.getElementById("notificationBadge");
@@ -282,9 +341,18 @@ function renderNotifications(notifications, role) {
   if (!listEl) return;
 
   const readNotices = JSON.parse(localStorage.getItem("readNotices") || "[]");
+  const dismissedItems = JSON.parse(
+    localStorage.getItem("dismissedItems") || "[]"
+  );
+
   const unreadNotifications = notifications.filter((noti) => {
+    // 過濾已讀公告
     if (noti.status === "SYSTEM_NOTICE" || noti.type === "NOTICE") {
       return !readNotices.includes(noti._id);
+    }
+    // 🔥 [新增] 過濾勇士已經點擊過的「已讀通知」
+    if (role === "soldier" && dismissedItems.includes(noti._id)) {
+      return false;
     }
     return true;
   });
@@ -370,17 +438,14 @@ function renderNotifications(notifications, role) {
         bgColor = "bg-emerald-50 border-emerald-100";
         statusText = "신규 부대원 가입 대기";
         clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
-
-        // 🔥 [新增] 용사가 승인되었을 때 표시할 로직!
       } else if (noti.status === "APPROVED") {
         icon = "fa-check-double";
         color = "text-emerald-500";
         bgColor = "bg-emerald-50 border-emerald-100";
         statusText = "출타가 최종 승인되었습니다! 달력을 확인하세요.";
         const targetDate = noti.startDate ? noti.startDate.split("T")[0] : "";
-        clickAction = isIndex
-          ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');`
-          : `window.closeNotifications(); spaNavigate('/?focus=${noti._id}&date=${targetDate}&type=${noti.type}');`;
+        // 🔥 [修改] 套用全新的已讀處理點擊事件
+        clickAction = `window.handleNotificationClick('${noti._id}', '${targetDate}', '${noti.type}', '${noti.status}', ${isIndex});`;
       } else if (
         noti.status.includes("REJECTED") ||
         noti.status === "CANCEL_APPROVED" ||
@@ -404,9 +469,8 @@ function renderNotifications(notifications, role) {
         }
 
         const targetDate = noti.startDate ? noti.startDate.split("T")[0] : "";
-        clickAction = isIndex
-          ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');`
-          : `window.closeNotifications(); spaNavigate('/?focus=${noti._id}&date=${targetDate}&type=${noti.type}');`;
+        // 🔥 [修改] 套用全新的已讀處理點擊事件
+        clickAction = `window.handleNotificationClick('${noti._id}', '${targetDate}', '${noti.type}', '${noti.status}', ${isIndex});`;
       } else if (noti.status === "DISCHARGE_TODAY") {
         icon = "fa-medal";
         color = "text-purple-600";

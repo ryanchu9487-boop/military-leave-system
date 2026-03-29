@@ -785,7 +785,8 @@
         </div>
       </div>
 
-      <script src="/calendar.js"></script>
+      <script src="/calendar.js?v=999"></script>
+
       <script>
         function handleGrantCategoryChange() {
           const main = document.getElementById("grantMainCategory").value;
@@ -881,12 +882,10 @@
           }
         }
 
-        // 🔥 終極 SPA 喚醒引擎 - Index 事件
         window.initIndexEvents = function () {
           console.log("🔥 Index 嘗試自我喚醒...");
           const grantSubTypeEl = document.getElementById("grantSubType");
           if (grantSubTypeEl) {
-            // 先移除再綁定，防止重複觸發
             grantSubTypeEl.removeEventListener(
               "change",
               handleGrantSubTypeChange
@@ -895,13 +894,11 @@
           }
           handleGrantCategoryChange();
 
-          // 順便確認 calendar.js 有沒有被正確喚醒
           if (typeof window.initCalendarPage === "function") {
             window.initCalendarPage();
           }
         };
 
-        // 當 SPA 引擎把這段 HTML 塞進畫面時，0.1秒後讓它自己叫醒自己！
         setTimeout(window.initIndexEvents, 100);
       </script>
     </div>
