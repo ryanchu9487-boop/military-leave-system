@@ -1,13 +1,17 @@
 {
-  "name": "nodejs-sandbox",
+  "name": "smartmil-app",
   "version": "1.0.0",
-  "description": "",
+  "description": "SmartMil - Military Leave System",
   "main": "server.js",
   "scripts": {
-    "start": "node --watch server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [],
-  "author": "Ives van Hoorne",
+  "author": "",
   "license": "MIT",
   "dependencies": {
     "bcrypt": "^6.0.0",
