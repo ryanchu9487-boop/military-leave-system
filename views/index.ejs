@@ -46,38 +46,38 @@
           font-size: 0.7rem !important;
           padding: 0.3rem 0 !important;
         }
-        
+
         .week-row {
           min-height: 80px !important;
         }
         .day-cell {
           padding: 0.25rem !important;
         }
-        
+
         .date-text {
           font-size: 0.7rem !important;
           min-width: 20px !important;
-          width: auto !important;    
-          padding: 0 4px !important;  
+          width: auto !important;
+          padding: 0 4px !important;
           height: 20px !important;
           display: inline-flex !important;
           align-items: center !important;
           justify-content: center !important;
-          border-radius: 10px !important; 
-          white-space: nowrap !important; 
+          border-radius: 10px !important;
+          white-space: nowrap !important;
           letter-spacing: -0.5px !important;
         }
-        
+
         .holiday-name {
           font-size: 0.55rem !important;
           margin-top: 1px !important;
-          width: 100% !important;            
-          display: block !important;         
-          white-space: normal !important;    
-          word-break: keep-all !important;   
+          width: 100% !important;
+          display: block !important;
+          white-space: normal !important;
+          word-break: keep-all !important;
           line-height: 1.1 !important;
-          max-height: 16px !important;       
-          overflow: hidden !important;       
+          max-height: 16px !important;
+          overflow: hidden !important;
           text-align: center !important;
         }
 
@@ -90,7 +90,7 @@
         }
         [class*="leave-bar-"] {
           height: 14px !important;
-          font-size: 8px !important; 
+          font-size: 8px !important;
           line-height: 14px !important;
           padding: 0 4px !important;
           border-radius: 3px !important;
@@ -98,22 +98,22 @@
 
         #notificationDropdown {
           position: fixed !important;
-          top: 60px !important;       
-          right: auto !important;     
-          left: 50% !important;       
-          transform: translateX(-50%) !important; 
-          width: 92vw !important;     
+          top: 60px !important;
+          right: auto !important;
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          width: 92vw !important;
           max-height: 75vh !important;
-          z-index: 9999 !important;   
+          z-index: 9999 !important;
         }
 
         #floatingPill {
           top: 54px !important;
-          transform: translateX(-50%) scale(0.85) !important; 
+          transform: translateX(-50%) scale(0.85) !important;
           padding: 4px 10px !important;
           white-space: nowrap !important;
         }
-        
+
         #floatingYearMonth {
           font-size: 0.85rem !important;
           letter-spacing: -0.5px !important;
@@ -121,13 +121,14 @@
 
         #miniPickerBox {
           width: 200px !important;
-          transform: translateX(-50%) scale(0.9) !important; 
+          transform: translateX(-50%) scale(0.9) !important;
         }
       }
 
       /* 📱 手機橫向 */
       @media (max-width: 932px) and (orientation: landscape) {
-        .week-row { min-height: 80px !important;
+        .week-row {
+          min-height: 80px !important;
         }
         .holiday-name {
           font-size: 0.65rem !important;
@@ -139,19 +140,24 @@
           transform: translateX(-50%) scale(0.8) !important;
         }
       }
-      
+
       /* 🔥 等待線的動畫效果 */
       @keyframes pulseLine {
-        0% { opacity: 0.4;
+        0% {
+          opacity: 0.4;
         }
-        50% { opacity: 0.8; box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
+        50% {
+          opacity: 0.8;
+          box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
         }
-        100% { opacity: 0.4;
+        100% {
+          opacity: 0.4;
         }
       }
       .waitlist-line {
         position: absolute;
-        left: 0; right: 0;
+        left: 0;
+        right: 0;
         height: 2px;
         background-color: #f97316; /* 橘色 */
         z-index: 5;
@@ -165,7 +171,7 @@
         font-size: 9px;
         font-weight: bold;
         color: #f97316;
-        background: rgba(255,255,255,0.8);
+        background: rgba(255, 255, 255, 0.8);
         padding: 0 2px;
         border-radius: 2px;
       }
@@ -189,40 +195,80 @@
     </style>
   </head>
   <body class="bg-gray-50 text-gray-900 overflow-hidden h-screen flex flex-col">
-    <%- include('partials/sidebar') %>
-    <%- include('partials/header') %>
-    
-    <div id="page-wrapper" class="flex-1 w-full h-full relative overflow-hidden flex flex-col">
-      <main class="flex-1 overflow-hidden p-4 sm:p-6 relative flex flex-col gap-4 z-10">
-        
-        <div id="calendarToggle" class="hidden relative w-full flex flex-col md:flex-row items-center justify-center gap-3">
-          
-          <div class="flex items-center gap-1 bg-gray-200 p-1 rounded-lg overflow-x-auto no-scrollbar shrink-0 max-w-full">
-            <button onclick="switchCalendarMode('personal')" id="btnPersonal" class="shrink-0 px-4 py-1.5 bg-white shadow-sm rounded-md text-xs sm:text-sm font-bold text-gray-800 transition">
+    <%- include('partials/sidebar') %> <%- include('partials/header') %>
+
+    <div
+      id="page-wrapper"
+      class="flex-1 w-full h-full relative overflow-hidden flex flex-col"
+    >
+      <main
+        class="flex-1 overflow-hidden p-4 sm:p-6 relative flex flex-col gap-4 z-10"
+      >
+        <div
+          id="calendarToggle"
+          class="hidden relative w-full flex flex-col md:flex-row items-center justify-center gap-3"
+        >
+          <div
+            class="flex items-center gap-1 bg-gray-200 p-1 rounded-lg overflow-x-auto no-scrollbar shrink-0 max-w-full"
+          >
+            <button
+              onclick="switchCalendarMode('personal')"
+              id="btnPersonal"
+              class="shrink-0 px-4 py-1.5 bg-white shadow-sm rounded-md text-xs sm:text-sm font-bold text-gray-800 transition"
+            >
               내 휴가
             </button>
-            <button onclick="switchCalendarMode('team-long')" id="btnTeamLong" class="shrink-0 px-4 py-1.5 text-xs sm:text-sm font-bold text-gray-500 hover:text-gray-800 transition">
+            <button
+              onclick="switchCalendarMode('team-long')"
+              id="btnTeamLong"
+              class="shrink-0 px-4 py-1.5 text-xs sm:text-sm font-bold text-gray-500 hover:text-gray-800 transition"
+            >
               전체 (휴가)
             </button>
-            <button onclick="switchCalendarMode('team-short')" id="btnTeamShort" class="shrink-0 px-4 py-1.5 text-xs sm:text-sm font-bold text-gray-500 hover:text-gray-800 transition">
+            <button
+              onclick="switchCalendarMode('team-short')"
+              id="btnTeamShort"
+              class="shrink-0 px-4 py-1.5 text-xs sm:text-sm font-bold text-gray-500 hover:text-gray-800 transition"
+            >
               전체 (외출/외박)
             </button>
           </div>
 
           <div class="flex items-center gap-2 md:absolute md:right-0 shrink-0">
-            <button id="settingsModalBtn" onclick="openModal('rateModal')" class="hidden px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-500 hover:text-indigo-600 shadow-sm transition" title="출타율 설정">
+            <button
+              id="settingsModalBtn"
+              onclick="openModal('rateModal')"
+              class="hidden px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-500 hover:text-indigo-600 shadow-sm transition"
+              title="출타율 설정"
+            >
               <i class="fa-solid fa-gear"></i>
             </button>
 
-            <button id="batchApproveBtn" onclick="batchApprovePhase1()" class="hidden px-4 py-1.5 bg-orange-500 text-white shadow-sm rounded-lg text-xs sm:text-sm font-bold hover:bg-orange-600 transition flex items-center">
+            <button
+              id="batchRejectBtn"
+              onclick="batchRejectWaitlistPhase1()"
+              class="hidden px-4 py-1.5 bg-red-50 text-red-600 border border-red-200 shadow-sm rounded-lg text-xs sm:text-sm font-bold hover:bg-red-100 transition flex items-center"
+              title="이달의 후보(대기) 인원 일괄 반려"
+            >
+              <i class="fa-solid fa-trash-can mr-1.5"></i>후보 반려
+            </button>
+
+            <button
+              id="batchApproveBtn"
+              onclick="batchApprovePhase1()"
+              class="hidden px-4 py-1.5 bg-orange-500 text-white shadow-sm rounded-lg text-xs sm:text-sm font-bold hover:bg-orange-600 transition flex items-center"
+            >
               <i class="fa-solid fa-check-double mr-1.5"></i>일괄결재
             </button>
           </div>
-
         </div>
 
-        <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden h-full flex flex-col relative pt-16">
-          <div class="calendar-grid bg-gray-50 border-b border-gray-200 text-center py-2 text-xs font-bold text-gray-500 uppercase tracking-wider relative z-20">
+        <div
+          class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden h-full flex flex-col relative pt-16"
+        >
+          <div
+            class="calendar-grid bg-gray-50 border-b border-gray-200 text-center py-2 text-xs font-bold text-gray-500 uppercase tracking-wider relative z-20"
+          >
             <div class="text-red-500 border-r border-gray-200">일</div>
             <div class="border-r border-gray-200">월</div>
             <div class="border-r border-gray-200">화</div>
@@ -231,222 +277,510 @@
             <div class="border-r border-gray-200">금</div>
             <div class="text-blue-500">토</div>
           </div>
-          <div id="calendar" class="flex-1 calendar-grid divide-x divide-y divide-gray-100 relative overflow-y-auto"></div>
+          <div
+            id="calendar"
+            class="flex-1 calendar-grid divide-x divide-y divide-gray-100 relative overflow-y-auto"
+          ></div>
         </div>
       </main>
 
-      <div class="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[50] flex flex-col items-end gap-3">
-        <div id="fabMenu" class="flex flex-col gap-3 items-end transition-all duration-300 opacity-0 translate-y-4 pointer-events-none">
-          <button id="fabGrantBtn" onclick="openModal('grantModal')" class="flex items-center gap-3 group focus:outline-none">
-            <span class="bg-white px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 shadow-md group-hover:text-indigo-600 transition-colors">출타 심의 (등록)</span>
-            <div class="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-lg group-hover:bg-indigo-50 transition-colors">
+      <div
+        class="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-[50] flex flex-col items-end gap-3"
+      >
+        <div
+          id="fabMenu"
+          class="flex flex-col gap-3 items-end transition-all duration-300 opacity-0 translate-y-4 pointer-events-none"
+        >
+          <button
+            id="fabGrantBtn"
+            onclick="openModal('grantModal')"
+            class="flex items-center gap-3 group focus:outline-none"
+          >
+            <span
+              class="bg-white px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 shadow-md group-hover:text-indigo-600 transition-colors"
+              >출타 심의 (등록)</span
+            >
+            <div
+              class="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-lg group-hover:bg-indigo-50 transition-colors"
+            >
               <i class="fa-solid fa-gavel text-sm"></i>
             </div>
           </button>
-          <button onclick="openModal('requestModal')" class="flex items-center gap-3 group focus:outline-none">
-            <span class="bg-white px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 shadow-md group-hover:text-indigo-600 transition-colors">출타 신청 (사용)</span>
-            <div class="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-lg group-hover:bg-indigo-50 transition-colors">
+          <button
+            onclick="openModal('requestModal')"
+            class="flex items-center gap-3 group focus:outline-none"
+          >
+            <span
+              class="bg-white px-3 py-1.5 rounded-lg text-sm font-bold text-gray-700 shadow-md group-hover:text-indigo-600 transition-colors"
+              >출타 신청 (사용)</span
+            >
+            <div
+              class="w-10 h-10 bg-white text-indigo-600 rounded-full flex items-center justify-center shadow-lg group-hover:bg-indigo-50 transition-colors"
+            >
               <i class="fa-solid fa-plane-departure text-sm"></i>
             </div>
           </button>
         </div>
-        <button onclick="toggleFabMenu()" id="mainFab" class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl shadow-[0_10px_25px_rgba(99,102,241,0.5)] hover:bg-indigo-700 hover:-translate-y-1 transition-all duration-300 focus:outline-none">
-          <i class="fa-solid fa-plus transition-transform duration-300" id="fabIcon"></i>
+        <button
+          onclick="toggleFabMenu()"
+          id="mainFab"
+          class="w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center text-xl shadow-[0_10px_25px_rgba(99,102,241,0.5)] hover:bg-indigo-700 hover:-translate-y-1 transition-all duration-300 focus:outline-none"
+        >
+          <i
+            class="fa-solid fa-plus transition-transform duration-300"
+            id="fabIcon"
+          ></i>
         </button>
       </div>
 
-      <div id="grantModal" onclick="closeModal('grantModal')" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
-        <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
-          <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+      <div
+        id="grantModal"
+        onclick="closeModal('grantModal')"
+        class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity"
+      >
+        <div
+          onclick="event.stopPropagation()"
+          class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all"
+        >
+          <div
+            class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50"
+          >
             <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
               <i class="fa-solid fa-gavel text-indigo-600"></i> 출타 심의 (등록)
             </h3>
-            <button onclick="closeModal('grantModal')" class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition">
+            <button
+              onclick="closeModal('grantModal')"
+              class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition"
+            >
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-          <div class="p-6 space-y-4 text-sm max-h-[80vh] overflow-y-auto custom-scrollbar">
+          <div
+            class="p-6 space-y-4 text-sm max-h-[80vh] overflow-y-auto custom-scrollbar"
+          >
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">출타 대분류</label>
-                <select id="grantMainCategory" onchange="handleGrantCategoryChange()" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none">
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >출타 대분류</label
+                >
+                <select
+                  id="grantMainCategory"
+                  onchange="handleGrantCategoryChange()"
+                  class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
                   <option value="휴가">휴가</option>
                   <option value="외박">외박</option>
                   <option value="외출">외출</option>
                 </select>
               </div>
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">세부 종류</label>
-                <select id="grantSubType" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"></select>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >세부 종류</label
+                >
+                <select
+                  id="grantSubType"
+                  class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                ></select>
               </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">부여 일수(일)</label>
-                <input id="grantDays" type="number" min="1" value="1" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-200 disabled:text-gray-500"/>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >부여 일수(일)</label
+                >
+                <input
+                  id="grantDays"
+                  type="number"
+                  min="1"
+                  value="1"
+                  class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-gray-200 disabled:text-gray-500"
+                />
               </div>
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">만료 기한 (선택)</label>
-                <input id="grantExpires" type="date" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-xs"/>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >만료 기한 (선택)</label
+                >
+                <input
+                  id="grantExpires"
+                  type="date"
+                  class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-xs"
+                />
               </div>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5">심의 사유</label>
-              <input id="grantReason" type="text" placeholder="예: 분대장 임무수행 유공" class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
+              <label class="block font-bold text-gray-700 mb-1.5"
+                >심의 사유</label
+              >
+              <input
+                id="grantReason"
+                type="text"
+                placeholder="예: 분대장 임무수행 유공"
+                class="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
             </div>
           </div>
           <div class="p-4 bg-gray-50 border-t border-gray-100">
-            <button onclick="submitGrant()" class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition">등록 완료</button>
+            <button
+              onclick="submitGrant()"
+              class="w-full bg-indigo-600 text-white py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition"
+            >
+              등록 완료
+            </button>
           </div>
         </div>
       </div>
 
-      <div id="requestModal" onclick="closeModal('requestModal')" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
-        <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
-          <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
+      <div
+        id="requestModal"
+        onclick="closeModal('requestModal')"
+        class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity"
+      >
+        <div
+          onclick="event.stopPropagation()"
+          class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
+        >
+          <div
+            class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0"
+          >
             <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-              <i class="fa-solid fa-plane-departure text-indigo-600"></i> 출타 신청
+              <i class="fa-solid fa-plane-departure text-indigo-600"></i> 출타
+              신청
             </h3>
-            <button onclick="closeModal('requestModal')" class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition">
+            <button
+              onclick="closeModal('requestModal')"
+              class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition"
+            >
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
           <div class="p-6 space-y-5 text-sm overflow-y-auto custom-scrollbar">
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">출발일</label>
-                <input id="reqStartDate" type="date" onchange="calculateReqDays()" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >출발일</label
+                >
+                <input
+                  id="reqStartDate"
+                  type="date"
+                  onchange="calculateReqDays()"
+                  class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
               </div>
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">복귀일</label>
-                <input id="reqEndDate" type="date" onchange="calculateReqDays()" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >복귀일</label
+                >
+                <input
+                  id="reqEndDate"
+                  type="date"
+                  onchange="calculateReqDays()"
+                  class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
               </div>
             </div>
-            <div id="daysCalcBox" class="bg-indigo-50 border border-indigo-100 rounded-xl p-3.5 flex justify-between items-center hidden transition-colors">
-              <span class="text-indigo-800 font-bold"><i class="fa-regular fa-calendar-check mr-1.5"></i>일정 필요 일수</span>
-              <span id="daysCalcText" class="text-indigo-600 font-black text-lg">0일</span>
+            <div
+              id="daysCalcBox"
+              class="bg-indigo-50 border border-indigo-100 rounded-xl p-3.5 flex justify-between items-center hidden transition-colors"
+            >
+              <span class="text-indigo-800 font-bold"
+                ><i class="fa-regular fa-calendar-check mr-1.5"></i>일정 필요
+                일수</span
+              >
+              <span id="daysCalcText" class="text-indigo-600 font-black text-lg"
+                >0일</span
+              >
             </div>
             <div>
               <div class="flex justify-between items-end mb-2">
-                <label class="block font-bold text-gray-700">사용할 휴가 직접 선택 <span id="totalRemainsText" class="ml-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">총 0일</span></label>
+                <label class="block font-bold text-gray-700"
+                  >사용할 휴가 직접 선택
+                  <span
+                    id="totalRemainsText"
+                    class="ml-1 text-[11px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded"
+                    >총 0일</span
+                  ></label
+                >
               </div>
-              <div id="reqSlotList" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-gray-100 bg-gray-50/50 rounded-xl"></div>
+              <div
+                id="reqSlotList"
+                class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-gray-100 bg-gray-50/50 rounded-xl"
+              ></div>
             </div>
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">행선지</label>
-                <input id="reqDestination" type="text" placeholder="예: 서울특별시" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >행선지</label
+                >
+                <input
+                  id="reqDestination"
+                  type="text"
+                  placeholder="예: 서울특별시"
+                  class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
               </div>
               <div>
-                <label class="block font-bold text-gray-700 mb-1.5">비상 연락처</label>
-                <input id="reqContact" type="text" placeholder="010-0000-0000" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
+                <label class="block font-bold text-gray-700 mb-1.5"
+                  >비상 연락처</label
+                >
+                <input
+                  id="reqContact"
+                  type="text"
+                  placeholder="010-0000-0000"
+                  class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
               </div>
             </div>
             <div>
-              <label class="block font-bold text-gray-700 mb-1.5">신청 상세 사유</label>
-              <input id="reqReason" type="text" placeholder="예: 정기 및 위로 휴가 사용" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"/>
+              <label class="block font-bold text-gray-700 mb-1.5"
+                >신청 상세 사유</label
+              >
+              <input
+                id="reqReason"
+                type="text"
+                placeholder="예: 정기 및 위로 휴가 사용"
+                class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
             </div>
             <div class="mt-2">
-              <label class="block font-bold text-gray-700 mb-1.5">증빙 서류 (선택, 최대 5개)</label>
-              <input type="file" id="reqFile" class="hidden" multiple accept="image/*,.pdf" onchange="updateFileName(this)"/>
-              <div onclick="document.getElementById('reqFile').click()" class="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer transition flex flex-col items-center">
-                <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i><span id="fileNameDisplay" class="truncate max-w-[200px]">클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)</span>
+              <label class="block font-bold text-gray-700 mb-1.5"
+                >증빙 서류 (선택, 최대 5개)</label
+              >
+              <input
+                type="file"
+                id="reqFile"
+                class="hidden"
+                multiple
+                accept="image/*,.pdf"
+                onchange="updateFileName(this)"
+              />
+              <div
+                onclick="document.getElementById('reqFile').click()"
+                class="w-full px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl text-center text-gray-400 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer transition flex flex-col items-center"
+              >
+                <i class="fa-solid fa-cloud-arrow-up text-xl mb-1"></i
+                ><span id="fileNameDisplay" class="truncate max-w-[200px]"
+                  >클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)</span
+                >
               </div>
             </div>
           </div>
           <div class="p-5 bg-gray-50 border-t border-gray-100 shrink-0">
-            <button onclick="submitRequest()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-base">
+            <button
+              onclick="submitRequest()"
+              class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-sm text-base"
+            >
               출타 신청서 제출
             </button>
           </div>
         </div>
       </div>
-      
-      <div id="rateModal" onclick="closeModal('rateModal')" class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity">
-        <div onclick="event.stopPropagation()" class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
-          <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50/50 shrink-0">
-            <h3 class="text-lg font-bold text-indigo-800 flex items-center gap-2">
-              <i class="fa-solid fa-sliders text-indigo-600"></i> 부대 출타율 설정
+
+      <div
+        id="rateModal"
+        onclick="closeModal('rateModal')"
+        class="hidden fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-opacity"
+      >
+        <div
+          onclick="event.stopPropagation()"
+          class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all flex flex-col max-h-[90vh]"
+        >
+          <div
+            class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50/50 shrink-0"
+          >
+            <h3
+              class="text-lg font-bold text-indigo-800 flex items-center gap-2"
+            >
+              <i class="fa-solid fa-sliders text-indigo-600"></i> 부대 출타율
+              설정
             </h3>
-            <button onclick="closeModal('rateModal')" class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition">
+            <button
+              onclick="closeModal('rateModal')"
+              class="text-gray-400 hover:bg-gray-100 w-8 h-8 rounded-full flex items-center justify-center transition"
+            >
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-          
-          <div class="p-6 space-y-6 text-sm overflow-y-auto custom-scrollbar bg-gray-50/30">
-            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-              <h4 class="font-black text-gray-800 mb-3 flex items-center gap-1.5"><i class="fa-solid fa-percent text-indigo-500"></i> 기본 출타율</h4>
-              <div class="flex flex-col sm:flex-row items-stretch justify-between gap-3">
-                <label class="flex-1 font-bold text-gray-700 flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-lg border border-gray-100">
+
+          <div
+            class="p-6 space-y-6 text-sm overflow-y-auto custom-scrollbar bg-gray-50/30"
+          >
+            <div
+              class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm"
+            >
+              <h4
+                class="font-black text-gray-800 mb-3 flex items-center gap-1.5"
+              >
+                <i class="fa-solid fa-percent text-indigo-500"></i> 기본 출타율
+              </h4>
+              <div
+                class="flex flex-col sm:flex-row items-stretch justify-between gap-3"
+              >
+                <label
+                  class="flex-1 font-bold text-gray-700 flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-lg border border-gray-100"
+                >
                   <span>휴가 (장기)</span>
-                  <div class="flex items-center gap-1.5 shrink-0"><input type="number" id="rateLongInput" value="20" class="w-16 text-center border border-gray-300 rounded-md p-1.5 font-black text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner"> %</div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="number"
+                      id="rateLongInput"
+                      value="20"
+                      class="w-16 text-center border border-gray-300 rounded-md p-1.5 font-black text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner"
+                    />
+                    %
+                  </div>
                 </label>
-                <label class="flex-1 font-bold text-gray-700 flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-lg border border-gray-100">
+                <label
+                  class="flex-1 font-bold text-gray-700 flex items-center justify-between bg-gray-50 px-4 py-2.5 rounded-lg border border-gray-100"
+                >
                   <span>외출/외박 (단기)</span>
-                  <div class="flex items-center gap-1.5 shrink-0"><input type="number" id="rateShortInput" value="15" class="w-16 text-center border border-gray-300 rounded-md p-1.5 font-black text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner"> %</div>
+                  <div class="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="number"
+                      id="rateShortInput"
+                      value="15"
+                      class="w-16 text-center border border-gray-300 rounded-md p-1.5 font-black text-indigo-700 outline-none focus:ring-2 focus:ring-indigo-400 shadow-inner"
+                    />
+                    %
+                  </div>
                 </label>
               </div>
               <div class="mt-3 text-right">
-                <button onclick="updateLeaveRates()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition shadow-sm">기본값 저장</button>
+                <button
+                  onclick="updateLeaveRates()"
+                  class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition shadow-sm"
+                >
+                  기본값 저장
+                </button>
               </div>
             </div>
 
-            <div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm relative overflow-hidden">
+            <div
+              class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm relative overflow-hidden"
+            >
               <div class="absolute top-0 left-0 w-1 h-full bg-indigo-400"></div>
-              <h4 class="font-black text-indigo-800 mb-3 flex items-center gap-1.5"><i class="fa-solid fa-calendar-day text-indigo-500"></i> 특별 기간 출타율 추가</h4>
-              
+              <h4
+                class="font-black text-indigo-800 mb-3 flex items-center gap-1.5"
+              >
+                <i class="fa-solid fa-calendar-day text-indigo-500"></i> 특별
+                기간 출타율 추가
+              </h4>
+
               <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-1">시작일</label>
-                  <input type="date" id="specialStartDate" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400">
+                  <label class="block text-[11px] font-bold text-gray-500 mb-1"
+                    >시작일</label
+                  >
+                  <input
+                    type="date"
+                    id="specialStartDate"
+                    class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
                 </div>
                 <div>
-                  <label class="block text-[11px] font-bold text-gray-500 mb-1">종료일</label>
-                  <input type="date" id="specialEndDate" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400">
+                  <label class="block text-[11px] font-bold text-gray-500 mb-1"
+                    >종료일</label
+                  >
+                  <input
+                    type="date"
+                    id="specialEndDate"
+                    class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
                 </div>
               </div>
-              
+
               <div class="flex gap-2 mb-3">
                 <div class="flex-[2]">
-                  <label class="block text-[11px] font-bold text-gray-500 mb-1">사유 (예: 전술훈련)</label>
-                  <input type="text" id="specialReason" placeholder="사유 입력" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400">
+                  <label class="block text-[11px] font-bold text-gray-500 mb-1"
+                    >사유 (예: 전술훈련)</label
+                  >
+                  <input
+                    type="text"
+                    id="specialReason"
+                    placeholder="사유 입력"
+                    class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-gray-700 outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
                 </div>
                 <div class="flex-1">
-                  <label class="block text-[11px] font-bold text-gray-500 mb-1">휴가 %</label>
-                  <input type="number" id="specialRateLong" placeholder="20" class="w-full text-center border border-gray-300 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-indigo-400">
+                  <label class="block text-[11px] font-bold text-gray-500 mb-1"
+                    >휴가 %</label
+                  >
+                  <input
+                    type="number"
+                    id="specialRateLong"
+                    placeholder="20"
+                    class="w-full text-center border border-gray-300 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
                 </div>
                 <div class="flex-1">
-                  <label class="block text-[11px] font-bold text-gray-500 mb-1">단기 %</label>
-                  <input type="number" id="specialRateShort" placeholder="15" class="w-full text-center border border-gray-300 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-indigo-400">
+                  <label class="block text-[11px] font-bold text-gray-500 mb-1"
+                    >단기 %</label
+                  >
+                  <input
+                    type="number"
+                    id="specialRateShort"
+                    placeholder="15"
+                    class="w-full text-center border border-gray-300 rounded-lg px-2 py-1.5 font-bold outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
                 </div>
               </div>
 
               <div class="text-right">
-                <button onclick="addSpecialRate()" class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-600 transition shadow-sm flex items-center justify-center gap-1.5 ml-auto">
+                <button
+                  onclick="addSpecialRate()"
+                  class="bg-indigo-500 text-white px-4 py-2 rounded-lg text-xs font-bold hover:bg-indigo-600 transition shadow-sm flex items-center justify-center gap-1.5 ml-auto"
+                >
                   <i class="fa-solid fa-plus"></i> 특별 기간 추가
                 </button>
               </div>
             </div>
 
             <div id="activeSpecialRatesContainer" class="hidden">
-              <h4 class="font-black text-gray-800 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-list-check text-indigo-500"></i> 현재 적용된 특별 출타율</h4>
+              <h4
+                class="font-black text-gray-800 mb-2 flex items-center gap-1.5"
+              >
+                <i class="fa-solid fa-list-check text-indigo-500"></i> 현재
+                적용된 특별 출타율
+              </h4>
               <ul id="specialRatesList" class="space-y-2"></ul>
             </div>
           </div>
         </div>
       </div>
 
-      <div id="bottomSheetOverlay" class="fixed inset-0 bg-black/50 z-[110] hidden opacity-0 transition-opacity duration-300" onclick="closeBottomSheet()"></div>
-      <div id="bottomSheet" class="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[120] transform translate-y-full transition-transform duration-300 flex flex-col max-h-[85vh]">
-        <div class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-2"></div>
-        <div class="px-6 py-3 border-b border-gray-100 flex justify-between items-center">
-          <h3 class="text-lg font-black text-gray-800" id="bsDateTitle">출타 현황</h3>
-          <span id="bsQuotaInfo" class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hidden">정원 정보</span>
+      <div
+        id="bottomSheetOverlay"
+        class="fixed inset-0 bg-black/50 z-[110] hidden opacity-0 transition-opacity duration-300"
+        onclick="closeBottomSheet()"
+      ></div>
+      <div
+        id="bottomSheet"
+        class="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl z-[120] transform translate-y-full transition-transform duration-300 flex flex-col max-h-[85vh]"
+      >
+        <div
+          class="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mt-3 mb-2"
+        ></div>
+        <div
+          class="px-6 py-3 border-b border-gray-100 flex justify-between items-center"
+        >
+          <h3 class="text-lg font-black text-gray-800" id="bsDateTitle">
+            출타 현황
+          </h3>
+          <span
+            id="bsQuotaInfo"
+            class="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded hidden"
+            >정원 정보</span
+          >
         </div>
         <div class="p-4 overflow-y-auto custom-scrollbar flex-1 bg-gray-50">
-          <h4 class="text-xs font-bold text-gray-500 mb-2"><i class="fa-solid fa-circle-check text-green-500 mr-1"></i>승인 대상 (정원 내)</h4>
+          <h4 class="text-xs font-bold text-gray-500 mb-2">
+            <i class="fa-solid fa-circle-check text-green-500 mr-1"></i>승인
+            대상 (정원 내)
+          </h4>
           <div id="bsApprovedList" class="space-y-2 mb-4"></div>
-          <h4 class="text-xs font-bold text-gray-500 mb-2 mt-4"><i class="fa-solid fa-clock-rotate-left text-orange-500 mr-1"></i>후보 (정원 초과)</h4>
+          <h4 class="text-xs font-bold text-gray-500 mb-2 mt-4">
+            <i class="fa-solid fa-clock-rotate-left text-orange-500 mr-1"></i
+            >후보 (정원 초과)
+          </h4>
           <div id="bsWaitlistList" class="space-y-2"></div>
         </div>
       </div>
@@ -480,7 +814,10 @@
           if (main === "외박" && sub === "특별") {
             daysInput.value = 2;
             daysInput.disabled = true;
-          } else if (main === "외출" && (sub === "평일특별" || sub === "주말특별")) {
+          } else if (
+            main === "외출" &&
+            (sub === "평일특별" || sub === "주말특별")
+          ) {
             daysInput.value = 1;
             daysInput.disabled = true;
           } else {
@@ -494,10 +831,18 @@
           const icon = document.getElementById("fabIcon");
           if (menu && icon) {
             if (menu.classList.contains("opacity-0")) {
-              menu.classList.remove("opacity-0", "translate-y-4", "pointer-events-none");
+              menu.classList.remove(
+                "opacity-0",
+                "translate-y-4",
+                "pointer-events-none"
+              );
               icon.classList.add("rotate-45");
             } else {
-              menu.classList.add("opacity-0", "translate-y-4", "pointer-events-none");
+              menu.classList.add(
+                "opacity-0",
+                "translate-y-4",
+                "pointer-events-none"
+              );
               icon.classList.remove("rotate-45");
             }
           }
@@ -508,7 +853,8 @@
           if (modal) modal.classList.remove("hidden");
           const menu = document.getElementById("fabMenu");
           if (menu && !menu.classList.contains("opacity-0")) toggleFabMenu();
-          if (id === "requestModal" && typeof loadMySlots === "function") loadMySlots();
+          if (id === "requestModal" && typeof loadMySlots === "function")
+            loadMySlots();
         }
 
         function closeModal(id) {
@@ -520,12 +866,14 @@
           const display = document.getElementById("fileNameDisplay");
           if (input.files && input.files.length > 5) {
             alert("증빙 서류는 최대 5개까지만 업로드 가능합니다.");
-            input.value = ""; 
+            input.value = "";
             display.innerText = "클릭하여 여러 파일 첨부 (Ctrl 누르고 선택)";
             return;
           }
           if (input.files && input.files.length > 1) {
-            display.innerText = `${input.files[0].name} 외 ${input.files.length - 1}건`;
+            display.innerText = `${input.files[0].name} 외 ${
+              input.files.length - 1
+            }건`;
           } else if (input.files && input.files.length === 1) {
             display.innerText = input.files[0].name;
           } else {
@@ -534,12 +882,15 @@
         }
 
         // 🔥 終極 SPA 喚醒引擎 - Index 事件
-        window.initIndexEvents = function() {
+        window.initIndexEvents = function () {
           console.log("🔥 Index 嘗試自我喚醒...");
           const grantSubTypeEl = document.getElementById("grantSubType");
-          if(grantSubTypeEl) {
+          if (grantSubTypeEl) {
             // 先移除再綁定，防止重複觸發
-            grantSubTypeEl.removeEventListener("change", handleGrantSubTypeChange);
+            grantSubTypeEl.removeEventListener(
+              "change",
+              handleGrantSubTypeChange
+            );
             grantSubTypeEl.addEventListener("change", handleGrantSubTypeChange);
           }
           handleGrantCategoryChange();
@@ -553,6 +904,7 @@
         // 當 SPA 引擎把這段 HTML 塞進畫面時，0.1秒後讓它自己叫醒自己！
         setTimeout(window.initIndexEvents, 100);
       </script>
-    </div> <script src="/common.js"></script>
+    </div>
+    <script src="/common.js"></script>
   </body>
 </html>

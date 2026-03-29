@@ -5,136 +5,350 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartMil - 출타 심의 (1차 검토)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
     <script src="/common.js"></script>
 
     <style>
       @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
-      body { font-family: "Pretendard", sans-serif; }
-      @keyframes float { 0% { transform: translate(0, 0) scale(1); } 100% { transform: translate(30px, 50px) scale(1.1); } }
-      .glass-card { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-      @keyframes slideUpFade { 0% { opacity: 0; transform: translateY(20px) scale(0.98); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+      body {
+        font-family: "Pretendard", sans-serif;
+      }
+      @keyframes float {
+        0% {
+          transform: translate(0, 0) scale(1);
+        }
+        100% {
+          transform: translate(30px, 50px) scale(1.1);
+        }
+      }
+      .glass-card {
+        animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      @keyframes slideUpFade {
+        0% {
+          opacity: 0;
+          transform: translateY(20px) scale(0.98);
+        }
+        100% {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
     </style>
   </head>
-  
-  <body class="bg-gray-50 text-slate-800 flex flex-col h-screen overflow-hidden selection:bg-indigo-500 selection:text-white" id="mainBody">
-    
-    <%- include('partials/sidebar') %>
-    <%- include('partials/header') %>
 
-    <div id="page-wrapper" class="flex-1 w-full relative overflow-y-auto custom-scrollbar bg-[#f8fafc] transition-colors duration-500">
-      
+  <body
+    class="bg-gray-50 text-slate-800 flex flex-col h-screen overflow-hidden selection:bg-indigo-500 selection:text-white"
+    id="mainBody"
+  >
+    <%- include('partials/sidebar') %> <%- include('partials/header') %>
+
+    <div
+      id="page-wrapper"
+      class="flex-1 w-full relative overflow-y-auto custom-scrollbar bg-[#f8fafc] transition-colors duration-500"
+    >
       <div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <div id="blob-1" class="absolute filter blur-[80px] opacity-60 top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[radial-gradient(circle,rgba(99,102,241,0.3)_0%,rgba(99,102,241,0)_70%)]" style="animation: float 10s infinite alternate ease-in-out; transition: background 0.5s ease;"></div>
-        <div id="blob-2" class="absolute filter blur-[80px] opacity-60 bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-[radial-gradient(circle,rgba(168,85,247,0.25)_0%,rgba(168,85,247,0)_70%)]" style="animation: float 10s infinite alternate ease-in-out; animation-delay: -5s; transition: background 0.5s ease;"></div>
+        <div
+          id="blob-1"
+          class="absolute filter blur-[80px] opacity-60 top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[radial-gradient(circle,rgba(99,102,241,0.3)_0%,rgba(99,102,241,0)_70%)]"
+          style="
+            animation: float 10s infinite alternate ease-in-out;
+            transition: background 0.5s ease;
+          "
+        ></div>
+        <div
+          id="blob-2"
+          class="absolute filter blur-[80px] opacity-60 bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-[radial-gradient(circle,rgba(168,85,247,0.25)_0%,rgba(168,85,247,0)_70%)]"
+          style="
+            animation: float 10s infinite alternate ease-in-out;
+            animation-delay: -5s;
+            transition: background 0.5s ease;
+          "
+        ></div>
       </div>
 
       <div class="relative z-10 w-full py-12 px-4 sm:px-8">
-        <div class="glass-card max-w-2xl w-full mx-auto bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] p-8 sm:p-10 relative">
-          
-          <button onclick="window.spaNavigate('/')" class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 hover:bg-gray-200 text-gray-400 transition-all z-20">
+        <div
+          class="glass-card max-w-2xl w-full mx-auto bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_24px_60px_-15px_rgba(0,0,0,0.1)] rounded-[2.5rem] p-8 sm:p-10 relative"
+        >
+          <button
+            onclick="window.spaNavigate('/')"
+            class="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-gray-100/50 hover:bg-gray-200 text-gray-400 transition-all z-20"
+          >
             <i class="fa-solid fa-xmark text-lg"></i>
           </button>
 
           <div class="mb-8">
-            <div id="statusBadge" class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200 text-indigo-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors">
-              <i class="fa-solid fa-clipboard-check"></i> <span id="unitNameDisplay">소속부대</span>
+            <div
+              id="statusBadge"
+              class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-100/50 border border-indigo-200 text-indigo-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors"
+            >
+              <i class="fa-solid fa-clipboard-check"></i>
+              <span id="unitNameDisplay">소속부대</span>
             </div>
-            <h1 class="text-3xl font-black tracking-tight text-gray-900" id="mainTitle">
-              출타 심의 <span class="text-indigo-600 font-light" id="subTitle">1차 검토</span>
+            <h1
+              class="text-3xl font-black tracking-tight text-gray-900"
+              id="mainTitle"
+            >
+              출타 심의
+              <span class="text-indigo-600 font-light" id="subTitle"
+                >1차 검토</span
+              >
             </h1>
-            <p id="readonlyHint" class="text-sm font-bold text-amber-500 mt-2 hidden"><i class="fa-solid fa-lock mr-1"></i>현재 이 문서는 지휘관 최종 승인 대기 중이므로 수정할 수 없습니다.</p>
+            <p
+              id="readonlyHint"
+              class="text-sm font-bold text-amber-500 mt-2 hidden"
+            >
+              <i class="fa-solid fa-lock mr-1"></i>현재 이 문서는 지휘관 최종
+              승인 대기 중이므로 수정할 수 없습니다.
+            </p>
           </div>
 
           <div id="loading" class="text-center py-20">
-            <div class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" id="loadingSpinner"></div>
+            <div
+              class="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"
+              id="loadingSpinner"
+            ></div>
           </div>
 
           <div id="leave-content" class="hidden space-y-8">
-            <div class="flex items-center gap-5 p-5 rounded-3xl bg-white/50 border border-white shadow-sm">
-              <div id="userAvatar" class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors">
+            <div
+              class="flex items-center gap-5 p-5 rounded-3xl bg-white/50 border border-white shadow-sm"
+            >
+              <div
+                id="userAvatar"
+                class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-500 shadow-lg shadow-indigo-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors"
+              >
                 <span id="userInitial">U</span>
               </div>
               <div>
-                <p class="text-sm font-bold text-indigo-600 mb-0.5 transition-colors" id="userRank">계급</p>
-                <h2 class="text-2xl font-black text-gray-800 tracking-tight leading-none" id="userName">이름</h2>
-                <p class="text-sm text-gray-500 font-mono mt-1" id="serviceNumber">군번</p>
+                <p
+                  class="text-sm font-bold text-indigo-600 mb-0.5 transition-colors"
+                  id="userRank"
+                >
+                  계급
+                </p>
+                <h2
+                  class="text-2xl font-black text-gray-800 tracking-tight leading-none"
+                  id="userName"
+                >
+                  이름
+                </h2>
+                <p
+                  class="text-sm text-gray-500 font-mono mt-1"
+                  id="serviceNumber"
+                >
+                  군번
+                </p>
               </div>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
-              <div id="aiAssistPanel" class="col-span-2 p-4 rounded-2xl border shadow-sm transition-colors hidden">
+              <div
+                id="aiAssistPanel"
+                class="col-span-2 p-4 rounded-2xl border shadow-sm transition-colors hidden"
+              >
                 <div class="flex items-center justify-between mb-1.5">
-                  <span class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5" id="aiAssistTitle">
+                  <span
+                    class="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5"
+                    id="aiAssistTitle"
+                  >
                     <i class="fa-solid fa-robot"></i> AI 심의 보조
                   </span>
-                  <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" id="aiScoreBadge"></span>
+                  <span
+                    class="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    id="aiScoreBadge"
+                  ></span>
                 </div>
-                <p id="aiAssistMessage" class="font-medium text-sm text-gray-700"></p>
+                <p
+                  id="aiAssistMessage"
+                  class="font-medium text-sm text-gray-700"
+                ></p>
               </div>
 
-              <div class="p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm flex flex-col justify-center">
-                <span class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider">출타 기간</span>
-                <strong id="leaveDates" class="text-lg font-bold text-gray-800"></strong>
+              <div
+                class="p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm flex flex-col justify-center"
+              >
+                <span
+                  class="text-xs font-bold text-gray-400 mb-1 uppercase tracking-wider"
+                  >출타 기간</span
+                >
+                <strong
+                  id="leaveDates"
+                  class="text-lg font-bold text-gray-800"
+                ></strong>
               </div>
-              <div id="daysBox" class="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 flex flex-col justify-center items-end text-right transition-colors">
-                <span id="daysLabel" class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider transition-colors">사용/취소 일수</span>
+              <div
+                id="daysBox"
+                class="p-5 rounded-3xl bg-indigo-50/50 border border-indigo-100/50 flex flex-col justify-center items-end text-right transition-colors"
+              >
+                <span
+                  id="daysLabel"
+                  class="text-xs font-bold text-indigo-400 mb-1 uppercase tracking-wider transition-colors"
+                  >사용/취소 일수</span
+                >
                 <div class="flex items-baseline gap-1">
-                  <strong id="totalDays" class="text-3xl font-black text-indigo-600 transition-colors"></strong>
-                  <span id="daysUnit" class="text-sm font-bold text-indigo-400 transition-colors">일</span>
+                  <strong
+                    id="totalDays"
+                    class="text-3xl font-black text-indigo-600 transition-colors"
+                  ></strong>
+                  <span
+                    id="daysUnit"
+                    class="text-sm font-bold text-indigo-400 transition-colors"
+                    >일</span
+                  >
                 </div>
               </div>
-              <div class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm">
-                <span class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block">상세 사유 / 행선지</span>
-                <p id="leaveReason" class="text-gray-700 font-medium leading-relaxed"></p>
+              <div
+                class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm"
+              >
+                <span
+                  class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block"
+                  >상세 사유 / 행선지</span
+                >
+                <p
+                  id="leaveReason"
+                  class="text-gray-700 font-medium leading-relaxed"
+                ></p>
               </div>
-              <div class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm">
-                <span class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block"><i class="fa-solid fa-list-check"></i> 사용된 출타 항목 </span>
-                <div id="usedSlotsContainer" class="flex flex-wrap gap-2 mt-1">
-                  </div>
+              <div
+                class="col-span-2 p-5 rounded-3xl bg-white/40 border border-white/80 shadow-sm"
+              >
+                <span
+                  class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider block"
+                  ><i class="fa-solid fa-list-check"></i> 사용된 출타 항목
+                </span>
+                <div
+                  id="usedSlotsContainer"
+                  class="flex flex-wrap gap-2 mt-1"
+                ></div>
               </div>
-              <div id="evidenceSection" class="col-span-2 p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm transition-colors">
-                <span class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+              <div
+                id="evidenceSection"
+                class="col-span-2 p-5 rounded-3xl bg-slate-50 border border-slate-100 shadow-sm transition-colors"
+              >
+                <span
+                  class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"
+                >
                   <i class="fa-solid fa-paperclip"></i> 첨부된 증빙 서류
                 </span>
-                <div id="evidenceFilesContainer" class="flex flex-wrap gap-2"></div>
+                <div
+                  id="evidenceFilesContainer"
+                  class="flex flex-wrap gap-2"
+                ></div>
               </div>
             </div>
 
             <div class="mt-6 border-t border-gray-100 pt-5">
-              <h4 class="text-sm font-black text-gray-800 mb-3 flex items-center gap-2">
-                <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i> 신청일 기준 최근 출타 기록
-                <span class="text-[10px] font-medium text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded" id="historyBaseDateBadge"></span>
+              <h4
+                class="text-sm font-black text-gray-800 mb-3 flex items-center gap-2"
+              >
+                <i class="fa-solid fa-clock-rotate-left text-indigo-500"></i>
+                신청일 기준 최근 출타 기록
+                <span
+                  class="text-[10px] font-medium text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded"
+                  id="historyBaseDateBadge"
+                ></span>
               </h4>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-3" id="historyCardsContainer">
-                <div class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3">
-                  <div class="flex items-center gap-1.5 mb-2 border-b border-emerald-100 pb-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span><span class="text-xs font-bold text-emerald-800">외출 (최근 3건)</span>
+              <div
+                class="grid grid-cols-1 md:grid-cols-3 gap-3"
+                id="historyCardsContainer"
+              >
+                <div
+                  class="bg-emerald-50/50 border border-emerald-100 rounded-xl p-3"
+                >
+                  <div
+                    class="flex items-center gap-1.5 mb-2 border-b border-emerald-100 pb-2"
+                  >
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span
+                    ><span class="text-xs font-bold text-emerald-800"
+                      >외출 (최근 3건)</span
+                    >
                   </div>
-                  <div id="historyOuting" class="space-y-2 text-xs text-gray-600"><div class="flex items-center justify-center py-2"><span class="loading loading-spinner loading-xs text-emerald-300"></span></div></div>
+                  <div
+                    id="historyOuting"
+                    class="space-y-2 text-xs text-gray-600"
+                  >
+                    <div class="flex items-center justify-center py-2">
+                      <span
+                        class="loading loading-spinner loading-xs text-emerald-300"
+                      ></span>
+                    </div>
+                  </div>
                 </div>
-                <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-3">
-                  <div class="flex items-center gap-1.5 mb-2 border-b border-blue-100 pb-2">
-                    <span class="w-2 h-2 rounded-full bg-blue-500"></span><span class="text-xs font-bold text-blue-800">외박 (최근 3건)</span>
+                <div
+                  class="bg-blue-50/50 border border-blue-100 rounded-xl p-3"
+                >
+                  <div
+                    class="flex items-center gap-1.5 mb-2 border-b border-blue-100 pb-2"
+                  >
+                    <span class="w-2 h-2 rounded-full bg-blue-500"></span
+                    ><span class="text-xs font-bold text-blue-800"
+                      >외박 (최근 3건)</span
+                    >
                   </div>
-                  <div id="historyOvernight" class="space-y-2 text-xs text-gray-600"><div class="flex items-center justify-center py-2"><span class="loading loading-spinner loading-xs text-blue-300"></span></div></div>
+                  <div
+                    id="historyOvernight"
+                    class="space-y-2 text-xs text-gray-600"
+                  >
+                    <div class="flex items-center justify-center py-2">
+                      <span
+                        class="loading loading-spinner loading-xs text-blue-300"
+                      ></span>
+                    </div>
+                  </div>
                 </div>
-                <div class="bg-purple-50/50 border border-purple-100 rounded-xl p-3">
-                  <div class="flex items-center gap-1.5 mb-2 border-b border-purple-100 pb-2">
-                    <span class="w-2 h-2 rounded-full bg-purple-500"></span><span class="text-xs font-bold text-purple-800">휴가 (최근 3건)</span>
+                <div
+                  class="bg-purple-50/50 border border-purple-100 rounded-xl p-3"
+                >
+                  <div
+                    class="flex items-center gap-1.5 mb-2 border-b border-purple-100 pb-2"
+                  >
+                    <span class="w-2 h-2 rounded-full bg-purple-500"></span
+                    ><span class="text-xs font-bold text-purple-800"
+                      >휴가 (최근 3건)</span
+                    >
                   </div>
-                  <div id="historyVacation" class="space-y-2 text-xs text-gray-600"><div class="flex items-center justify-center py-2"><span class="loading loading-spinner loading-xs text-purple-300"></span></div></div>
+                  <div
+                    id="historyVacation"
+                    class="space-y-2 text-xs text-gray-600"
+                  >
+                    <div class="flex items-center justify-center py-2">
+                      <span
+                        class="loading loading-spinner loading-xs text-purple-300"
+                      ></span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div id="actionButtonsSection" class="flex gap-3 pt-4 border-t border-gray-100/50">
-              <button id="rejectBtn" onclick="window.rejectLeave()" class="flex-1 py-4 rounded-2xl bg-white text-red-500 font-bold text-base border border-gray-100 shadow-sm hover:bg-red-50 transition-all">
+            <div
+              id="actionButtonsSection"
+              class="flex gap-3 pt-4 border-t border-gray-100/50"
+            >
+              <button
+                id="rejectBtn"
+                onclick="window.rejectLeave()"
+                class="flex-1 py-4 rounded-2xl bg-white text-red-500 font-bold text-base border border-gray-100 shadow-sm hover:bg-red-50 transition-all"
+              >
                 거절
               </button>
-              <button id="approveBtn" onclick="window.submitReview()" class="flex-[2] py-4 rounded-2xl bg-gray-900 text-white font-bold text-base shadow-xl shadow-gray-900/20 hover:bg-indigo-600 transition-all flex justify-center items-center gap-2">
+              <button
+                id="approveBtn"
+                onclick="window.submitReview()"
+                class="flex-[2] py-4 rounded-2xl bg-gray-900 text-white font-bold text-base shadow-xl shadow-gray-900/20 hover:bg-indigo-600 transition-all flex justify-center items-center gap-2"
+              >
                 <i class="fa-solid fa-check" id="approveIcon"></i>
                 <span id="approveText">1차 검토 완료</span>
               </button>
@@ -148,7 +362,8 @@
 
         function getCurrentRank(user) {
           if (!user) return "계급 미상";
-          if (user.role !== "soldier" || !user.promoToIlbyung) return user.rank || "계급 미상";
+          if (user.role !== "soldier" || !user.promoToIlbyung)
+            return user.rank || "계급 미상";
           const today = new Date();
           const toIlbyung = new Date(user.promoToIlbyung);
           const toSangbyung = new Date(user.promoToSangbyung);
@@ -161,50 +376,79 @@
 
         function applyCancelModeUI() {
           const wrapper = document.getElementById("page-wrapper");
-          if (wrapper) wrapper.classList.replace("bg-[#f8fafc]", "bg-[#fffaf5]");
-          
+          if (wrapper)
+            wrapper.classList.replace("bg-[#f8fafc]", "bg-[#fffaf5]");
+
           const blob1 = document.getElementById("blob-1");
-          if (blob1) blob1.className = "absolute filter blur-[80px] opacity-60 top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[radial-gradient(circle,rgba(249,115,22,0.3)_0%,rgba(249,115,22,0)_70%)]";
+          if (blob1)
+            blob1.className =
+              "absolute filter blur-[80px] opacity-60 top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-[radial-gradient(circle,rgba(249,115,22,0.3)_0%,rgba(249,115,22,0)_70%)]";
           const blob2 = document.getElementById("blob-2");
-          if (blob2) blob2.className = "absolute filter blur-[80px] opacity-60 bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-[radial-gradient(circle,rgba(239,68,68,0.25)_0%,rgba(239,68,68,0)_70%)]";
+          if (blob2)
+            blob2.className =
+              "absolute filter blur-[80px] opacity-60 bottom-[-20%] right-[-10%] w-[60vw] h-[60vw] bg-[radial-gradient(circle,rgba(239,68,68,0.25)_0%,rgba(239,68,68,0)_70%)]";
 
           if (document.body) {
             document.body.classList.add("selection:bg-orange-500");
-            document.body.classList.remove("selection:bg-indigo-500"); 
+            document.body.classList.remove("selection:bg-indigo-500");
           }
-          
+
           const setVal = (id, val, isHTML = false) => {
             const el = document.getElementById(id);
-            if (el) { isHTML ? el.innerHTML = val : el.innerText = val; }
+            if (el) {
+              isHTML ? (el.innerHTML = val) : (el.innerText = val);
+            }
           };
 
           const sb = document.getElementById("statusBadge");
-          if (sb) sb.className = "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200 text-orange-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
-          setVal("mainTitle", `휴가 취소 <span class="text-orange-600 font-light">1차 검토</span>`, true);
-          
+          if (sb)
+            sb.className =
+              "inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100/50 border border-orange-200 text-orange-700 text-xs font-bold tracking-wider mb-4 shadow-sm transition-colors";
+          setVal(
+            "mainTitle",
+            `휴가 취소 <span class="text-orange-600 font-light">1차 검토</span>`,
+            true
+          );
+
           const ua = document.getElementById("userAvatar");
-          if (ua) ua.className = "w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-red-400 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
-          
+          if (ua)
+            ua.className =
+              "w-16 h-16 rounded-2xl bg-gradient-to-tr from-orange-500 to-red-400 shadow-lg shadow-orange-500/30 flex items-center justify-center text-white text-2xl font-black transition-colors";
+
           const ur = document.getElementById("userRank");
-          if (ur) ur.className = "text-sm font-bold text-orange-600 mb-0.5 transition-colors";
-          
+          if (ur)
+            ur.className =
+              "text-sm font-bold text-orange-600 mb-0.5 transition-colors";
+
           const db = document.getElementById("daysBox");
-          if(db) db.className = "p-5 rounded-3xl bg-orange-50/50 border border-orange-100/50 flex flex-col justify-center items-end text-right transition-colors";
+          if (db)
+            db.className =
+              "p-5 rounded-3xl bg-orange-50/50 border border-orange-100/50 flex flex-col justify-center items-end text-right transition-colors";
           const dl = document.getElementById("daysLabel");
-          if(dl) dl.className = "text-xs font-bold text-orange-500 mb-1 uppercase tracking-wider transition-colors";
+          if (dl)
+            dl.className =
+              "text-xs font-bold text-orange-500 mb-1 uppercase tracking-wider transition-colors";
           const td = document.getElementById("totalDays");
-          if(td) td.className = "text-3xl font-black text-orange-600 transition-colors";
+          if (td)
+            td.className =
+              "text-3xl font-black text-orange-600 transition-colors";
           const du = document.getElementById("daysUnit");
-          if(du) du.className = "text-sm font-bold text-orange-500 transition-colors";
+          if (du)
+            du.className =
+              "text-sm font-bold text-orange-500 transition-colors";
 
           setVal("rejectBtn", "취소 거절 (휴가 유지)");
           const rBtn = document.getElementById("rejectBtn");
-          if (rBtn) rBtn.className = "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
+          if (rBtn)
+            rBtn.className =
+              "flex-1 py-4 rounded-2xl bg-white text-gray-500 font-bold text-sm border border-gray-200 shadow-sm hover:bg-gray-50 transition-all";
 
           const aBtn = document.getElementById("approveBtn");
-          if (aBtn) aBtn.className = "flex-[2] py-4 rounded-2xl bg-orange-600 text-white font-bold text-base shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all flex justify-center items-center gap-2";
+          if (aBtn)
+            aBtn.className =
+              "flex-[2] py-4 rounded-2xl bg-orange-600 text-white font-bold text-base shadow-xl shadow-orange-600/20 hover:bg-orange-700 transition-all flex justify-center items-center gap-2";
           setVal("approveText", "취소 검토 완료 (승인자에게 전달)");
-          
+
           const aIcon = document.getElementById("approveIcon");
           if (aIcon) aIcon.className = "fa-solid fa-file-excel";
 
@@ -215,85 +459,127 @@
           }
         }
 
-        window.initReviewPage = async function() {
+        window.initReviewPage = async function () {
           const token = localStorage.getItem("token");
           const urlParams = new URLSearchParams(window.location.search);
           const leaveId = urlParams.get("id");
-          const isReadonly = urlParams.get("readonly") === "true"; 
+          const isReadonly = urlParams.get("readonly") === "true";
           isCancelRequest = false;
 
           if (!token || !leaveId) {
             alert("잘못된 접근입니다.");
-            return window.spaNavigate('/');
+            return window.spaNavigate("/");
           }
 
           try {
-            document.getElementById("unitNameDisplay").innerText = localStorage.getItem("unitName") || "소속부대";
-            
-            const res = await fetch(`/leaves/detail/${leaveId}`, { headers: { Authorization: `Bearer ${token}` } });
+            document.getElementById("unitNameDisplay").innerText =
+              localStorage.getItem("unitName") || "소속부대";
+
+            const res = await fetch(`/leaves/detail/${leaveId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
             if (!res.ok) throw new Error("서버 응답 오류");
-            
+
             const data = await res.json();
-            if (!data.success || !data.leave) return window.spaNavigate('/');
+            if (!data.success || !data.leave) return window.spaNavigate("/");
             const leave = data.leave;
+
+            // 🔥 [權限安全檢查] 判斷目前使用者的角色，並決定是否給予強制取消按鈕
+            const role = localStorage.getItem("role") || "soldier";
+            let canForceCancel = false;
+
+            // 檢討者只能取消 "승인대기"
+            if (
+              ["reviewer", "officer"].includes(role) &&
+              leave.status === "PENDING_APPROVAL"
+            ) {
+              canForceCancel = true;
+            }
+            // 最終核准者只能取消 "APPROVED"
+            else if (
+              ["approver", "superadmin"].includes(role) &&
+              leave.status === "APPROVED"
+            ) {
+              canForceCancel = true;
+            }
 
             if (leave.status === "CANCEL_REQ_REVIEW") {
               isCancelRequest = true;
               applyCancelModeUI();
             }
 
-            // 🔥 [終極隔離 + 直權取消] 
             const actionSec = document.getElementById("actionButtonsSection");
             const hint = document.getElementById("readonlyHint");
-            
+
             if (isReadonly || leave.isWaitlisted) {
-                if (leave.isWaitlisted && !isReadonly) {
-                    actionSec.classList.add("hidden");
-                    hint.classList.remove("hidden");
-                    hint.className = "text-sm font-bold text-orange-500 mt-2";
-                    hint.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>정원 초과(후보) 상태이므로 심의를 진행할 수 없습니다. 달력에서 순위를 조정하세요.`;
-                } else if (isReadonly) {
-                    hint.classList.remove("hidden");
-                    // 如果還沒被取消，長官就可以看到「直權取消」按鈕！
-                    if (!["FORCE_CANCELLED", "CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "CANCEL_APPROVED"].includes(leave.status)) {
-                        actionSec.classList.remove("hidden");
-                        actionSec.innerHTML = `
+              if (leave.isWaitlisted && !isReadonly) {
+                actionSec.classList.add("hidden");
+                hint.classList.remove("hidden");
+                hint.className = "text-sm font-bold text-orange-500 mt-2";
+                hint.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>정원 초과(후보) 상태이므로 심의를 진행할 수 없습니다. 달력에서 순위를 조정하세요.`;
+              } else if (isReadonly) {
+                hint.classList.remove("hidden");
+
+                // 🔥 如果符合強制取消條件，才顯示按鈕
+                if (
+                  ![
+                    "FORCE_CANCELLED",
+                    "CANCELLED",
+                    "REJECTED_REVIEW",
+                    "REJECTED_APPROVAL",
+                    "CANCEL_APPROVED",
+                  ].includes(leave.status) &&
+                  canForceCancel
+                ) {
+                  actionSec.classList.remove("hidden");
+                  actionSec.innerHTML = `
                           <button onclick="window.forceCancelLeave('${leave._id}')" class="w-full py-4 rounded-2xl bg-white text-red-600 font-black text-base border-2 border-red-200 shadow-sm hover:bg-red-50 hover:border-red-400 transition-all flex justify-center items-center gap-2">
                             <i class="fa-solid fa-triangle-exclamation"></i> 지휘관 직권 취소 (휴가 강제 회수)
                           </button>
                         `;
-                    } else {
-                        actionSec.classList.add("hidden");
-                    }
+                } else {
+                  actionSec.classList.add("hidden"); // 如果不符合，就連按鈕都不給看
                 }
+              }
             }
 
             const name = leave.userId?.name || "알수없음";
             document.getElementById("userInitial").innerText = name.charAt(0);
-            document.getElementById("userRank").innerText = getCurrentRank(leave.userId);
+            document.getElementById("userRank").innerText = getCurrentRank(
+              leave.userId
+            );
             document.getElementById("userName").innerText = name;
-            document.getElementById("serviceNumber").innerText = leave.userId?.serviceNumber || "";
+            document.getElementById("serviceNumber").innerText =
+              leave.userId?.serviceNumber || "";
 
             const startDateOnly = leave.startDate.split("T")[0];
             const endDateOnly = leave.endDate.split("T")[0];
-            document.getElementById("leaveDates").innerText = `${startDateOnly.replace(/-/g, ".")} ~ ${endDateOnly.replace(/-/g, ".")}`;
-            document.getElementById("totalDays").innerText = leave.totalDaysUsed;
+            document.getElementById(
+              "leaveDates"
+            ).innerText = `${startDateOnly.replace(
+              /-/g,
+              "."
+            )} ~ ${endDateOnly.replace(/-/g, ".")}`;
+            document.getElementById("totalDays").innerText =
+              leave.totalDaysUsed;
             document.getElementById("leaveReason").innerText = leave.reason;
-            
-            // 🔥 [新增] 渲染扣除明細標籤
-            const usedSlotsContainer = document.getElementById("usedSlotsContainer");
+
+            const usedSlotsContainer =
+              document.getElementById("usedSlotsContainer");
             if (leave.usedSlots && leave.usedSlots.length > 0) {
-              usedSlotsContainer.innerHTML = leave.usedSlots.map(us => {
-                const slotName = us.slotId?.reason || "알 수 없는 항목";
-                const slotType = us.slotId?.type || "기타";
-                return `
+              usedSlotsContainer.innerHTML = leave.usedSlots
+                .map((us) => {
+                  const slotName = us.slotId?.reason || "알 수 없는 항목";
+                  const slotType = us.slotId?.type || "기타";
+                  return `
                   <span class="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1.5 rounded-lg shadow-sm">
                     <span class="opacity-70">[${slotType}]</span> 
                     ${slotName} 
                     <span class="ml-1 bg-white text-indigo-500 px-1.5 rounded text-[10px]">${us.qty}일</span>
                   </span>
                 `;
-              }).join("");
+                })
+                .join("");
             } else {
               usedSlotsContainer.innerHTML = `<span class="text-xs text-gray-400 font-medium">상세 항목 정보가 없습니다. (舊版資料)</span>`;
             }
@@ -306,36 +592,57 @@
               aiPanel.classList.remove("hidden");
 
               if (leave.isWaitlisted) {
-                aiPanel.className = "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-orange-50 border-orange-200";
-                aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-orange-600";
-                aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-200 text-orange-800";
+                aiPanel.className =
+                  "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-orange-50 border-orange-200";
+                aiTitle.className =
+                  "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-orange-600";
+                aiScore.className =
+                  "text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-200 text-orange-800";
                 aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점`;
-                aiMsg.className = "font-medium text-sm mt-1 text-orange-800 leading-snug";
-                aiMsg.innerHTML = "⚠️ <strong>[출타율 초과 - 후보]</strong> 해당 일자의 출타율 정원이 초과되었습니다. 부대 전투력 유지를 위해 <strong>반려를 권장</strong>합니다.";
+                aiMsg.className =
+                  "font-medium text-sm mt-1 text-orange-800 leading-snug";
+                aiMsg.innerHTML =
+                  "⚠️ <strong>[출타율 초과 - 후보]</strong> 해당 일자의 출타율 정원이 초과되었습니다. 부대 전투력 유지를 위해 <strong>반려를 권장</strong>합니다.";
               } else if (leave.isManualOverride) {
-                aiPanel.className = "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-blue-50 border-blue-200";
-                aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-blue-600";
-                aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200 text-blue-800";
-                aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점 (수동 고정)`;
-                aiMsg.className = "font-medium text-sm mt-1 text-blue-800 leading-snug";
-                aiMsg.innerHTML = "🔒 <strong>[관리자 수동 고정]</strong> 검토자가 강제로 정규 편성에 고정한 인원입니다. <strong>검토 완료를 권장</strong>합니다.";
+                aiPanel.className =
+                  "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-blue-50 border-blue-200";
+                aiTitle.className =
+                  "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-blue-600";
+                aiScore.className =
+                  "text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-200 text-blue-800";
+                aiScore.innerText = `우선순위: ${
+                  leave.priorityScore || 0
+                }점 (수동 고정)`;
+                aiMsg.className =
+                  "font-medium text-sm mt-1 text-blue-800 leading-snug";
+                aiMsg.innerHTML =
+                  "🔒 <strong>[관리자 수동 고정]</strong> 검토자가 강제로 정규 편성에 고정한 인원입니다. <strong>검토 완료를 권장</strong>합니다.";
               } else {
-                aiPanel.className = "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-emerald-50 border-emerald-200";
-                aiTitle.className = "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-emerald-600";
-                aiScore.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800";
+                aiPanel.className =
+                  "col-span-2 p-4 rounded-2xl border shadow-sm transition-colors bg-emerald-50 border-emerald-200";
+                aiTitle.className =
+                  "text-xs font-black uppercase tracking-wider flex items-center gap-1.5 text-emerald-600";
+                aiScore.className =
+                  "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-200 text-emerald-800";
                 aiScore.innerText = `우선순위: ${leave.priorityScore || 0}점`;
-                aiMsg.className = "font-medium text-sm mt-1 text-emerald-800 leading-snug";
-                aiMsg.innerHTML = "✅ <strong>[정규 편성]</strong> 출타율 정원 내에 안전하게 편성되었습니다. <strong>검토 완료를 권장</strong>합니다.";
+                aiMsg.className =
+                  "font-medium text-sm mt-1 text-emerald-800 leading-snug";
+                aiMsg.innerHTML =
+                  "✅ <strong>[정규 편성]</strong> 출타율 정원 내에 안전하게 편성되었습니다. <strong>검토 완료를 권장</strong>합니다.";
               }
             }
 
-            const evidenceContainer = document.getElementById("evidenceFilesContainer");
+            const evidenceContainer = document.getElementById(
+              "evidenceFilesContainer"
+            );
             evidenceContainer.innerHTML = "";
             if (leave.evidenceFiles && leave.evidenceFiles.length > 0) {
               leave.evidenceFiles.forEach((fileUrl, index) => {
                 evidenceContainer.innerHTML += `
                   <a href="${fileUrl}" target="_blank" class="inline-flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 transition-all text-xs font-bold text-gray-700">
-                    <i class="fa-solid fa-file-arrow-down text-indigo-500"></i> 증빙 서류 #${index + 1}
+                    <i class="fa-solid fa-file-arrow-down text-indigo-500"></i> 증빙 서류 #${
+                      index + 1
+                    }
                   </a>`;
               });
             } else {
@@ -349,17 +656,20 @@
           } catch (err) {
             console.error(err);
             alert("데이터를 불러오는데 실패했습니다.");
-            window.spaNavigate('/');
+            window.spaNavigate("/");
           }
         };
 
-        window.loadLeaveHistory = async function(userId, requestedStartDate) {
+        window.loadLeaveHistory = async function (userId, requestedStartDate) {
           const badge = document.getElementById("historyBaseDateBadge");
-          if(badge) badge.innerText = `기준: ${requestedStartDate} 이전`;
+          if (badge) badge.innerText = `기준: ${requestedStartDate} 이전`;
           const token = localStorage.getItem("token");
-          
+
           try {
-            const res = await fetch(`/leaves/user-history/${userId}?beforeDate=${requestedStartDate}`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await fetch(
+              `/leaves/user-history/${userId}?beforeDate=${requestedStartDate}`,
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
             const data = await res.json();
             if (data.success) {
               const renderList = (elementId, records) => {
@@ -369,13 +679,19 @@
                   el.innerHTML = `<div class="text-center text-gray-400 py-1 font-medium">기록 없음</div>`;
                   return;
                 }
-                el.innerHTML = records.map(record => {
-                  const sDate = new Date(record.startDate);
-                  const eDate = new Date(record.endDate);
-                  const dateStr = `${sDate.getMonth()+1}/${sDate.getDate()} - ${eDate.getMonth()+1}/${eDate.getDate()}`;
-                  let daysAgoBadge = "";
-                  if (record.daysAgo > 30) daysAgoBadge = `<span class="text-[9px] font-bold text-red-500 ml-1 bg-red-50 px-1 rounded">${record.daysAgo}일 전</span>`;
-                  return `
+                el.innerHTML = records
+                  .map((record) => {
+                    const sDate = new Date(record.startDate);
+                    const eDate = new Date(record.endDate);
+                    const dateStr = `${
+                      sDate.getMonth() + 1
+                    }/${sDate.getDate()} - ${
+                      eDate.getMonth() + 1
+                    }/${eDate.getDate()}`;
+                    let daysAgoBadge = "";
+                    if (record.daysAgo > 30)
+                      daysAgoBadge = `<span class="text-[9px] font-bold text-red-500 ml-1 bg-red-50 px-1 rounded">${record.daysAgo}일 전</span>`;
+                    return `
                     <div class="flex flex-col bg-white p-2 rounded-lg border border-gray-100 shadow-sm mb-1">
                       <div class="flex justify-between items-center mb-0.5">
                         <span class="font-bold text-gray-800 font-mono text-[10px]">${dateStr}</span>
@@ -383,58 +699,93 @@
                       </div>
                       <span class="truncate text-gray-500 opacity-80 text-[10px]" title="${record.reason}">${record.reason}</span>
                     </div>`;
-                }).join("");
+                  })
+                  .join("");
               };
               renderList("historyOuting", data.history["외출"]);
               renderList("historyOvernight", data.history["외박"]);
               renderList("historyVacation", data.history["휴가"]);
             }
           } catch (error) {}
-        }
-
-        window.rejectLeave = async function() {
-          const urlParams = new URLSearchParams(window.location.search);
-          const leaveId = urlParams.get("id");
-          const msg = isCancelRequest ? "취소 신청을 반려하시겠습니까?\n(기존 휴가가 그대로 유지됩니다.)" : "이 신청을 거절하시겠습니까?\n(일수가 반환됩니다.)";
-          if (!confirm(msg)) return;
-          try {
-            const res = await fetch(`/leaves/${leaveId}/reject`, { method: "PUT", headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
-            if ((await res.json()).success) window.spaNavigate('/');
-          } catch (err) {}
         };
 
-        window.submitReview = async function() {
+        window.rejectLeave = async function () {
           const urlParams = new URLSearchParams(window.location.search);
           const leaveId = urlParams.get("id");
-          const msg = isCancelRequest ? "휴가 취소 요청을 1차 검토 완료하시겠습니까?\n(최종 승인자에게 전달됩니다.)" : "1차 검토 완료하시겠습니까?\n(최종 승인자에게 전달됩니다.)";
+          const msg = isCancelRequest
+            ? "취소 신청을 반려하시겠습니까?\n(기존 휴가가 그대로 유지됩니다.)"
+            : "이 신청을 거절하시겠습니까?\n(일수가 반환됩니다.)";
           if (!confirm(msg)) return;
           try {
-            const res = await fetch(`/leaves/${leaveId}/review`, { method: "PUT", headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "application/json" } });
-            if ((await res.json()).success) window.spaNavigate('/');
-          } catch (err) {}
-        };
-
-        // 🔥 [新增] 強制取消 API 呼叫函數
-        window.forceCancelLeave = async function(leaveId) {
-          const reason = prompt("🚨 [경고] 해당 인원의 휴가를 강제로 회수합니다.\n\n취소 사유를 명확히 입력해주세요 (예: 훈련 참가, 지시사항 등):");
-          if (!reason) return;
-          if (reason.trim().length < 2) return alert("취소 사유를 2글자 이상 입력해주세요.");
-
-          try {
-            const res = await fetch(`/leaves/${leaveId}/force-cancel`, { 
-              method: "PUT", 
-              headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "application/json" },
-              body: JSON.stringify({ cancelReason: reason })
+            const res = await fetch(`/leaves/${leaveId}/reject`, {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+              },
             });
-            if ((await res.json()).success) {
-              alert("지휘관 직권으로 휴가가 강제 취소되었습니다.");
-              window.spaNavigate('/');
-            }
+            if ((await res.json()).success) window.spaNavigate("/");
           } catch (err) {}
         };
-        
-        if (document.getElementById('leave-content') && document.getElementById('leave-content').classList.contains('hidden')) { 
-          window.initReviewPage(); 
+
+        window.submitReview = async function () {
+          const urlParams = new URLSearchParams(window.location.search);
+          const leaveId = urlParams.get("id");
+          const msg = isCancelRequest
+            ? "휴가 취소 요청을 1차 검토 완료하시겠습니까?\n(최종 승인자에게 전달됩니다.)"
+            : "1차 검토 완료하시겠습니까?\n(최종 승인자에게 전달됩니다.)";
+          if (!confirm(msg)) return;
+          try {
+            const res = await fetch(`/leaves/${leaveId}/review`, {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",
+              },
+            });
+            if ((await res.json()).success) window.spaNavigate("/");
+          } catch (err) {}
+        };
+
+        // 🔥 [修復 500 報錯問題 + 錯誤捕捉]
+        window.forceCancelLeave = async function (leaveId) {
+          const reason = prompt(
+            "🚨 [경고] 해당 인원의 휴가를 강제로 회수합니다.\n\n취소 사유를 명확히 입력해주세요 (예: 훈련 참가, 지시사항 등):"
+          );
+          if (!reason) return;
+          if (reason.trim().length < 2)
+            return alert("취소 사유를 2글자 이상 입력해주세요.");
+
+          try {
+            const res = await fetch(`/leaves/${leaveId}/force-cancel`, {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ cancelReason: reason }),
+            });
+            const data = await res.json();
+
+            // 如果後端傳回成功
+            if (data.success) {
+              alert(
+                data.message || "지휘관 직권으로 휴가가 강제 취소되었습니다."
+              );
+              window.spaNavigate("/");
+            } else {
+              // 捕捉並顯示後端的 400 或 500 錯誤訊息
+              alert(data.error || "서버에서 오류가 발생했습니다.");
+            }
+          } catch (err) {
+            alert("서버와 통신하는 중 문제가 발생했습니다.");
+          }
+        };
+
+        if (
+          document.getElementById("leave-content") &&
+          document.getElementById("leave-content").classList.contains("hidden")
+        ) {
+          window.initReviewPage();
         }
       </script>
     </div>

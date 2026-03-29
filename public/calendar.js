@@ -4,7 +4,8 @@
  */
 
 var GOOGLE_API_KEY = "AIzaSyBDbm1GF1W0wKYXSeAoIj3F8TJbmn7wHuw";
-var KOREA_HOLIDAY_CALENDAR_ID = "ko.south_korea#holiday@group.v.calendar.google.com";
+var KOREA_HOLIDAY_CALENDAR_ID =
+  "ko.south_korea#holiday@group.v.calendar.google.com";
 
 var currentYear = new Date().getFullYear();
 var currentMonth = new Date().getMonth();
@@ -15,7 +16,7 @@ var leavesCache = [];
 var currentToken = localStorage.getItem("token") || "";
 var currentUserRole = localStorage.getItem("role") || "soldier";
 
-var currentCalendarMode = "personal"; 
+var currentCalendarMode = "personal";
 var myAvailableSlots = [];
 var currentUsedSlots = [];
 var isDragging = false;
@@ -25,10 +26,10 @@ var dragEndStr = null;
 function getDisplayRank(user) {
   if (!user) return "";
   if (user.role !== "soldier" || !user.promoToIlbyung) {
-      let fallback = user.rank || "";
-      if(!fallback && user.role === 'soldier') return '용사';
-      if(!fallback && user.role === 'officer') return '간부';
-      return fallback;
+    let fallback = user.rank || "";
+    if (!fallback && user.role === "soldier") return "용사";
+    if (!fallback && user.role === "officer") return "간부";
+    return fallback;
   }
   const today = new Date();
   if (today >= new Date(user.promoToByungjang)) return "병장";
@@ -39,11 +40,14 @@ function getDisplayRank(user) {
 
 // 🔥 [기능 1] 현재 달력 상태를 기억하는 함수
 function saveCalendarState() {
-  sessionStorage.setItem('smartmil_calendar_state', JSON.stringify({
-    year: currentYear,
-    month: currentMonth,
-    mode: currentCalendarMode
-  }));
+  sessionStorage.setItem(
+    "smartmil_calendar_state",
+    JSON.stringify({
+      year: currentYear,
+      month: currentMonth,
+      mode: currentCalendarMode,
+    })
+  );
 }
 
 window.initCalendarPage = async function () {
@@ -53,9 +57,11 @@ window.initCalendarPage = async function () {
     window.location.href = "/login.html";
     return;
   }
-  
+
   try {
-    const profileRes = await fetch("/profile", { headers: { Authorization: `Bearer ${currentToken}` } });
+    const profileRes = await fetch("/profile", {
+      headers: { Authorization: `Bearer ${currentToken}` },
+    });
     const profileData = await profileRes.json();
     if (profileData.user) {
       currentUserRole = profileData.user.role;
@@ -65,20 +71,24 @@ window.initCalendarPage = async function () {
 
   injectFloatingUI();
   setupProUX();
-  bindGlobalEventsOnce(); 
-  await initApp(); 
+  bindGlobalEventsOnce();
+  await initApp();
 
   const urlParams = new URLSearchParams(window.location.search);
-  const focusId = urlParams.get('focus');
-  const focusDate = urlParams.get('date');
-  const focusType = urlParams.get('type');
+  const focusId = urlParams.get("focus");
+  const focusDate = urlParams.get("date");
+  const focusType = urlParams.get("type");
 
-  if (focusId && focusDate && typeof window.executeSearchNavigation === 'function') {
-      setTimeout(() => {
-          window.executeSearchNavigation(focusId, focusType, focusDate);
-          const newUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState({}, '', newUrl);
-      }, 500); 
+  if (
+    focusId &&
+    focusDate &&
+    typeof window.executeSearchNavigation === "function"
+  ) {
+    setTimeout(() => {
+      window.executeSearchNavigation(focusId, focusType, focusDate);
+      const newUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }, 500);
   }
 };
 
@@ -88,7 +98,12 @@ function bindGlobalEventsOnce() {
   document.addEventListener("click", (e) => {
     const box = document.getElementById("miniPickerBox");
     const pill = document.getElementById("floatingPill");
-    if (box && !box.classList.contains("pointer-events-none") && pill && !pill.contains(e.target)) {
+    if (
+      box &&
+      !box.classList.contains("pointer-events-none") &&
+      pill &&
+      !pill.contains(e.target)
+    ) {
       box.classList.add("opacity-0", "pointer-events-none", "scale-95");
     }
 
@@ -106,22 +121,36 @@ function bindGlobalEventsOnce() {
     isDragging = false;
     document.body.style.userSelect = "";
     if (dragStartStr && dragEndStr) {
-      const d1 = new Date(dragStartStr), d2 = new Date(dragEndStr);
-      const start = d1 < d2 ? d1 : d2, end = d1 < d2 ? d2 : d1;
+      const d1 = new Date(dragStartStr),
+        d2 = new Date(dragEndStr);
+      const start = d1 < d2 ? d1 : d2,
+        end = d1 < d2 ? d2 : d1;
       const startDateInput = document.getElementById("reqStartDate");
       const endDateInput = document.getElementById("reqEndDate");
-      if(startDateInput && endDateInput) {
-          startDateInput.value = formatDate(start.getFullYear(), start.getMonth(), start.getDate());
-          endDateInput.value = formatDate(end.getFullYear(), end.getMonth(), end.getDate());
-          calculateReqDays();
-          if(typeof openModal === "function") openModal("requestModal");
+      if (startDateInput && endDateInput) {
+        startDateInput.value = formatDate(
+          start.getFullYear(),
+          start.getMonth(),
+          start.getDate()
+        );
+        endDateInput.value = formatDate(
+          end.getFullYear(),
+          end.getMonth(),
+          end.getDate()
+        );
+        calculateReqDays();
+        if (typeof openModal === "function") openModal("requestModal");
       }
     }
     clearSelectionVisuals();
   });
 
   document.addEventListener("mouseover", (e) => {
-    if (e.target && typeof e.target.className === "string" && !e.target.className.includes("leave-bar")) {
+    if (
+      e.target &&
+      typeof e.target.className === "string" &&
+      !e.target.className.includes("leave-bar")
+    ) {
       hideProTooltip();
     }
   });
@@ -133,9 +162,8 @@ async function initApp() {
   const urlParams = new URLSearchParams(window.location.search);
   const focusId = urlParams.get("focus");
   const targetDateStr = urlParams.get("date");
-  const savedStateStr = sessionStorage.getItem('smartmil_calendar_state');
+  const savedStateStr = sessionStorage.getItem("smartmil_calendar_state");
 
-  // 🔥 [기능 1] URL 파라미터가 없으면, 기억해둔 상태(sessionStorage)로 복구!
   if (focusId && targetDateStr) {
     const targetDate = new Date(targetDateStr);
     currentYear = targetDate.getFullYear();
@@ -150,13 +178,13 @@ async function initApp() {
     currentYear = now.getFullYear();
     currentMonth = now.getMonth();
   }
-  
-  saveCalendarState(); // 시작할 때 현재 상태 저장
+
+  saveCalendarState();
   await refreshCalendarData();
   await fetchLeaveRates();
   setupScrollObserver();
   setupDragSelection();
-  
+
   setTimeout(async () => {
     if (focusId) {
       const type = urlParams.get("type");
@@ -165,7 +193,7 @@ async function initApp() {
     } else {
       scrollToMonth(currentYear, currentMonth, false);
     }
-  }, 100); 
+  }, 100);
 }
 
 async function refreshCalendarData() {
@@ -177,8 +205,8 @@ async function refreshCalendarData() {
 async function switchCalendarMode(mode) {
   if (currentCalendarMode === mode) return;
   currentCalendarMode = mode;
-  saveCalendarState(); // 🔥 모드가 변경될 때 기록
-  await refreshCalendarData(); 
+  saveCalendarState();
+  await refreshCalendarData();
 }
 
 function updateModeUI() {
@@ -186,16 +214,27 @@ function updateModeUI() {
   const btnTeamLong = document.getElementById("btnTeamLong");
   const btnTeamShort = document.getElementById("btnTeamShort");
   const batchApproveBtn = document.getElementById("batchApproveBtn");
+  const batchRejectBtn = document.getElementById("batchRejectBtn"); // 🔥 新增
   const settingsModalBtn = document.getElementById("settingsModalBtn");
 
-  const activeClass = "px-5 py-2 bg-white shadow-sm rounded-md text-sm font-bold text-gray-800 transition";
-  const inactiveClass = "px-5 py-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition";
+  const activeClass =
+    "px-5 py-2 bg-white shadow-sm rounded-md text-sm font-bold text-gray-800 transition";
+  const inactiveClass =
+    "px-5 py-2 text-sm font-bold text-gray-500 hover:text-gray-800 transition";
 
-  if (btnPersonal) btnPersonal.className = currentCalendarMode === "personal" ? activeClass : inactiveClass;
-  if (btnTeamLong) btnTeamLong.className = currentCalendarMode === "team-long" ? activeClass : inactiveClass;
-  if (btnTeamShort) btnTeamShort.className = currentCalendarMode === "team-short" ? activeClass : inactiveClass;
+  if (btnPersonal)
+    btnPersonal.className =
+      currentCalendarMode === "personal" ? activeClass : inactiveClass;
+  if (btnTeamLong)
+    btnTeamLong.className =
+      currentCalendarMode === "team-long" ? activeClass : inactiveClass;
+  if (btnTeamShort)
+    btnTeamShort.className =
+      currentCalendarMode === "team-short" ? activeClass : inactiveClass;
 
-  const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole);
+  const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(
+    currentUserRole
+  );
 
   if (settingsModalBtn) {
     if (isManager && currentCalendarMode !== "personal") {
@@ -212,44 +251,57 @@ function updateModeUI() {
       batchApproveBtn.classList.add("hidden");
     }
   }
+
+  // 🔥 確保批次駁回按鈕也能正確顯示/隱藏
+  if (batchRejectBtn) {
+    if (isManager && currentCalendarMode !== "personal") {
+      batchRejectBtn.classList.remove("hidden");
+    } else {
+      batchRejectBtn.classList.add("hidden");
+    }
+  }
 }
 
 async function batchApprovePhase1() {
   const isApprover = ["approver", "superadmin"].includes(currentUserRole);
   const typeName = currentCalendarMode === "team-long" ? "휴가" : "외출/외박";
-  
-  const confirmMsg = isApprover 
-    ? `현재 표시된 ${currentYear}년 ${currentMonth + 1}월의 모든 [${typeName}] 대기 인원을 일괄 '최종 승인' 하시겠습니까?` 
-    : `현재 표시된 ${currentYear}년 ${currentMonth + 1}월의 [${typeName}] 정규 편성 인원만 일괄 '검토 완료' 처리하시겠습니까?\n(⚠️ 후보 인원은 제외됩니다.)`;
+
+  const confirmMsg = isApprover
+    ? `현재 표시된 ${currentYear}년 ${
+        currentMonth + 1
+      }월의 모든 [${typeName}] 대기 인원을 일괄 '최종 승인' 하시겠습니까?`
+    : `현재 표시된 ${currentYear}년 ${
+        currentMonth + 1
+      }월의 [${typeName}] 정규 편성 인원만 일괄 '검토 완료' 처리하시겠습니까?\n(⚠️ 후보 인원은 제외됩니다.)`;
 
   if (!confirm(confirmMsg)) return;
 
   try {
     const res = await fetch(`/leaves/approve-calendar-phase1`, {
       method: "POST",
-      headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${currentToken}` 
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentToken}`,
       },
-      body: JSON.stringify({ 
-          year: currentYear, 
-          month: currentMonth + 1, 
-          mode: currentCalendarMode 
-      })
+      body: JSON.stringify({
+        year: currentYear,
+        month: currentMonth + 1,
+        mode: currentCalendarMode,
+      }),
     });
     const data = await res.json();
-    
+
     if (data.success) {
-        let alertMsg = data.message;
-        if (data.skippedCount > 0 && !data.isApprover) {
-            alertMsg += `\n\n🚨 주의: ${data.skippedCount}건의 '후보' 상태인 휴가는 출타율 초과 방지를 위해 제외되었습니다. 수동으로 확인해주세요.`;
-        }
-        alert(alertMsg);
-        
-        await refreshCalendarData();
-        if (typeof checkPendingLeaves === "function") checkPendingLeaves();
+      let alertMsg = data.message;
+      if (data.skippedCount > 0 && !data.isApprover) {
+        alertMsg += `\n\n🚨 주의: ${data.skippedCount}건의 '후보' 상태인 휴가는 출타율 초과 방지를 위해 제외되었습니다. 수동으로 확인해주세요.`;
+      }
+      alert(alertMsg);
+
+      await refreshCalendarData();
+      if (typeof checkPendingLeaves === "function") checkPendingLeaves();
     } else {
-        alert(data.error);
+      alert(data.error);
     }
   } catch (e) {
     alert("오류가 발생했습니다.");
@@ -261,21 +313,26 @@ function injectFloatingUI() {
   if (!container) return;
   container.classList.add("relative");
   container.style.paddingTop = "0px";
-  
+
   if (document.getElementById("floatingPill")) {
-    document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
+    document.getElementById(
+      "floatingYearMonth"
+    ).innerText = `${currentYear}년 ${currentMonth + 1}월`;
     return;
   }
 
   const pill = document.createElement("div");
   pill.id = "floatingPill";
-  pill.className = "dynamic-island absolute left-1/2 -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md border border-gray-200/60 shadow-md rounded-full px-2 py-1.5 flex items-center gap-1 transition-all duration-300 hover:shadow-lg";
-  pill.style.top = "42px"; 
+  pill.className =
+    "dynamic-island absolute left-1/2 -translate-x-1/2 z-30 bg-white/95 backdrop-blur-md border border-gray-200/60 shadow-md rounded-full px-2 py-1.5 flex items-center gap-1 transition-all duration-300 hover:shadow-lg";
+  pill.style.top = "42px";
   pill.innerHTML = `
     <button onclick="prevMonth(); event.stopPropagation();" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition"><i class="fa-solid fa-chevron-left text-xs"></i></button>
     <div class="relative">
       <div class="px-3 text-sm font-black text-gray-800 hover:text-indigo-600 transition tracking-tight flex items-center gap-1.5 cursor-pointer" onclick="toggleMonthPicker()">
-        <span id="floatingYearMonth">${currentYear}년 ${currentMonth + 1}월</span>
+        <span id="floatingYearMonth">${currentYear}년 ${
+    currentMonth + 1
+  }월</span>
         <i class="fa-solid fa-caret-down text-[10px] text-gray-400"></i>
       </div>
       <div id="miniPickerBox" class="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 pointer-events-none transform scale-95 origin-top transition-all duration-200 z-40">
@@ -298,16 +355,18 @@ function setupProUX() {
   if (!tooltip) {
     tooltip = document.createElement("div");
     tooltip.id = "proTooltip";
-    tooltip.className = "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
+    tooltip.className =
+      "glass-tooltip fixed pointer-events-none z-[120] opacity-0 bg-white/90 backdrop-blur-md border border-gray-200/80 shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-xl p-3 transform -translate-x-1/2 -translate-y-[calc(100%+12px)] min-w-[180px] transition-opacity duration-150";
     document.body.appendChild(tooltip);
   }
   const calendarEl = document.getElementById("calendar");
-  if(calendarEl) calendarEl.addEventListener("scroll", hideProTooltip, { passive: true });
+  if (calendarEl)
+    calendarEl.addEventListener("scroll", hideProTooltip, { passive: true });
 }
 
 function showProTooltip(e, title, dates, reason, color) {
   const tt = document.getElementById("proTooltip");
-  if(!tt) return;
+  if (!tt) return;
   tt.innerHTML = `<div class="flex items-center gap-2 mb-1.5"><div class="w-2.5 h-2.5 rounded-full shadow-sm" style="background-color: ${color}"></div><span class="font-black text-gray-800 text-[13px] tracking-tight">${title}</span></div><div class="text-[11px] text-gray-500 font-medium font-mono bg-gray-50 rounded px-1.5 py-0.5 inline-block mb-1.5"><i class="fa-regular fa-calendar mr-1"></i>${dates}</div><div class="text-[12px] text-gray-600 leading-snug break-words">${reason}</div>`;
   tt.style.left = e.clientX + "px";
   tt.style.top = e.clientY + "px";
@@ -315,7 +374,10 @@ function showProTooltip(e, title, dates, reason, color) {
 }
 function moveProTooltip(e) {
   const tt = document.getElementById("proTooltip");
-  if(tt) { tt.style.left = e.clientX + "px"; tt.style.top = e.clientY + "px"; }
+  if (tt) {
+    tt.style.left = e.clientX + "px";
+    tt.style.top = e.clientY + "px";
+  }
 }
 function hideProTooltip() {
   const tt = document.getElementById("proTooltip");
@@ -342,14 +404,18 @@ function renderMiniPickerLists() {
   for (let y = currentYear - 3; y <= currentYear + 3; y++) {
     const btn = document.createElement("button");
     const active = y === currentYear;
-    btn.className = `w-full py-1.5 text-xs rounded-md font-bold snap-center transition ${active ? "bg-indigo-50 text-indigo-600" : "text-gray-500 hover:bg-gray-50"}`;
+    btn.className = `w-full py-1.5 text-xs rounded-md font-bold snap-center transition ${
+      active ? "bg-indigo-50 text-indigo-600" : "text-gray-500 hover:bg-gray-50"
+    }`;
     btn.innerText = `${y}년`;
     btn.onclick = async (e) => {
       e.stopPropagation();
       currentYear = y;
-      document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
+      document.getElementById(
+        "floatingYearMonth"
+      ).innerText = `${currentYear}년 ${currentMonth + 1}월`;
       renderMiniPickerLists();
-      await scrollToMonth(currentYear, currentMonth, true); 
+      await scrollToMonth(currentYear, currentMonth, true);
     };
     yList.appendChild(btn);
     if (active) setTimeout(() => btn.scrollIntoView({ block: "center" }), 10);
@@ -357,14 +423,18 @@ function renderMiniPickerLists() {
   for (let m = 0; m < 12; m++) {
     const btn = document.createElement("button");
     const active = m === currentMonth;
-    btn.className = `w-full py-1.5 text-xs rounded-md font-bold snap-center transition ${active ? "bg-indigo-50 text-indigo-600" : "text-gray-500 hover:bg-gray-50"}`;
+    btn.className = `w-full py-1.5 text-xs rounded-md font-bold snap-center transition ${
+      active ? "bg-indigo-50 text-indigo-600" : "text-gray-500 hover:bg-gray-50"
+    }`;
     btn.innerText = `${m + 1}월`;
     btn.onclick = async (e) => {
       e.stopPropagation();
       toggleMonthPicker();
       currentMonth = m;
-      document.getElementById("floatingYearMonth").innerText = `${currentYear}년 ${currentMonth + 1}월`;
-      await scrollToMonth(currentYear, currentMonth, true); 
+      document.getElementById(
+        "floatingYearMonth"
+      ).innerText = `${currentYear}년 ${currentMonth + 1}월`;
+      await scrollToMonth(currentYear, currentMonth, true);
     };
     mList.appendChild(btn);
     if (active) setTimeout(() => btn.scrollIntoView({ block: "center" }), 10);
@@ -380,41 +450,64 @@ async function resetCalendarTo(year, month) {
   const holidays = await fetchGoogleHolidays(renderStartDate, renderEndDate);
   leavesCache = [...dbLeavesCache, ...holidays];
   const cal = document.getElementById("calendar");
-  if(cal) cal.innerHTML = generateCellsHTML(renderStartDate, renderEndDate);
+  if (cal) cal.innerHTML = generateCellsHTML(renderStartDate, renderEndDate);
   renderEvents();
 }
 
 function generateCellsHTML(start, end) {
   let html = "";
   let iter = new Date(start);
-  const todayStr = formatDate(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-  const isClickable = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) && currentCalendarMode !== "personal";
+  const todayStr = formatDate(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    new Date().getDate()
+  );
+  const isClickable =
+    ["reviewer", "officer", "approver", "superadmin"].includes(
+      currentUserRole
+    ) && currentCalendarMode !== "personal";
 
   while (iter <= end) {
     html += `<div class="week-row col-span-7 relative min-h-[120px] transition-all duration-300 border-b border-gray-100 flex w-full">`;
     let bgHtml = `<div class="absolute inset-0 grid grid-cols-7 w-full h-full">`;
     let daysInWeek = [];
     for (let i = 0; i < 7; i++) {
-      const y = iter.getFullYear(), m = iter.getMonth(), d = iter.getDate();
+      const y = iter.getFullYear(),
+        m = iter.getMonth(),
+        d = iter.getDate();
       const fullDateStr = formatDate(y, m, d);
       daysInWeek.push(fullDateStr);
       const isToday = fullDateStr === todayStr;
       const isFirst = d === 1;
-      const dateColor = isToday ? "bg-indigo-600 text-white px-2 py-0.5 rounded-full font-black inline-block" : i === 0 ? "text-red-500 date-text" : i === 6 ? "text-blue-500 date-text" : "text-gray-700 date-text";
-      
-      const clickAction = isClickable ? `onclick="openBottomSheet('${fullDateStr}')"` : "";
-      const hoverClass = isClickable ? "hover:bg-indigo-50/50 cursor-pointer" : "cursor-default";
+      const dateColor = isToday
+        ? "bg-indigo-600 text-white px-2 py-0.5 rounded-full font-black inline-block"
+        : i === 0
+        ? "text-red-500 date-text"
+        : i === 6
+        ? "text-blue-500 date-text"
+        : "text-gray-700 date-text";
+
+      const clickAction = isClickable
+        ? `onclick="openBottomSheet('${fullDateStr}')"`
+        : "";
+      const hoverClass = isClickable
+        ? "hover:bg-indigo-50/50 cursor-pointer"
+        : "cursor-default";
 
       bgHtml += `<div class="day-cell border-r border-gray-100 flex flex-col p-1.5 relative transition-colors duration-300 ${hoverClass}" data-date="${fullDateStr}" ${clickAction}>
         <div class="flex justify-between items-start z-0">
           <span class="holiday-name text-[10px] text-red-500 font-bold truncate max-w-[70%] drop-shadow-sm mt-0.5"></span>
-          <span class="text-xs font-bold transition-colors ${dateColor} ${isFirst && !isToday ? "text-indigo-600 text-sm" : ""}">${isFirst ? `${m + 1}월 ${d}일` : d}</span>
+          <span class="text-xs font-bold transition-colors ${dateColor} ${
+        isFirst && !isToday ? "text-indigo-600 text-sm" : ""
+      }">${isFirst ? `${m + 1}월 ${d}일` : d}</span>
         </div>
       </div>`;
       iter.setDate(iter.getDate() + 1);
     }
     bgHtml += `</div>`;
-    html += bgHtml + `<div class="event-layer absolute top-8 left-0 right-0 bottom-1 pointer-events-none flex flex-col gap-[4px] z-10" data-week-start="${daysInWeek[0]}"></div></div>`;
+    html +=
+      bgHtml +
+      `<div class="event-layer absolute top-8 left-0 right-0 bottom-1 pointer-events-none flex flex-col gap-[4px] z-10" data-week-start="${daysInWeek[0]}"></div></div>`;
   }
   return html;
 }
@@ -424,7 +517,9 @@ function getDatesInRange(startStr, endStr) {
   let current = new Date(startStr.split("T")[0]);
   const end = new Date(endStr.split("T")[0]);
   while (current <= end) {
-    dates.push(formatDate(current.getFullYear(), current.getMonth(), current.getDate()));
+    dates.push(
+      formatDate(current.getFullYear(), current.getMonth(), current.getDate())
+    );
     current.setDate(current.getDate() + 1);
   }
   return dates;
@@ -448,24 +543,36 @@ function updateVisualFocus(focusYear, focusMonth) {
 function setupScrollObserver() {
   const container = document.getElementById("calendar");
   if (!container) return;
-  container.addEventListener("scroll", async () => {
-    const rect = container.getBoundingClientRect();
-    const el = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 3);
-    const cell = el ? el.closest(".day-cell") : null;
-    if (cell) {
-      const [y, m] = cell.dataset.date.split("-");
-      if (parseInt(y, 10) !== currentYear || parseInt(m, 10) - 1 !== currentMonth) {
-        currentYear = parseInt(y, 10);
-        currentMonth = parseInt(m, 10) - 1;
-        updateVisualFocus(currentYear, currentMonth);
+  container.addEventListener(
+    "scroll",
+    async () => {
+      const rect = container.getBoundingClientRect();
+      const el = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 3
+      );
+      const cell = el ? el.closest(".day-cell") : null;
+      if (cell) {
+        const [y, m] = cell.dataset.date.split("-");
+        if (
+          parseInt(y, 10) !== currentYear ||
+          parseInt(m, 10) - 1 !== currentMonth
+        ) {
+          currentYear = parseInt(y, 10);
+          currentMonth = parseInt(m, 10) - 1;
+          updateVisualFocus(currentYear, currentMonth);
+        }
       }
-    }
-  }, { passive: true });
+    },
+    { passive: true }
+  );
 }
 
 async function scrollToMonth(year, month, smooth = true) {
   const targetStr = formatDate(year, month, 1);
-  let targetCell = document.querySelector(`.day-cell[data-date="${targetStr}"]`);
+  let targetCell = document.querySelector(
+    `.day-cell[data-date="${targetStr}"]`
+  );
   if (!targetCell) {
     await resetCalendarTo(year, month);
     targetCell = document.querySelector(`.day-cell[data-date="${targetStr}"]`);
@@ -473,47 +580,66 @@ async function scrollToMonth(year, month, smooth = true) {
   if (targetCell) {
     const calendar = document.getElementById("calendar");
     const targetRow = targetCell.closest(".week-row") || targetCell;
-    calendar.scrollTo({ top: Math.max(0, targetRow.offsetTop - 60), behavior: smooth ? "smooth" : "instant" });
+    calendar.scrollTo({
+      top: Math.max(0, targetRow.offsetTop - 60),
+      behavior: smooth ? "smooth" : "instant",
+    });
     currentYear = year;
     currentMonth = month;
     updateVisualFocus(year, month);
-    saveCalendarState(); // 🔥 페이지 스크롤 이동 시에도 상태 저장
+    saveCalendarState();
   }
 }
 
 function renderEvents() {
-  document.querySelectorAll(".event-layer").forEach((el) => (el.innerHTML = ""));
-  document.querySelectorAll(".holiday-name").forEach((el) => (el.innerText = ""));
+  document
+    .querySelectorAll(".event-layer")
+    .forEach((el) => (el.innerHTML = ""));
+  document
+    .querySelectorAll(".holiday-name")
+    .forEach((el) => (el.innerText = ""));
 
   let displayLeaves = leavesCache.filter((leave) => {
     if (leave.isHoliday) return true;
-    if (currentCalendarMode === "personal") return true; 
-    
-    const isLongType = leave.type === "휴가" || ["연가", "포상", "보상", "위로", "기타"].includes(leave.type);
-    const isShortType = leave.type === "외출" || leave.type === "외박" || leave.type.includes("외출") || leave.type.includes("외박");
-    
-    if (currentCalendarMode === "team-long") return isLongType; 
-    if (currentCalendarMode === "team-short") return isShortType; 
+    if (currentCalendarMode === "personal") return true;
+
+    const isLongType =
+      leave.type === "휴가" ||
+      ["연가", "포상", "보상", "위로", "기타"].includes(leave.type);
+    const isShortType =
+      leave.type === "외출" ||
+      leave.type === "외박" ||
+      leave.type.includes("외출") ||
+      leave.type.includes("외박");
+
+    if (currentCalendarMode === "team-long") return isLongType;
+    if (currentCalendarMode === "team-short") return isShortType;
     return true;
   });
 
   const sortedLeaves = [...displayLeaves].sort((a, b) => {
     if (a.isHoliday && !b.isHoliday) return -1;
     if (!a.isHoliday && b.isHoliday) return 1;
-    
+
     if (!a.isWaitlisted && b.isWaitlisted) return -1;
     if (a.isWaitlisted && !b.isWaitlisted) return 1;
 
     const startA = new Date(a.startDate).getTime();
     const startB = new Date(b.startDate).getTime();
     if (startA !== startB) return startA - startB;
-    return (new Date(b.endDate).getTime() - startA) - (new Date(a.endDate).getTime() - startB);
+    return (
+      new Date(b.endDate).getTime() -
+      startA -
+      (new Date(a.endDate).getTime() - startB)
+    );
   });
 
   const levelMap = {};
   sortedLeaves.forEach((leave) => {
     if (leave.isHoliday) {
-      const cell = document.querySelector(`.day-cell[data-date="${leave.startDate}"]`);
+      const cell = document.querySelector(
+        `.day-cell[data-date="${leave.startDate}"]`
+      );
       if (cell) {
         const nameEl = cell.querySelector(".holiday-name");
         if (nameEl) nameEl.innerText = leave.title;
@@ -521,18 +647,23 @@ function renderEvents() {
         const dateNum = cell.querySelector(".date-text");
         if (dateNum) {
           dateNum.classList.remove("text-gray-700", "text-blue-500");
-          if (!dateNum.classList.contains("bg-indigo-600")) dateNum.classList.add("text-red-500");
+          if (!dateNum.classList.contains("bg-indigo-600"))
+            dateNum.classList.add("text-red-500");
         }
       }
       return;
     }
     const datesStr = getDatesInRange(leave.startDate, leave.endDate);
-    let targetLevel = 0, found = false;
+    let targetLevel = 0,
+      found = false;
     while (!found) {
       found = true;
       for (const dateStr of datesStr) {
         if (!levelMap[dateStr]) levelMap[dateStr] = [];
-        if (levelMap[dateStr][targetLevel]) { found = false; break; }
+        if (levelMap[dateStr][targetLevel]) {
+          found = false;
+          break;
+        }
       }
       if (!found) targetLevel++;
     }
@@ -542,7 +673,9 @@ function renderEvents() {
   const weekRows = document.querySelectorAll(".week-row");
   weekRows.forEach((weekRow) => {
     const fgLayer = weekRow.querySelector(".event-layer");
-    const days = Array.from(weekRow.querySelectorAll(".day-cell")).map((cell) => cell.dataset.date);
+    const days = Array.from(weekRow.querySelectorAll(".day-cell")).map(
+      (cell) => cell.dataset.date
+    );
     let maxLevel = -1;
     days.forEach((d) => {
       if (levelMap[d]) maxLevel = Math.max(maxLevel, levelMap[d].length - 1);
@@ -556,12 +689,15 @@ function renderEvents() {
     for (let level = 0; level <= maxLevel; level++) {
       const levelRow = document.createElement("div");
       levelRow.className = "relative w-full h-[22px]";
-      let currentLeave = null, startIndex = -1, span = 0;
+      let currentLeave = null,
+        startIndex = -1,
+        span = 0;
 
-     const drawBar = (leave, startIdx, sp) => {
+      const drawBar = (leave, startIdx, sp) => {
         const bar = document.createElement("div");
         const isGlobalStart = leave.startDate.split("T")[0] === days[startIdx];
-        const isGlobalEnd = leave.endDate.split("T")[0] === days[startIdx + sp - 1];
+        const isGlobalEnd =
+          leave.endDate.split("T")[0] === days[startIdx + sp - 1];
 
         bar.className = `absolute top-0 h-[22px] pointer-events-auto cursor-pointer transition-all duration-200 z-10 px-1.5 flex items-center text-[11px] font-bold text-white truncate shadow-sm leave-bar-${leave._id}`;
         bar.style.left = `calc(100% / 7 * ${startIdx})`;
@@ -571,49 +707,57 @@ function renderEvents() {
         else if (isGlobalStart) bar.style.borderRadius = "4px 0 0 4px";
         else if (isGlobalEnd) bar.style.borderRadius = "0 4px 4px 0";
 
-        let sText = {
-          PENDING_REVIEW: "(검토대기)",
-          PENDING_APPROVAL: "(승인대기)",
-          REJECTED_REVIEW: "(검토거절)",
-          REJECTED_APPROVAL: "(승인거절)",
-          APPROVED: "",
-          CANCEL_REQ_REVIEW: "(취소대기)",
-          CANCEL_REQ_APPROVAL: "(취소대기)",
-          CANCEL_APPROVED: "(취소됨)",
-        }[leave.status] || "";
+        let sText =
+          {
+            PENDING_REVIEW: "(검토대기)",
+            PENDING_APPROVAL: "(승인대기)",
+            REJECTED_REVIEW: "(검토거절)",
+            REJECTED_APPROVAL: "(승인거절)",
+            APPROVED: "",
+            CANCEL_REQ_REVIEW: "(취소대기)",
+            CANCEL_REQ_APPROVAL: "(취소대기)",
+            CANCEL_APPROVED: "(취소됨)",
+          }[leave.status] || "";
 
         if (leave.isWaitlisted) sText = "[후보] " + sText;
         if (leave.isManualOverride) sText = "🔒 " + sText;
 
-        const displayName = currentCalendarMode !== "personal" 
-          ? `${leave.userId?.name || ""} ${sText}` 
-          : `[${leave.type || "휴가"}] ${leave.reason || ""} ${sText}`;
-          
+        const displayName =
+          currentCalendarMode !== "personal"
+            ? `${leave.userId?.name || ""} ${sText}`
+            : `[${leave.type || "휴가"}] ${leave.reason || ""} ${sText}`;
+
         bar.innerText = isGlobalStart || startIdx === 0 ? displayName : "";
         const fixedColor = getLeaveColor(leave.reason, leave.type);
 
-        if (leave.status.includes("REJECTED") || leave.status === "CANCEL_APPROVED") {
+        if (
+          leave.status.includes("REJECTED") ||
+          leave.status === "CANCEL_APPROVED"
+        ) {
           bar.style.backgroundColor = "rgba(156, 163, 175, 0.4)";
           bar.style.border = "1px dashed rgba(156, 163, 175, 0.8)";
           bar.style.color = "#4b5563";
-          
-          bar.onclick = async (e) => { 
-            e.stopPropagation(); 
-            hideProTooltip(); 
-            
-            if (typeof window.closeNotifications === "function") window.closeNotifications();
+
+          bar.onclick = async (e) => {
+            e.stopPropagation();
+            hideProTooltip();
+
+            if (typeof window.closeNotifications === "function")
+              window.closeNotifications();
 
             bar.style.transition = "all 0.3s ease";
             bar.style.opacity = "0";
             bar.style.transform = "scale(0.9)";
-            
+
             const notiEl = document.getElementById(`noti-${leave._id}`);
             if (notiEl) notiEl.remove();
-            
-            const notificationList = document.getElementById("notificationList");
+
+            const notificationList =
+              document.getElementById("notificationList");
             const badge = document.getElementById("notificationBadge");
             if (notificationList && badge) {
-              const remaining = notificationList.querySelectorAll('.noti-item').length;
+              const remaining =
+                notificationList.querySelectorAll(".noti-item").length;
               if (remaining === 0) {
                 badge.classList.add("hidden");
                 notificationList.innerHTML = `<div class="p-8 text-center text-slate-400"><div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-bell-slash text-xl text-slate-300"></i></div><p class="text-xs font-bold text-slate-500">새로운 알림이 없습니다.</p></div>`;
@@ -625,13 +769,14 @@ function renderEvents() {
             try {
               await fetch(`/leaves/${leave._id}/confirm-reject`, {
                 method: "PUT",
-                headers: { Authorization: `Bearer ${currentToken}` }
+                headers: { Authorization: `Bearer ${currentToken}` },
               });
-            } catch(err) { console.error("Confirm Reject Error:", err); }
+            } catch (err) {
+              console.error("Confirm Reject Error:", err);
+            }
 
-            setTimeout(() => refreshCalendarData(), 300); 
+            setTimeout(() => refreshCalendarData(), 300);
           };
-          
         } else if (leave.isWaitlisted) {
           bar.style.backgroundColor = "rgba(249, 115, 22, 0.15)";
           bar.style.border = "1px dashed #ea580c";
@@ -647,31 +792,56 @@ function renderEvents() {
           bar.style.opacity = "1";
         }
 
-        if (!leave.status.includes("REJECTED") && leave.status !== "CANCEL_APPROVED") {
+        if (
+          !leave.status.includes("REJECTED") &&
+          leave.status !== "CANCEL_APPROVED"
+        ) {
           bar.addEventListener("mouseenter", (e) => {
             highlightLeave(leave._id);
-            showProTooltip(e, `[${leave.type}] ${leave.userId?.name || ""} ${sText}`, `${leave.startDate.split("T")[0]} ~ ${leave.endDate.split("T")[0]}`, leave.reason || "사유 없음", leave.isWaitlisted ? "#f97316" : fixedColor);
+            showProTooltip(
+              e,
+              `[${leave.type}] ${leave.userId?.name || ""} ${sText}`,
+              `${leave.startDate.split("T")[0]} ~ ${
+                leave.endDate.split("T")[0]
+              }`,
+              leave.reason || "사유 없음",
+              leave.isWaitlisted ? "#f97316" : fixedColor
+            );
           });
           bar.addEventListener("mousemove", moveProTooltip);
-          bar.addEventListener("mouseleave", () => { unhighlightLeave(leave._id); hideProTooltip(); });
-          
+          bar.addEventListener("mouseleave", () => {
+            unhighlightLeave(leave._id);
+            hideProTooltip();
+          });
+
           bar.onclick = (e) => {
             e.stopPropagation();
             hideProTooltip();
-            if (typeof window.closeNotifications === "function") window.closeNotifications();
-            
-            const isReviewer = ["reviewer", "officer"].includes(currentUserRole);
-            const isApprover = ["approver", "superadmin"].includes(currentUserRole);
+            if (typeof window.closeNotifications === "function")
+              window.closeNotifications();
+
+            const isReviewer = ["reviewer", "officer"].includes(
+              currentUserRole
+            );
+            const isApprover = ["approver", "superadmin"].includes(
+              currentUserRole
+            );
 
             if (isReviewer || isApprover) {
-              if (leave.status === "PENDING_REVIEW" || leave.status === "CANCEL_REQ_REVIEW") {
+              if (
+                leave.status === "PENDING_REVIEW" ||
+                leave.status === "CANCEL_REQ_REVIEW"
+              ) {
                 if (isReviewer || currentUserRole === "superadmin") {
                   spaNavigate(`/review?id=${leave._id}`);
                 } else {
                   spaNavigate(`/review?id=${leave._id}&readonly=true`);
                 }
                 return;
-              } else if (leave.status === "PENDING_APPROVAL" || leave.status === "CANCEL_REQ_APPROVAL") {
+              } else if (
+                leave.status === "PENDING_APPROVAL" ||
+                leave.status === "CANCEL_REQ_APPROVAL"
+              ) {
                 if (isApprover) {
                   spaNavigate(`/approve?id=${leave._id}`);
                 } else {
@@ -683,9 +853,17 @@ function renderEvents() {
                 return;
               }
             }
-            
-            if (currentCalendarMode === "personal" && ["PENDING_REVIEW", "PENDING_APPROVAL", "APPROVED"].includes(leave.status)) {
-              if (confirm(`일정을 취소/삭제하시겠습니까?\n사유: ${leave.reason}`)) cancelLeave(leave._id);
+
+            if (
+              currentCalendarMode === "personal" &&
+              ["PENDING_REVIEW", "PENDING_APPROVAL", "APPROVED"].includes(
+                leave.status
+              )
+            ) {
+              if (
+                confirm(`일정을 취소/삭제하시겠습니까?\n사유: ${leave.reason}`)
+              )
+                cancelLeave(leave._id);
             }
           };
         }
@@ -698,7 +876,10 @@ function renderEvents() {
         if (leave !== currentLeave) {
           if (currentLeave) drawBar(currentLeave, startIndex, span);
           currentLeave = leave;
-          if (currentLeave) { startIndex = i; span = 1; }
+          if (currentLeave) {
+            startIndex = i;
+            span = 1;
+          }
         } else if (currentLeave) {
           span++;
         }
@@ -711,10 +892,15 @@ function renderEvents() {
 
 function setupDragSelection() {
   const calendar = document.getElementById("calendar");
-  if(!calendar) return;
+  if (!calendar) return;
   calendar.addEventListener("dragstart", (e) => e.preventDefault());
   calendar.addEventListener("mousedown", (e) => {
-    if (e.button !== 0 || e.target.closest('[class*="leave-bar"]') || currentCalendarMode !== "personal") return;
+    if (
+      e.button !== 0 ||
+      e.target.closest('[class*="leave-bar"]') ||
+      currentCalendarMode !== "personal"
+    )
+      return;
     const cell = e.target.closest(".day-cell");
     if (!cell) return;
     isDragging = true;
@@ -737,71 +923,159 @@ function setupDragSelection() {
 function updateSelectionVisuals() {
   clearSelectionVisuals();
   if (!dragStartStr || !dragEndStr) return;
-  const d1 = new Date(dragStartStr), d2 = new Date(dragEndStr);
-  const start = d1 < d2 ? d1 : d2, end = d1 < d2 ? d2 : d1;
+  const d1 = new Date(dragStartStr),
+    d2 = new Date(dragEndStr);
+  const start = d1 < d2 ? d1 : d2,
+    end = d1 < d2 ? d2 : d1;
   document.querySelectorAll(".day-cell").forEach((cell) => {
     const cellDate = new Date(cell.dataset.date);
-    if (cellDate >= start && cellDate <= end) cell.classList.add("bg-indigo-100/50", "shadow-[inset_0_0_0_2px_#818cf8]", "z-20");
+    if (cellDate >= start && cellDate <= end)
+      cell.classList.add(
+        "bg-indigo-100/50",
+        "shadow-[inset_0_0_0_2px_#818cf8]",
+        "z-20"
+      );
   });
 }
 function clearSelectionVisuals() {
-  document.querySelectorAll(".day-cell").forEach((cell) => cell.classList.remove("bg-indigo-100/50", "shadow-[inset_0_0_0_2px_#818cf8]", "z-20"));
+  document
+    .querySelectorAll(".day-cell")
+    .forEach((cell) =>
+      cell.classList.remove(
+        "bg-indigo-100/50",
+        "shadow-[inset_0_0_0_2px_#818cf8]",
+        "z-20"
+      )
+    );
 }
 
 async function fetchLeavesFromDB() {
-  currentToken = localStorage.getItem("token") || ""; 
-  const endpoint = currentCalendarMode === "personal" ? "/leaves/my" : "/leaves/all";
-  const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
-  
+  currentToken = localStorage.getItem("token") || "";
+  const endpoint =
+    currentCalendarMode === "personal" ? "/leaves/my" : "/leaves/all";
+  const res = await fetch(endpoint, {
+    headers: { Authorization: `Bearer ${currentToken}` },
+  });
+
   if (res.status === 401) {
-      localStorage.removeItem("token");
-      window.location.href = "/login.html";
-      return;
+    localStorage.removeItem("token");
+    window.location.href = "/login.html";
+    return;
   }
-  
+
   const data = await res.json();
   dbLeavesCache = data.leaves || [];
 }
 
 async function fetchGoogleHolidays(start, end) {
   try {
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(KOREA_HOLIDAY_CALENDAR_ID)}/events?key=${GOOGLE_API_KEY}&timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`);
+    const res = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
+        KOREA_HOLIDAY_CALENDAR_ID
+      )}/events?key=${GOOGLE_API_KEY}&timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`
+    );
     return ((await res.json()).items || []).map((ev) => ({
-      _id: "hol-" + ev.id, type: "holiday", title: ev.summary, startDate: ev.start.date, endDate: ev.start.date, isHoliday: true, userId: { name: "공휴일" },
+      _id: "hol-" + ev.id,
+      type: "holiday",
+      title: ev.summary,
+      startDate: ev.start.date,
+      endDate: ev.start.date,
+      isHoliday: true,
+      userId: { name: "공휴일" },
     }));
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
-function prevMonth() { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } scrollToMonth(currentYear, currentMonth, true); }
-function nextMonth() { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } scrollToMonth(currentYear, currentMonth, true); }
-function goToCurrentMonth() { const now = new Date(); currentYear = now.getFullYear(); currentMonth = now.getMonth(); scrollToMonth(currentYear, currentMonth, true); }
+function prevMonth() {
+  currentMonth--;
+  if (currentMonth < 0) {
+    currentMonth = 11;
+    currentYear--;
+  }
+  scrollToMonth(currentYear, currentMonth, true);
+}
+function nextMonth() {
+  currentMonth++;
+  if (currentMonth > 11) {
+    currentMonth = 0;
+    currentYear++;
+  }
+  scrollToMonth(currentYear, currentMonth, true);
+}
+function goToCurrentMonth() {
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+  scrollToMonth(currentYear, currentMonth, true);
+}
 
 async function cancelLeave(id) {
   try {
-    const res = await fetch(`/leaves/${id}`, { method: "DELETE", headers: { Authorization: "Bearer " + currentToken } });
+    const res = await fetch(`/leaves/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: "Bearer " + currentToken },
+    });
     const data = await res.json();
-    if (data.success) { 
-        alert(data.message); 
-        await refreshCalendarData(); 
-        await loadMySlots();
-    } else { 
-        alert(data.error || "오류가 발생했습니다."); 
+    if (data.success) {
+      alert(data.message);
+      await refreshCalendarData();
+      await loadMySlots();
+    } else {
+      alert(data.error || "오류가 발생했습니다.");
     }
   } catch (err) {}
 }
 
-function formatDate(y, m, d) { const date = new Date(y, m, d, 12, 0, 0); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`; }
+function formatDate(y, m, d) {
+  const date = new Date(y, m, d, 12, 0, 0);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(
+    2,
+    "0"
+  )}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 function getLeaveColor(reason, type) {
-  const palette = { 연가: "#3b82f6", 포상: "#1d4ed8", 위로: "#0ea5e9", 보상: "#0284c7", 기타: "#64748b", 정기외박: "#8b5cf6", 특별외박: "#6d28d9", 외박: "#7c3aed", 평일정기외출: "#10b981", 주말정기외출: "#059669", 평일특별외출: "#14b8a6", 주말특별외출: "#0f766e", 외출: "#10b981" };
-  if (reason) { for (const key in palette) { if (reason.includes(key)) return palette[key]; } }
-  if (type) { if (type.includes("외박")) return palette["외박"]; if (type.includes("외출")) return palette["외출"]; }
+  const palette = {
+    연가: "#3b82f6",
+    포상: "#1d4ed8",
+    위로: "#0ea5e9",
+    보상: "#0284c7",
+    기타: "#64748b",
+    정기외박: "#8b5cf6",
+    특별외박: "#6d28d9",
+    외박: "#7c3aed",
+    평일정기외출: "#10b981",
+    주말정기외출: "#059669",
+    평일특별외출: "#14b8a6",
+    주말특별외출: "#0f766e",
+    외출: "#10b981",
+  };
+  if (reason) {
+    for (const key in palette) {
+      if (reason.includes(key)) return palette[key];
+    }
+  }
+  if (type) {
+    if (type.includes("외박")) return palette["외박"];
+    if (type.includes("외출")) return palette["외출"];
+  }
   return palette["연가"];
 }
 
-function highlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "brightness(1.15)"; el.style.zIndex = "50"; }); }
-function unhighlightLeave(id) { document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => { el.style.filter = "none"; el.style.zIndex = "10"; }); }
-
+function highlightLeave(id) {
+  document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => {
+    el.style.filter = "brightness(1.15)";
+    el.style.zIndex = "50";
+  });
+}
+function unhighlightLeave(id) {
+  document.querySelectorAll(`.leave-bar-${id}`).forEach((el) => {
+    el.style.filter = "none";
+    el.style.zIndex = "10";
+  });
+}
 
 // ==========================================
 // 勇士自主登錄、讀取假單與送出申請
@@ -817,23 +1091,23 @@ async function submitGrant() {
   const payload = {
     type: mainCat,
     totalCount: Number(totalCount),
-    reason: subType ? `[${subType}] ${reasonInput}` : reasonInput
+    reason: subType ? `[${subType}] ${reasonInput}` : reasonInput,
   };
 
   try {
     const res = await fetch("/leave-slots", {
       method: "POST",
-      headers: { 
+      headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer " + currentToken 
+        Authorization: "Bearer " + currentToken,
       },
       body: JSON.stringify(payload),
     });
     const result = await res.json();
     if (result.error) return alert("오류 발생: " + result.error);
     alert("휴가가 성공적으로 등록되었습니다.");
-    if(typeof closeModal === "function") closeModal("grantModal");
-    await loadMySlots(); 
+    if (typeof closeModal === "function") closeModal("grantModal");
+    await loadMySlots();
   } catch (err) {
     alert("서버 오류가 발생했습니다.");
   }
@@ -851,14 +1125,14 @@ async function loadMySlots() {
   } catch (err) {}
 }
 
-// 🔥 [升級版] renderSlotList：加入平日/假日防呆 + 外宿必須 >= 2 天防呆
 function renderSlotList() {
   const listEl = document.getElementById("reqSlotList");
   const remainsText = document.getElementById("totalRemainsText");
   if (!listEl) return;
 
   if (myAvailableSlots.length === 0) {
-    listEl.innerHTML = '<div class="text-sm text-gray-400 text-center py-6">사용 가능한 휴가가 없습니다. <br><span class="text-xs">(먼저 [휴가 등록]을 하거나 다시 로그인해주세요)</span></div>';
+    listEl.innerHTML =
+      '<div class="text-sm text-gray-400 text-center py-6">사용 가능한 휴가가 없습니다. <br><span class="text-xs">(먼저 [휴가 등록]을 하거나 다시 로그인해주세요)</span></div>';
     if (remainsText) remainsText.innerText = "총 0일";
     return;
   }
@@ -868,17 +1142,23 @@ function renderSlotList() {
 
   let hasWeekday = false;
   let hasWeekendOrHoliday = false;
-  let diffDays = 0; // 🔥 新增：計算總天數
+  let diffDays = 0;
 
   if (startDate && endDate) {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1; // 計算請假天數
+    diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-    const holidays = leavesCache.filter((l) => l.isHoliday).map((l) => l.startDate.split("T")[0]);
+    const holidays = leavesCache
+      .filter((l) => l.isHoliday)
+      .map((l) => l.startDate.split("T")[0]);
     let iter = new Date(start);
     while (iter <= end) {
-      const dStr = formatDate(iter.getFullYear(), iter.getMonth(), iter.getDate());
+      const dStr = formatDate(
+        iter.getFullYear(),
+        iter.getMonth(),
+        iter.getDate()
+      );
       const isWeekend = iter.getDay() === 0 || iter.getDay() === 6;
       if (isWeekend || holidays.includes(dStr)) hasWeekendOrHoliday = true;
       else hasWeekday = true;
@@ -889,10 +1169,14 @@ function renderSlotList() {
   let selectedMainCat = null;
   let selectedVacationSub = null;
 
-  currentUsedSlots.forEach(us => {
-    const slot = myAvailableSlots.find(s => s._id === us.slotId);
+  currentUsedSlots.forEach((us) => {
+    const slot = myAvailableSlots.find((s) => s._id === us.slotId);
     if (slot) {
-      const isShort = slot.type === "외박" || slot.type === "외출" || slot.reason.includes("외박") || slot.reason.includes("외출");
+      const isShort =
+        slot.type === "외박" ||
+        slot.type === "외출" ||
+        slot.reason.includes("외박") ||
+        slot.reason.includes("외출");
       if (isShort) {
         selectedMainCat = "단기";
       } else {
@@ -916,42 +1200,50 @@ function renderSlotList() {
     if (s.type === "외박" || s.reason.includes("외박")) typeTag = "외박";
     else if (s.type === "외출" || s.reason.includes("외출")) typeTag = "외출";
 
-    const isWeekendOnly = s.type === "외박" || s.reason.includes("주말") || s.reason.includes("정기외박") || s.reason.includes("특별외박");
+    const isWeekendOnly =
+      s.type === "외박" ||
+      s.reason.includes("주말") ||
+      s.reason.includes("정기외박") ||
+      s.reason.includes("특별외박");
     const isWeekdayOnly = s.reason.includes("평일");
-    
+
     const isThisShort = typeTag === "외박" || typeTag === "외출";
-    const isThisOvernight = typeTag === "외박"; // 🔥 判斷是不是外宿
+    const isThisOvernight = typeTag === "외박";
     const isThisGita = s.reason.includes("기타");
-    
+
     let isDisabled = false;
     let lockReason = "";
 
-    // 🔥 1. 檢查日期相容性 (平日/假日互斥 & 外宿天數限制)
     if (startDate && endDate) {
       if (isWeekendOnly && hasWeekday) {
-        isDisabled = true; lockReason = "주말/공휴일 전용"; 
+        isDisabled = true;
+        lockReason = "주말/공휴일 전용";
       } else if (isWeekdayOnly && hasWeekendOrHoliday) {
-        isDisabled = true; lockReason = "평일 전용"; 
+        isDisabled = true;
+        lockReason = "평일 전용";
       } else if (isThisOvernight && diffDays === 1) {
-        // 🔥 新增：如果只有 1 天，外宿強制鎖死
-        isDisabled = true; lockReason = "외박은 2일 이상 신청"; 
+        isDisabled = true;
+        lockReason = "외박은 2일 이상 신청";
       }
     }
 
-    // 🔥 2. 檢查大分類相容性
     if (!isDisabled) {
-      if (selectedMainCat === "휴가" && isThisShort) { 
-          isDisabled = true; lockReason = "휴가와 혼합 불가"; 
+      if (selectedMainCat === "휴가" && isThisShort) {
+        isDisabled = true;
+        lockReason = "휴가와 혼합 불가";
       }
-      if (selectedMainCat === "단기" && !isThisShort) { 
-          isDisabled = true; lockReason = "외출/외박과 혼합 불가"; 
+      if (selectedMainCat === "단기" && !isThisShort) {
+        isDisabled = true;
+        lockReason = "외출/외박과 혼합 불가";
       }
       if (selectedMainCat === "휴가" && !isThisShort) {
-        if (selectedVacationSub === "기타" && !isThisGita) { 
-            isDisabled = true; lockReason = "기타 휴가와 혼합 불가"; 
+        if (selectedVacationSub === "기타" && !isThisGita) {
+          isDisabled = true;
+          lockReason = "기타 휴가와 혼합 불가";
         }
-        if (selectedVacationSub === "일반" && isThisGita) { 
-            isDisabled = true; lockReason = "일반 휴가와 혼합 불가"; 
+        if (selectedVacationSub === "일반" && isThisGita) {
+          isDisabled = true;
+          lockReason = "일반 휴가와 혼합 불가";
         }
       }
     }
@@ -960,15 +1252,31 @@ function renderSlotList() {
     const disableAttr = isDisabled ? "disabled" : "";
 
     const itemHtml = `
-      <div class="flex items-center justify-between p-3 rounded-xl border ${isUsed ? "border-indigo-400 bg-indigo-50/40" : "border-gray-200 bg-white"} shadow-sm transition-all mb-2 ${opacityClass}">
+      <div class="flex items-center justify-between p-3 rounded-xl border ${
+        isUsed
+          ? "border-indigo-400 bg-indigo-50/40"
+          : "border-gray-200 bg-white"
+      } shadow-sm transition-all mb-2 ${opacityClass}">
         <div class="flex-1 min-w-0 pr-2">
-          <p class="text-sm font-bold text-gray-800 truncate">[${typeTag}] ${s.reason} ${isDisabled ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">${lockReason}</span>` : ''}</p>
-          <p class="text-[11px] text-gray-500 font-medium">잔여 ${s.remains}일</p>
+          <p class="text-sm font-bold text-gray-800 truncate">[${typeTag}] ${
+      s.reason
+    } ${
+      isDisabled
+        ? `<span class="text-[9px] text-red-500 bg-red-50 px-1 rounded ml-1">${lockReason}</span>`
+        : ""
+    }</p>
+          <p class="text-[11px] text-gray-500 font-medium">잔여 ${
+            s.remains
+          }일</p>
         </div>
         <div class="flex items-center gap-2 shrink-0">
-          <button type="button" onclick="changeManualQty('${s._id}', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition disabled:cursor-not-allowed" ${disableAttr}>-</button>
+          <button type="button" onclick="changeManualQty('${
+            s._id
+          }', -1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition disabled:cursor-not-allowed" ${disableAttr}>-</button>
           <span class="w-5 text-center font-bold text-indigo-700">${qty}</span>
-          <button type="button" onclick="changeManualQty('${s._id}', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition disabled:cursor-not-allowed" ${disableAttr}>+</button>
+          <button type="button" onclick="changeManualQty('${
+            s._id
+          }', 1)" class="w-6 h-6 border rounded border-gray-300 text-gray-600 hover:bg-gray-100 flex items-center justify-center font-bold transition disabled:cursor-not-allowed" ${disableAttr}>+</button>
         </div>
       </div>`;
 
@@ -992,7 +1300,10 @@ function changeManualQty(slotId, delta) {
   const endDate = document.getElementById("reqEndDate").value;
   let diffDays = 0;
   if (startDate && endDate)
-    diffDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+    diffDays =
+      Math.ceil(
+        (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+      ) + 1;
 
   if (diffDays <= 0) {
     alert("먼저 올바른 출발일과 복귀일을 설정해주세요.");
@@ -1018,7 +1329,7 @@ function changeManualQty(slotId, delta) {
   usedObj.qty = newQty;
   currentUsedSlots = currentUsedSlots.filter((u) => u.qty > 0);
 
-  renderSlotList(); // 상태가 변했으므로 방어 로직 갱신
+  renderSlotList();
 
   const calcText = document.getElementById("daysCalcText");
   const calcBox = document.getElementById("daysCalcBox");
@@ -1026,22 +1337,29 @@ function changeManualQty(slotId, delta) {
   if (calcText) {
     if (totalAssigned < diffDays) {
       calcText.innerHTML = `<span class="text-red-500 text-sm">선택: ${totalAssigned}일 / 필요: ${diffDays}일</span>`;
-      if (calcBox) calcBox.className = "bg-red-50 border border-red-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
+      if (calcBox)
+        calcBox.className =
+          "bg-red-50 border border-red-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
     } else {
       calcText.innerHTML = `<span class="text-indigo-600 font-bold text-sm">일치완료 (총 ${diffDays}일)</span>`;
-      if (calcBox) calcBox.className = "bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
+      if (calcBox)
+        calcBox.className =
+          "bg-indigo-50 border border-indigo-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
     }
   }
 }
 
 function calculateReqDays() {
-  currentUsedSlots = []; // 기간이 변경되면 장바구니 초기화 (방어선 해제)
+  currentUsedSlots = [];
 
   const startDate = document.getElementById("reqStartDate").value;
   const endDate = document.getElementById("reqEndDate").value;
   let diffDays = 0;
   if (startDate && endDate)
-    diffDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+    diffDays =
+      Math.ceil(
+        (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+      ) + 1;
 
   renderSlotList();
 
@@ -1056,7 +1374,8 @@ function calculateReqDays() {
   if (calcBox) calcBox.classList.remove("hidden");
   if (calcText) {
     calcText.innerHTML = `<span class="text-red-500 text-sm">선택: 0일 / 필요: ${diffDays}일</span>`;
-    calcBox.className = "bg-red-50 border border-red-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
+    calcBox.className =
+      "bg-red-50 border border-red-200 rounded-xl p-3.5 flex justify-between items-center transition-colors";
   }
 }
 
@@ -1067,21 +1386,35 @@ async function submitRequest() {
   const contact = document.getElementById("reqContact").value;
   const reason = document.getElementById("reqReason").value;
 
-  if (!startDate || !endDate || !destination || !contact) return alert("필수 항목 누락");
+  if (!startDate || !endDate || !destination || !contact)
+    return alert("필수 항목 누락");
 
-  const diffDays = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
-  const totalAllocated = currentUsedSlots.reduce((sum, slot) => sum + slot.qty, 0);
-  if (totalAllocated !== diffDays) return alert("선택한 휴가와 일정이 일치하지 않습니다.");
+  const diffDays =
+    Math.ceil(
+      (new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)
+    ) + 1;
+  const totalAllocated = currentUsedSlots.reduce(
+    (sum, slot) => sum + slot.qty,
+    0
+  );
+  if (totalAllocated !== diffDays)
+    return alert("선택한 휴가와 일정이 일치하지 않습니다.");
 
   const start = new Date(startDate);
   const end = new Date(endDate);
-  const holidays = leavesCache.filter((l) => l.isHoliday).map((l) => l.startDate.split("T")[0]);
+  const holidays = leavesCache
+    .filter((l) => l.isHoliday)
+    .map((l) => l.startDate.split("T")[0]);
   let hasWeekday = false;
   let hasWeekendOrHoliday = false;
 
   let iter = new Date(start);
   while (iter <= end) {
-    const dStr = formatDate(iter.getFullYear(), iter.getMonth(), iter.getDate());
+    const dStr = formatDate(
+      iter.getFullYear(),
+      iter.getMonth(),
+      iter.getDate()
+    );
     const isWeekend = iter.getDay() === 0 || iter.getDay() === 6;
     if (isWeekend || holidays.includes(dStr)) hasWeekendOrHoliday = true;
     else hasWeekday = true;
@@ -1091,24 +1424,34 @@ async function submitRequest() {
   for (const us of currentUsedSlots) {
     const slot = myAvailableSlots.find((s) => s._id === us.slotId);
     if (!slot) continue;
-    const isWeekendOnly = slot.reason.includes("주말") || slot.type === "외박" || slot.reason.includes("특별외박") || slot.reason.includes("정기외박");
+    const isWeekendOnly =
+      slot.reason.includes("주말") ||
+      slot.type === "외박" ||
+      slot.reason.includes("특별외박") ||
+      slot.reason.includes("정기외박");
     const isWeekdayOnly = slot.reason.includes("평일");
 
-    if (isWeekendOnly && hasWeekday) return alert(`[${slot.type}] ${slot.reason} 은(는) 주말 및 공휴일에만 사용할 수 있습니다. (평일 포함 불가)`);
-    if (isWeekdayOnly && hasWeekendOrHoliday) return alert(`[${slot.type}] ${slot.reason} 은(는) 평일에만 사용할 수 있습니다. (주말/공휴일 포함 불가)`);
+    if (isWeekendOnly && hasWeekday)
+      return alert(
+        `[${slot.type}] ${slot.reason} 은(는) 주말 및 공휴일에만 사용할 수 있습니다. (평일 포함 불가)`
+      );
+    if (isWeekdayOnly && hasWeekendOrHoliday)
+      return alert(
+        `[${slot.type}] ${slot.reason} 은(는) 평일에만 사용할 수 있습니다. (주말/공휴일 포함 불가)`
+      );
   }
 
   // 🔥 [기능 2] 우선순위 마법 정렬 (연가 -> 포상 -> 위로 -> 보상)
-  const priorityMap = { "연가": 1, "포상": 2, "위로": 3, "보상": 4 };
+  const priorityMap = { 연가: 1, 포상: 2, 위로: 3, 보상: 4 };
   currentUsedSlots.sort((a, b) => {
-    const slotA = myAvailableSlots.find(s => s._id === a.slotId);
-    const slotB = myAvailableSlots.find(s => s._id === b.slotId);
+    const slotA = myAvailableSlots.find((s) => s._id === a.slotId);
+    const slotB = myAvailableSlots.find((s) => s._id === b.slotId);
     const getP = (rsn) => {
-      if(rsn.includes("연가")) return priorityMap["연가"];
-      if(rsn.includes("포상")) return priorityMap["포상"];
-      if(rsn.includes("위로")) return priorityMap["위로"];
-      if(rsn.includes("보상")) return priorityMap["보상"];
-      return 99; // 기타 휴가 등
+      if (rsn.includes("연가")) return priorityMap["연가"];
+      if (rsn.includes("포상")) return priorityMap["포상"];
+      if (rsn.includes("위로")) return priorityMap["위로"];
+      if (rsn.includes("보상")) return priorityMap["보상"];
+      return 99;
     };
     return getP(slotA.reason) - getP(slotB.reason);
   });
@@ -1123,7 +1466,8 @@ async function submitRequest() {
 
   const fileInput = document.getElementById("reqFile");
   if (fileInput && fileInput.files && fileInput.files.length > 0) {
-    if (fileInput.files.length > 5) return alert("증빙 서류는 최대 5개까지만 업로드 가능합니다.");
+    if (fileInput.files.length > 5)
+      return alert("증빙 서류는 최대 5개까지만 업로드 가능합니다.");
     for (let i = 0; i < fileInput.files.length; i++) {
       formData.append("evidenceFiles", fileInput.files[i]);
     }
@@ -1137,13 +1481,12 @@ async function submitRequest() {
     });
     const result = await res.json();
     if (result.error) return alert(result.error);
-    
-    if(typeof closeModal === "function") closeModal("requestModal");
-    
+
+    if (typeof closeModal === "function") closeModal("requestModal");
+
     alert("출타 신청서가 성공적으로 제출되었습니다.");
-    await loadMySlots(); 
+    await loadMySlots();
     await refreshCalendarData();
-    
   } catch (err) {
     alert("서버와 통신 중 오류가 발생했습니다.");
   }
@@ -1157,58 +1500,93 @@ var draggedLeaveName = null;
 
 function openBottomSheet(dateStr) {
   const targetDate = new Date(dateStr);
-  const dayLeaves = dbLeavesCache.filter(l => {
+  const dayLeaves = dbLeavesCache.filter((l) => {
     const sDate = new Date(l.startDate.split("T")[0]);
     const eDate = new Date(l.endDate.split("T")[0]);
-    if (targetDate < sDate || targetDate > eDate) return false; 
-    if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false;
-    
-    const isLongType = l.type === "휴가" || ["연가", "포상", "보상", "위로", "기타"].includes(l.type);
-    const isShortType = l.type === "외출" || l.type === "외박" || l.type.includes("외출") || l.type.includes("외박");
-    
+    if (targetDate < sDate || targetDate > eDate) return false;
+    if (l.status.includes("CANCELLED") || l.status.includes("REJECTED"))
+      return false;
+
+    const isLongType =
+      l.type === "휴가" ||
+      ["연가", "포상", "보상", "위로", "기타"].includes(l.type);
+    const isShortType =
+      l.type === "외출" ||
+      l.type === "외박" ||
+      l.type.includes("외출") ||
+      l.type.includes("외박");
+
     if (currentCalendarMode === "team-long" && !isLongType) return false;
     if (currentCalendarMode === "team-short" && !isShortType) return false;
     return true;
   });
 
-  const approvedLeaves = dayLeaves.filter(l => !l.isWaitlisted);
-  const waitlistedLeaves = dayLeaves.filter(l => l.isWaitlisted);
+  const approvedLeaves = dayLeaves.filter((l) => !l.isWaitlisted);
+  const waitlistedLeaves = dayLeaves.filter((l) => l.isWaitlisted);
 
   const m = targetDate.getMonth() + 1;
   const d = targetDate.getDate();
   document.getElementById("bsDateTitle").innerText = `${m}월 ${d}일 출타 현황`;
-  
+
   const appContainer = document.getElementById("bsApprovedList");
-  if(!appContainer) return;
-  appContainer.innerHTML = approvedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">승인 대상이 없습니다.</div>` : "";
-  
-  approvedLeaves.forEach(l => {
+  if (!appContainer) return;
+  appContainer.innerHTML =
+    approvedLeaves.length === 0
+      ? `<div class="text-xs text-gray-400 text-center py-2">승인 대상이 없습니다.</div>`
+      : "";
+
+  approvedLeaves.forEach((l) => {
     const isApproved = l.status === "APPROVED";
-    const dragAttrs = isApproved ? "" : `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
-    const gripIcon = isApproved ? `<i class="fa-solid fa-lock text-gray-200 mr-3 text-lg" title="최종 승인됨"></i>` : `<i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>`;
-    const cursorClass = isApproved ? "cursor-default" : "cursor-move hover:shadow-md";
+    const dragAttrs = isApproved
+      ? ""
+      : `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
+    const gripIcon = isApproved
+      ? `<i class="fa-solid fa-lock text-gray-200 mr-3 text-lg" title="최종 승인됨"></i>`
+      : `<i class="fa-solid fa-grip-lines text-gray-300 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>`;
+    const cursorClass = isApproved
+      ? "cursor-default"
+      : "cursor-move hover:shadow-md";
 
     const userRank = getDisplayRank(l.userId);
 
+    const downgradeBtn = isApproved
+      ? ""
+      : `<button onclick="toggleWaitlistStatus('${l._id}')" class="shrink-0 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="보장 해제 (강제 내리기)">⬇️ 내리기</button>`;
+
     appContainer.innerHTML += `
-      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${l.isManualOverride ? 'border-indigo-300 shadow-md' : 'border-gray-200'} flex justify-between items-center transition ${cursorClass} mb-2">
+      <div ${dragAttrs} class="bg-white p-3 rounded-xl border ${
+      l.isManualOverride ? "border-indigo-300 shadow-md" : "border-gray-200"
+    } flex justify-between items-center transition ${cursorClass} mb-2">
         <div class="flex items-center min-w-0 pr-2">
           ${gripIcon}
           <div class="truncate">
-            <p class="text-[13px] font-bold text-gray-800 truncate">${l.isManualOverride ? '🔒 ' : ''}${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${userRank})</span></p>
-            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${l.reason || ''} ${isApproved ? '<span class="text-indigo-500 font-bold">(최종승인)</span>' : ''}</p>
+            <p class="text-[13px] font-bold text-gray-800 truncate">${
+              l.isManualOverride ? "🔒 " : ""
+            }${
+      l.userId?.name || "알 수 없음"
+    } <span class="text-[10px] text-gray-500 font-normal">(${userRank})</span></p>
+            <p class="text-[11px] text-gray-500 mt-0.5 truncate">${
+              l.reason || ""
+            } ${
+      isApproved
+        ? '<span class="text-indigo-500 font-bold">(최종승인)</span>'
+        : ""
+    }</p>
           </div>
         </div>
-        <button onclick="toggleWaitlistStatus('${l._id}')" class="shrink-0 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="보장 해제 (강제 내리기)">⬇️ 내리기</button>
+        ${downgradeBtn}
       </div>
     `;
   });
 
   const waitContainer = document.getElementById("bsWaitlistList");
-  if(!waitContainer) return;
-  waitContainer.innerHTML = waitlistedLeaves.length === 0 ? `<div class="text-xs text-gray-400 text-center py-2">후보 인원이 없습니다.</div>` : "";
-  
-  waitlistedLeaves.forEach(l => {
+  if (!waitContainer) return;
+  waitContainer.innerHTML =
+    waitlistedLeaves.length === 0
+      ? `<div class="text-xs text-gray-400 text-center py-2">후보 인원이 없습니다.</div>`
+      : "";
+
+  waitlistedLeaves.forEach((l) => {
     const dragAttrs = `draggable="true" ondragstart="handleDragStart(event, '${l._id}', '${l.userId?.name}')" ondragend="handleDragEnd(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event, '${l._id}', '${l.userId?.name}')"`;
     const userRank = getDisplayRank(l.userId);
 
@@ -1217,19 +1595,29 @@ function openBottomSheet(dateStr) {
         <div class="flex items-center min-w-0 pr-2">
           <i class="fa-solid fa-grip-lines text-orange-200 mr-3 text-lg cursor-grab active:cursor-grabbing"></i>
           <div class="truncate">
-            <p class="text-[13px] font-bold text-orange-800 truncate">${l.userId?.name || '알 수 없음'} <span class="text-[10px] text-gray-500 font-normal">(${userRank})</span></p>
-            <p class="text-[11px] text-orange-600 mt-0.5 truncate">${l.reason || ''}</p>
+            <p class="text-[13px] font-bold text-orange-800 truncate">${
+              l.userId?.name || "알 수 없음"
+            } <span class="text-[10px] text-gray-500 font-normal">(${userRank})</span></p>
+            <p class="text-[11px] text-orange-600 mt-0.5 truncate">${
+              l.reason || ""
+            }</p>
           </div>
         </div>
-        <button onclick="toggleWaitlistStatus('${l._id}')" class="shrink-0 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="정규 편성으로 강제 올리기">⬆️ 올리기</button>
+        <button onclick="toggleWaitlistStatus('${
+          l._id
+        }')" class="shrink-0 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition shadow-sm" title="정규 편성으로 강제 올리기">⬆️ 올리기</button>
       </div>
     `;
   });
 
   document.getElementById("bottomSheetOverlay")?.classList.remove("hidden");
   setTimeout(() => {
-    document.getElementById("bottomSheetOverlay")?.classList.remove("opacity-0");
-    document.getElementById("bottomSheet")?.classList.remove("translate-y-full");
+    document
+      .getElementById("bottomSheetOverlay")
+      ?.classList.remove("opacity-0");
+    document
+      .getElementById("bottomSheet")
+      ?.classList.remove("translate-y-full");
   }, 10);
 }
 
@@ -1242,34 +1630,87 @@ function closeBottomSheet() {
 }
 
 async function toggleWaitlistStatus(leaveId) {
-  if (!confirm("이 인원의 정규/후보 상태를 수동으로 강제 변경(고정)하시겠습니까?\n(수동 고정된 인원은 T/O를 차지하지 않습니다.)")) return;
+  if (
+    !confirm(
+      "이 인원의 정규/후보 상태를 수동으로 강제 변경(고정)하시겠습니까?\n(수동 고정된 인원은 T/O를 차지하지 않습니다.)"
+    )
+  )
+    return;
   try {
     const res = await fetch(`/leaves/${leaveId}/manual-override`, {
-      method: "PUT", headers: { Authorization: `Bearer ${currentToken}` }
+      method: "PUT",
+      headers: { Authorization: `Bearer ${currentToken}` },
     });
     const data = await res.json();
     if (data.success) {
-      await refreshCalendarData(); 
-      closeBottomSheet(); 
-      if (typeof checkPendingLeaves === "function") checkPendingLeaves(); 
-      alert(data.isManualOverride ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다." : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다.");
+      await refreshCalendarData();
+      closeBottomSheet();
+      if (typeof checkPendingLeaves === "function") checkPendingLeaves();
+      alert(
+        data.isManualOverride
+          ? "해당 인원이 정규 편성으로 강제 고정(🔒) 되었습니다."
+          : "해당 인원의 강제 고정이 해제되어 다시 점수 경쟁에 포함됩니다."
+      );
     }
-  } catch(e) { alert("수동 개입 처리 중 오류가 발생했습니다."); }
+  } catch (e) {
+    alert("수동 개입 처리 중 오류가 발생했습니다.");
+  }
+}
+
+// 🔥 [新增] 一鍵批次駁回當月的所有候補人員
+async function batchRejectWaitlistPhase1() {
+  const typeName = currentCalendarMode === "team-long" ? "휴가" : "외출/외박";
+  const confirmMsg = `🚨 [경고] 현재 표시된 ${currentYear}년 ${
+    currentMonth + 1
+  }월의 [${typeName}] '후보(대기)' 인원을 모두 일괄 반려하시겠습니까?\n\n(반려 시, 휴가 일수는 즉시 용사들에게 반환되며 되돌릴 수 없습니다!)`;
+
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    const res = await fetch(`/leaves/reject-calendar-waitlist`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentToken}`,
+      },
+      body: JSON.stringify({
+        year: currentYear,
+        month: currentMonth + 1,
+        mode: currentCalendarMode,
+      }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      alert(data.message);
+      await refreshCalendarData();
+      if (typeof checkPendingLeaves === "function") checkPendingLeaves();
+    } else {
+      alert(data.error);
+    }
+  } catch (e) {
+    alert("오류가 발생했습니다.");
+  }
 }
 
 async function fetchLeaveRates() {
-  if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
+  if (
+    !["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)
+  )
+    return;
   try {
-    const res = await fetch("/leaves/rates", { headers: { Authorization: `Bearer ${currentToken}` } });
+    const res = await fetch("/leaves/rates", {
+      headers: { Authorization: `Bearer ${currentToken}` },
+    });
     const data = await res.json();
     if (data.success) {
       const rl = document.getElementById("rateLongInput");
       const rs = document.getElementById("rateShortInput");
-      if(rl) rl.value = data.leaveRateLong;
-      if(rs) rs.value = data.leaveRateShort;
-      renderSpecialRates(data.specialRates); 
+      if (rl) rl.value = data.leaveRateLong;
+      if (rs) rs.value = data.leaveRateShort;
+      renderSpecialRates(data.specialRates);
     }
-  } catch(e) {}
+  } catch (e) {}
 }
 
 function renderSpecialRates(rates) {
@@ -1281,7 +1722,9 @@ function renderSpecialRates(rates) {
     return;
   }
   container.classList.remove("hidden");
-  list.innerHTML = rates.map(r => `
+  list.innerHTML = rates
+    .map(
+      (r) => `
     <li class="flex justify-between items-center bg-white border border-indigo-100 px-3 py-1.5 rounded-lg text-xs shadow-sm mb-2">
       <div class="flex items-center">
         <span class="font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded mr-2">${r.startDate} ~ ${r.endDate}</span>
@@ -1290,23 +1733,39 @@ function renderSpecialRates(rates) {
       </div>
       <button onclick="deleteSpecialRate('${r._id}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded transition" title="삭제"><i class="fa-solid fa-trash-can"></i></button>
     </li>
-  `).join("");
+  `
+    )
+    .join("");
 }
 
 async function updateLeaveRates() {
   const rateLong = document.getElementById("rateLongInput").value;
   const rateShort = document.getElementById("rateShortInput").value;
-  if (!confirm(`기본 출타율을 변경하시겠습니까? (휴가 ${rateLong}%, 단기 ${rateShort}%)\n\n(변경 시 모든 인원의 정/후보 상태가 즉시 재계산됩니다!)`)) return;
+  if (
+    !confirm(
+      `기본 출타율을 변경하시겠습니까? (휴가 ${rateLong}%, 단기 ${rateShort}%)\n\n(변경 시 모든 인원의 정/후보 상태가 즉시 재계산됩니다!)`
+    )
+  )
+    return;
 
   try {
     const res = await fetch("/leaves/rates", {
-      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
-      body: JSON.stringify({ leaveRateLong: rateLong, leaveRateShort: rateShort })
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentToken}`,
+      },
+      body: JSON.stringify({
+        leaveRateLong: rateLong,
+        leaveRateShort: rateShort,
+      }),
     });
     const data = await res.json();
     alert(data.message || data.error);
     if (data.success) await refreshCalendarData();
-  } catch(e) { alert("오류가 발생했습니다."); }
+  } catch (e) {
+    alert("오류가 발생했습니다.");
+  }
 }
 
 async function addSpecialRate() {
@@ -1316,13 +1775,29 @@ async function addSpecialRate() {
   const rateLong = document.getElementById("specialRateLong").value || 20;
   const rateShort = document.getElementById("specialRateShort").value || 15;
 
-  if (!sDate || !eDate || !sReason) return alert("날짜와 사유를 모두 입력해주세요.");
-  if (!confirm(`[특별 기간 적용]\n${sDate} ~ ${eDate} 기간 동안 출타율을 변경하시겠습니까?\n사유: ${sReason}`)) return;
+  if (!sDate || !eDate || !sReason)
+    return alert("날짜와 사유를 모두 입력해주세요.");
+  if (
+    !confirm(
+      `[특별 기간 적용]\n${sDate} ~ ${eDate} 기간 동안 출타율을 변경하시겠습니까?\n사유: ${sReason}`
+    )
+  )
+    return;
 
   try {
     const res = await fetch("/leaves/rates", {
-      method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
-      body: JSON.stringify({ specialStartDate: sDate, specialEndDate: eDate, specialReason: sReason, specialRateLong: rateLong, specialRateShort: rateShort })
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${currentToken}`,
+      },
+      body: JSON.stringify({
+        specialStartDate: sDate,
+        specialEndDate: eDate,
+        specialReason: sReason,
+        specialRateLong: rateLong,
+        specialRateShort: rateShort,
+      }),
     });
     const data = await res.json();
     alert(data.message || data.error);
@@ -1332,32 +1807,47 @@ async function addSpecialRate() {
       document.getElementById("specialReason").value = "";
       document.getElementById("specialRateLong").value = "";
       document.getElementById("specialRateShort").value = "";
-      await fetchLeaveRates(); 
-      await refreshCalendarData(); 
+      await fetchLeaveRates();
+      await refreshCalendarData();
     }
-  } catch(e) { alert("오류가 발생했습니다."); }
+  } catch (e) {
+    alert("오류가 발생했습니다.");
+  }
 }
 
 async function deleteSpecialRate(rateId) {
-  if(!confirm("이 특별 출타율 설정을 삭제하시겠습니까?\n(삭제 시 해당 기간은 기본 출타율 기준으로 즉시 재계산됩니다.)")) return;
+  if (
+    !confirm(
+      "이 특별 출타율 설정을 삭제하시겠습니까?\n(삭제 시 해당 기간은 기본 출타율 기준으로 즉시 재계산됩니다.)"
+    )
+  )
+    return;
   try {
     const res = await fetch(`/leaves/rates/special/${rateId}`, {
-      method: "DELETE", headers: { Authorization: `Bearer ${currentToken}` }
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${currentToken}` },
     });
     const data = await res.json();
-    if(data.success) {
-      await fetchLeaveRates(); 
+    if (data.success) {
+      await fetchLeaveRates();
       await refreshCalendarData();
     }
-  } catch(e) { alert("삭제 중 오류가 발생했습니다."); }
+  } catch (e) {
+    alert("삭제 중 오류가 발생했습니다.");
+  }
 }
 
 function handleDragStart(e, id, name) {
-  if (!["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) return;
+  if (
+    !["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)
+  )
+    return;
   draggedLeaveId = id;
   draggedLeaveName = name;
   e.dataTransfer.effectAllowed = "move";
-  setTimeout(() => { e.target.classList.add("opacity-50", "scale-95"); }, 0);
+  setTimeout(() => {
+    e.target.classList.add("opacity-50", "scale-95");
+  }, 0);
 }
 
 function handleDragEnd(e) {
@@ -1373,22 +1863,29 @@ async function handleDrop(e, targetId, targetName) {
   e.preventDefault();
   if (!draggedLeaveId || draggedLeaveId === targetId) return;
 
-  if (confirm(`[순위 맞바꾸기]\n${draggedLeaveName} 인원과 ${targetName} 인원의 휴가 순위를 1:1로 맞바꾸시겠습니까?\n(점수가 서로 교환되어 즉시 재계산됩니다.)`)) {
+  if (
+    confirm(
+      `[순위 맞바꾸기]\n${draggedLeaveName} 인원과 ${targetName} 인원의 휴가 순위를 1:1로 맞바꾸시겠습니까?\n(점수가 서로 교환되어 즉시 재계산됩니다.)`
+    )
+  ) {
     try {
       const res = await fetch("/leaves/swap-priority", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${currentToken}` },
-        body: JSON.stringify({ leaveId1: draggedLeaveId, leaveId2: targetId })
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ leaveId1: draggedLeaveId, leaveId2: targetId }),
       });
       const data = await res.json();
       alert(data.message || data.error);
-      
+
       if (data.success) {
-        closeBottomSheet(); 
-        await refreshCalendarData(); 
-        if (typeof checkPendingLeaves === "function") checkPendingLeaves(); 
+        closeBottomSheet();
+        await refreshCalendarData();
+        if (typeof checkPendingLeaves === "function") checkPendingLeaves();
       }
-    } catch(err) {
+    } catch (err) {
       alert("교환 중 오류가 발생했습니다.");
     }
   }
@@ -1397,12 +1894,18 @@ async function handleDrop(e, targetId, targetName) {
 var globalSearchCache = null;
 
 async function initGlobalSearchData() {
-  const endpoint = ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole) ? "/leaves/all" : "/leaves/my";
+  const endpoint = ["reviewer", "officer", "approver", "superadmin"].includes(
+    currentUserRole
+  )
+    ? "/leaves/all"
+    : "/leaves/my";
   try {
-    const res = await fetch(endpoint, { headers: { Authorization: `Bearer ${currentToken}` } });
+    const res = await fetch(endpoint, {
+      headers: { Authorization: `Bearer ${currentToken}` },
+    });
     const data = await res.json();
     globalSearchCache = data.leaves || [];
-  } catch(e) {
+  } catch (e) {
     console.error("搜尋資料載入失敗", e);
   }
 }
@@ -1410,8 +1913,8 @@ async function initGlobalSearchData() {
 function handleGlobalSearch(query) {
   query = query.trim().toLowerCase();
   const dropdown = document.getElementById("globalSearchDropdown");
-  if(!dropdown) return;
-  
+  if (!dropdown) return;
+
   if (!query) {
     dropdown.classList.add("hidden");
     return;
@@ -1419,9 +1922,12 @@ function handleGlobalSearch(query) {
 
   if (!globalSearchCache) return;
 
-  const results = globalSearchCache.filter(l => {
-    if (l.status.includes("CANCELLED") || l.status.includes("REJECTED")) return false; 
-    const searchStr = `${l.userId?.name || ""} ${l.userId?.rank || ""} ${l.reason || ""} ${l.type || ""}`.toLowerCase();
+  const results = globalSearchCache.filter((l) => {
+    if (l.status.includes("CANCELLED") || l.status.includes("REJECTED"))
+      return false;
+    const searchStr = `${l.userId?.name || ""} ${l.userId?.rank || ""} ${
+      l.reason || ""
+    } ${l.type || ""}`.toLowerCase();
     return searchStr.includes(query);
   });
 
@@ -1431,43 +1937,69 @@ function handleGlobalSearch(query) {
 function renderSearchResults(results) {
   const dropdown = document.getElementById("globalSearchDropdown");
   const list = document.getElementById("globalSearchList");
-  if(!dropdown || !list) return;
+  if (!dropdown || !list) return;
   dropdown.classList.remove("hidden");
-  
+
   if (results.length === 0) {
     list.innerHTML = `<div class="p-5 text-sm text-gray-400 text-center"><i class="fa-solid fa-magnifying-glass-minus block text-2xl mb-2"></i>검색 결과가 없습니다.</div>`;
     return;
   }
 
-  list.innerHTML = results.map(l => {
-    const sDate = l.startDate.split("T")[0];
-    const eDate = l.endDate.split("T")[0];
-    let statusBadge = l.isWaitlisted 
-        ? `<span class="bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">후보</span>` 
+  list.innerHTML = results
+    .map((l) => {
+      const sDate = l.startDate.split("T")[0];
+      const eDate = l.endDate.split("T")[0];
+      let statusBadge = l.isWaitlisted
+        ? `<span class="bg-orange-100 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">후보</span>`
         : `<span class="bg-blue-100 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded text-[10px] font-bold tracking-tight">정규</span>`;
-    
-    return `
-    <div onclick="executeSearchNavigation('${l._id}', '${l.type}', '${sDate}')" class="p-3 hover:bg-indigo-50 border-b border-gray-50 cursor-pointer transition flex flex-col gap-1">
+
+      return `
+    <div onclick="executeSearchNavigation('${l._id}', '${
+        l.type
+      }', '${sDate}')" class="p-3 hover:bg-indigo-50 border-b border-gray-50 cursor-pointer transition flex flex-col gap-1">
         <div class="flex justify-between items-center">
-            <span class="font-bold text-[13px] text-gray-800">[${l.type}] ${l.userId?.name || "알수없음"} <span class="text-[11px] text-gray-500 font-normal">(${l.userId?.rank || ""})</span></span>
+            <span class="font-bold text-[13px] text-gray-800">[${l.type}] ${
+        l.userId?.name || "알수없음"
+      } <span class="text-[11px] text-gray-500 font-normal">(${
+        l.userId?.rank || ""
+      })</span></span>
             ${statusBadge}
         </div>
-        <div class="text-[11px] text-gray-500 truncate"><i class="fa-regular fa-calendar mr-1"></i>${sDate.replace(/-/g, ".")} ~ ${eDate.replace(/-/g, ".")} | ${l.reason}</div>
+        <div class="text-[11px] text-gray-500 truncate"><i class="fa-regular fa-calendar mr-1"></i>${sDate.replace(
+          /-/g,
+          "."
+        )} ~ ${eDate.replace(/-/g, ".")} | ${l.reason}</div>
     </div>`;
-  }).join("");
+    })
+    .join("");
 }
 
-window.executeSearchNavigation = async function(leaveId, type, startDateStr, isSmooth = true) {
+// 🔥 [修復 2] 修復了 includes 的陣列語法錯誤
+window.executeSearchNavigation = async function (
+  leaveId,
+  type,
+  startDateStr,
+  isSmooth = true
+) {
   const dropdown = document.getElementById("globalSearchDropdown");
   const input = document.getElementById("globalSearchInput");
-  if(dropdown) dropdown.classList.add("hidden");
-  if(input) { input.value = ""; input.blur(); }
+  if (dropdown) dropdown.classList.add("hidden");
+  if (input) {
+    input.value = "";
+    input.blur();
+  }
 
-  if ("reviewer", "officer", "approver", "superadmin".includes(currentUserRole)) {
-    const isShortType = type === "외출" || type === "외박" || type.includes("외출") || type.includes("외박");
+  if (
+    ["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)
+  ) {
+    const isShortType =
+      type === "외출" ||
+      type === "외박" ||
+      type.includes("외출") ||
+      type.includes("외박");
     const targetMode = isShortType ? "team-short" : "team-long";
     if (currentCalendarMode !== targetMode) {
-      await switchCalendarMode(targetMode); 
+      await switchCalendarMode(targetMode);
     }
   } else {
     if (currentCalendarMode !== "personal") {
@@ -1476,28 +2008,31 @@ window.executeSearchNavigation = async function(leaveId, type, startDateStr, isS
   }
 
   const targetDate = new Date(startDateStr);
-  await scrollToMonth(targetDate.getFullYear(), targetDate.getMonth(), isSmooth);
+  await scrollToMonth(
+    targetDate.getFullYear(),
+    targetDate.getMonth(),
+    isSmooth
+  );
 
   let attempts = 0;
   const tryHighlight = () => {
     const targetBar = document.querySelector(`.leave-bar-${leaveId}`);
-    
+
     if (targetBar) {
       const allBars = document.querySelectorAll('[class*="leave-bar-"]');
-      allBars.forEach(bar => {
+      allBars.forEach((bar) => {
         if (bar === targetBar) {
-          bar.classList.add('spotlight-target'); 
+          bar.classList.add("spotlight-target");
         } else {
-          bar.classList.add('spotlight-dimmed'); 
+          bar.classList.add("spotlight-dimmed");
         }
       });
 
       setTimeout(() => {
-        allBars.forEach(bar => {
-          bar.classList.remove('spotlight-target', 'spotlight-dimmed');
+        allBars.forEach((bar) => {
+          bar.classList.remove("spotlight-target", "spotlight-dimmed");
         });
       }, 1500);
-
     } else if (attempts < 20) {
       attempts++;
       setTimeout(tryHighlight, 200);
@@ -1505,4 +2040,4 @@ window.executeSearchNavigation = async function(leaveId, type, startDateStr, isS
   };
 
   tryHighlight();
-}
+};
