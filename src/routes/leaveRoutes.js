@@ -114,7 +114,7 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
   
   const overlappingLeaves = await Leave.find({
     organizationId: orgId,
-    status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] },
+    status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "FORCE_CANCELLED"] },
     $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
   }).populate("userId", "role");
 
@@ -254,7 +254,7 @@ router.post("/leaves", authMiddleware, upload.array("evidenceFiles", 5), async (
 
     const overlapping = await Leave.findOne({
       userId,
-      status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] },
+      status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "FORCE_CANCELLED"] },
       $or: [{ startDate: { $lte: end }, endDate: { $gte: start } }],
     });
 
@@ -331,7 +331,7 @@ router.get("/leaves/my", authMiddleware, async (req, res) => {
   try {
     const leaves = await Leave.find({
       userId: req.user.userId,
-      status: { $ne: "CANCELLED" },
+      status: { $nin: ["CANCELLED", "FORCE_CANCELLED"] },
     })
       .populate("userId", "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang")
       .lean();
@@ -360,7 +360,7 @@ router.get("/leaves/all", authMiddleware, async (req, res) => {
     if (role === "soldier") {
       query.status = { $in: ["APPROVED", "CANCEL_REQ_REVIEW", "CANCEL_REQ_APPROVAL", "CANCEL_APPROVED"] };
     } else {
-      query.status = { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] };
+      query.status = { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "FORCE_CANCELLED"] };
     }
 
     const leaves = await Leave.find(query)
@@ -485,10 +485,10 @@ router.get("/notifications", authMiddleware, async (req, res) => {
         .lean();
       notifications.push(...leaves);
     } else if (role === "soldier") {
-      // 🔥 使用轉型後的 userObjectId，並增加排序確保最新狀態被抓到
+      // 🔥 使用轉型後的 userObjectId，並增加排序確保最新狀態被抓到。加入 FORCE_CANCELLED
       const leaves = await Leave.find({
         userId: userObjectId,
-        status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL", "CANCEL_APPROVED"] },
+        status: { $in: ["REJECTED_REVIEW", "REJECTED_APPROVAL", "CANCEL_APPROVED", "FORCE_CANCELLED"] },
       })
         .populate("userId", "name rank")
         .sort({ updatedAt: -1 }) // 最新變動的排前面
@@ -659,6 +659,46 @@ router.put("/leaves/:id/approve", authMiddleware, async (req, res) => {
 });
 
 // ==========================================
+// 🔥 [新增] 지휘관 직권 취소 (長官強制取消假單)
+// ==========================================
+router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
+  try {
+    const { role } = req.user;
+    const { cancelReason } = req.body;
+    
+    if (!["reviewer", "officer", "approver", "superadmin"].includes(role)) {
+      return res.status(403).json({ error: "권한이 없습니다." });
+    }
+
+    const leave = await Leave.findById(req.params.id);
+    if (!leave) return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
+
+    if (["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "FORCE_CANCELLED"].includes(leave.status)) {
+        return res.status(400).json({ error: "이미 취소되거나 거절된 휴가입니다." });
+    }
+
+    for (const us of leave.usedSlots) {
+      const slot = await LeaveSlot.findById(us.slotId);
+      if (slot) {
+        slot.remains += us.qty;
+        await slot.save();
+      }
+    }
+
+    leave.status = "FORCE_CANCELLED";
+    leave.reason = `[직권취소] ${cancelReason} (기존 사유: ${leave.reason})`;
+    await leave.save();
+
+    await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
+
+    res.json({ success: true, message: "휴가가 강제 취소되었으며 일수가 반환되었습니다." });
+  } catch (error) {
+    res.status(500).json({ error: "강제 취소 처리 중 오류가 발생했습니다." });
+  }
+});
+
+
+// ==========================================
 // 🔥 [新增] 長官特權：手動把候補拉成正取 (或取消特權)
 // ==========================================
 router.put("/leaves/:id/manual-override", authMiddleware, async (req, res) => {
@@ -736,7 +776,7 @@ router.put("/leaves/rates", authMiddleware, async (req, res) => {
 
     const activeLeaves = await Leave.find({
       organizationId: orgId,
-      status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] }
+      status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "FORCE_CANCELLED"] }
     });
 
     if (activeLeaves.length > 0) {
@@ -773,7 +813,7 @@ router.delete("/leaves/rates/special/:rateId", authMiddleware, async (req, res) 
     // 觸發核彈重算
     const activeLeaves = await Leave.find({
       organizationId: orgId,
-      status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL"] }
+      status: { $nin: ["CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "FORCE_CANCELLED"] }
     });
 
     if (activeLeaves.length > 0) {

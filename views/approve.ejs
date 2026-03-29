@@ -238,7 +238,7 @@
           const token = localStorage.getItem("token");
           const urlParams = new URLSearchParams(window.location.search);
           const leaveId = urlParams.get("id");
-          const isReadonly = urlParams.get("readonly") === "true"; // 🔥 攔截 readonly 參數
+          const isReadonly = urlParams.get("readonly") === "true"; 
           isCancelRequest = false;
 
           if (!token || !leaveId) {
@@ -266,15 +266,29 @@
               applyCancelModeUI();
             }
 
-            // 🔥 [終極隔離] 如果是「唯讀模式」或是「候補狀態」，強制把最終核准按鈕「整塊拔掉」！
+            // 🔥 [終極隔離 + 直權取消] 
+            const actionSec = document.getElementById("actionButtonsSection");
+            const hint = document.getElementById("readonlyHint");
+            
             if (isReadonly || leave.isWaitlisted) {
-                document.getElementById("actionButtonsSection").classList.add("hidden");
-                const hint = document.getElementById("readonlyHint");
-                hint.classList.remove("hidden");
-                
-                if (leave.isWaitlisted) {
+                if (leave.isWaitlisted && !isReadonly) {
+                    actionSec.classList.add("hidden");
+                    hint.classList.remove("hidden");
                     hint.className = "text-sm font-bold text-orange-500 mt-2";
                     hint.innerHTML = `<i class="fa-solid fa-lock mr-1"></i>정원 초과(후보) 상태이므로 승인할 수 없습니다. 달력에서 순위를 조정하세요.`;
+                } else if (isReadonly) {
+                    hint.classList.remove("hidden");
+                    // 如果還沒被取消，長官就可以看到「直權取消」按鈕！
+                    if (!["FORCE_CANCELLED", "CANCELLED", "REJECTED_REVIEW", "REJECTED_APPROVAL", "CANCEL_APPROVED"].includes(leave.status)) {
+                        actionSec.classList.remove("hidden");
+                        actionSec.innerHTML = `
+                          <button onclick="window.forceCancelLeave('${leave._id}')" class="w-full py-4 rounded-2xl bg-white text-red-600 font-black text-base border-2 border-red-200 shadow-sm hover:bg-red-50 hover:border-red-400 transition-all flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-triangle-exclamation"></i> 지휘관 직권 취소 (휴가 강제 회수)
+                          </button>
+                        `;
+                    } else {
+                        actionSec.classList.add("hidden");
+                    }
                 }
             }
 
@@ -443,6 +457,25 @@
           } catch (err) {}
         };
         
+        // 🔥 [新增] 強制取消 API 呼叫函數
+        window.forceCancelLeave = async function(leaveId) {
+          const reason = prompt("🚨 [경고] 해당 인원의 휴가를 강제로 회수합니다.\n\n취소 사유를 명확히 입력해주세요 (예: 훈련 참가, 지시사항 등):");
+          if (!reason) return;
+          if (reason.trim().length < 2) return alert("취소 사유를 2글자 이상 입력해주세요.");
+
+          try {
+            const res = await fetch(`/leaves/${leaveId}/force-cancel`, { 
+              method: "PUT", 
+              headers: { Authorization: `Bearer ${localStorage.getItem("token")}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ cancelReason: reason })
+            });
+            if ((await res.json()).success) {
+              alert("지휘관 직권으로 휴가가 강제 취소되었습니다.");
+              window.spaNavigate('/');
+            }
+          } catch (err) {}
+        };
+
         if (document.getElementById('leave-content') && document.getElementById('leave-content').classList.contains('hidden')) { 
           window.initApprovePage(); 
         }

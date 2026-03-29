@@ -12,45 +12,46 @@ window.checkAndHighlightFocus = function() {
   const urlParams = new URLSearchParams(window.location.search);
   const focusId = urlParams.get('focus');
 
-  // 防呆：避免 SPA 重複觸發
-  if (!focusId || window.__focusHandled === focusId) return; 
+  if (!focusId) return; 
 
   let attempts = 0;
   const tryHighlight = () => {
       const targetElement = document.getElementById(`item-${focusId}`);
-      if (targetElement) {
-          window.__focusHandled = focusId; // 鎖定
+      
+      if (targetElement && !targetElement.dataset.highlighted) {
+          targetElement.dataset.highlighted = "true"; 
 
-          // 1. 平滑捲動
           targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           
-          // 2. 暴力發光動畫 (使用 JS 直接修改 Shadow，無視層級)
-          setTimeout(() => {
-              const originalTransition = targetElement.style.transition;
-              const originalBoxShadow = targetElement.style.boxShadow;
-              const originalZIndex = targetElement.style.zIndex;
+          const styleId = `glow-style-${focusId}`;
+          if (!document.getElementById(styleId)) {
+              const style = document.createElement('style');
+              style.id = styleId;
+              style.innerHTML = `
+                  html body div#item-${focusId}, 
+                  html body main #userList div#item-${focusId},
+                  html body main #pendingList div#item-${focusId} {
+                      transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+                      z-index: 100 !important;
+                      position: relative !important;
+                      transform: scale(1.02) !important;
+                      outline: 2px solid rgba(99, 102, 241, 0.8) !important;
+                      outline-offset: 2px !important;
+                      background-color: #eef2ff !important; 
+                  }
+              `;
+              document.head.appendChild(style);
 
-              // 施放紫色光環魔法
-              targetElement.style.transition = "all 0.5s ease-out";
-              targetElement.style.zIndex = "100";
-              targetElement.style.boxShadow = "0 0 0 4px rgba(99, 102, 241, 0.8), 0 0 40px rgba(99, 102, 241, 0.6)";
-              
-              // 保持 2 秒後優雅消失
               setTimeout(() => {
-                  targetElement.style.boxShadow = originalBoxShadow;
-                  setTimeout(() => {
-                      targetElement.style.transition = originalTransition;
-                      targetElement.style.zIndex = originalZIndex;
-                      window.__focusHandled = null; // 解鎖
-                  }, 500);
-              }, 2000);
-
-              // 擦掉網址列參數
-              const newUrl = window.location.origin + window.location.pathname;
-              window.history.replaceState({}, '', newUrl);
-          }, 600); 
-          
-      } else if (attempts < 20) {
+                  const existingStyle = document.getElementById(styleId);
+                  if (existingStyle) existingStyle.remove();
+                  targetElement.removeAttribute('data-highlighted');
+                  
+                  const newUrl = window.location.origin + window.location.pathname;
+                  window.history.replaceState({}, '', newUrl);
+              }, 2500);
+          }
+      } else if (attempts < 50) { 
           attempts++;
           setTimeout(tryHighlight, 150);
       }
@@ -152,7 +153,6 @@ function reInitializePage() {
        if (typeof window.initCalendarPage === "function") window.initCalendarPage();
     }
     
-    // 🔥 SPA 畫面載入完成後，自動呼叫聚光燈引擎！
     window.checkAndHighlightFocus();
   }, 150);
 }
@@ -248,7 +248,6 @@ function toggleNotifications() {
   if (dropdown) dropdown.classList.toggle("hidden");
 }
 
-// 🔥 [新增] 紀錄已讀公告的魔法函數
 window.markNoticeAsRead = function(noticeId) {
   let readNotices = JSON.parse(localStorage.getItem('readNotices') || '[]');
   if (!readNotices.includes(noticeId)) {
@@ -256,7 +255,6 @@ window.markNoticeAsRead = function(noticeId) {
     localStorage.setItem('readNotices', JSON.stringify(readNotices));
   }
   window.closeNotifications();
-  // 關閉並前往公告發光定位
   spaNavigate(`/notice?focus=${noticeId}`);
 };
 
@@ -266,7 +264,6 @@ function renderNotifications(notifications, role) {
 
   if (!listEl) return;
 
-  // 🔥 [新增] 拿出已讀清單，把讀過的公告過濾掉！
   const readNotices = JSON.parse(localStorage.getItem('readNotices') || '[]');
   const unreadNotifications = notifications.filter(noti => {
     if (noti.status === "SYSTEM_NOTICE" || noti.type === "NOTICE") {
@@ -304,7 +301,6 @@ function renderNotifications(notifications, role) {
       statusText = noti.status.includes("CANCEL") ? "취소 검토 요청" : "새로운 출타 검토 요청";
       clickAction = `window.closeNotifications(); spaNavigate('/review?id=${noti._id}');`; 
       
-      // 🔥 [修改 1]：只有檢閱者(reviewer)和長官(officer)可以有快捷按鈕！
       if (["reviewer", "officer", "superadmin"].includes(role)) {
         actionButtons = `
           <div class="flex gap-2 mt-2.5">
@@ -312,7 +308,7 @@ function renderNotifications(notifications, role) {
             <button onclick="event.stopPropagation(); window.closeNotifications(); quickReview('${noti._id}', 'reject')" class="flex-1 text-[11px] font-bold bg-white border border-red-200 text-red-500 py-1.5 rounded-md hover:bg-red-50 transition shadow-sm">반려</button>
           </div>`;
       } else {
-        actionButtons = ``; // 核准者看不到這些按鈕！
+        actionButtons = ``; 
       }
 
     } else if (noti.status === "PENDING_APPROVAL" || noti.status === "CANCEL_REQ_APPROVAL") {
@@ -320,7 +316,6 @@ function renderNotifications(notifications, role) {
       statusText = noti.status.includes("CANCEL") ? "취소 승인 대기" : "최종 승인 대기 문서";
       clickAction = `window.closeNotifications(); spaNavigate('/approve?id=${noti._id}');`;
       
-      // 🔥 [修改 1]：只有核准者(approver)可以有快捷按鈕！
       if (["approver", "superadmin"].includes(role)) {
         actionButtons = `
           <div class="flex gap-2 mt-2.5">
@@ -328,20 +323,27 @@ function renderNotifications(notifications, role) {
             <button onclick="event.stopPropagation(); window.closeNotifications(); quickApprove('${noti._id}', 'reject')" class="flex-1 text-[11px] font-bold bg-white border border-red-200 text-red-500 py-1.5 rounded-md hover:bg-red-50 transition shadow-sm">반려</button>
           </div>`;
       } else {
-        actionButtons = ``; // 檢閱者看不到這些按鈕！
+        actionButtons = ``; 
       }
     } else if (noti.status === "NEW_MEMBER_PENDING") {
       icon = "fa-user-plus"; color = "text-emerald-600"; bgColor = "bg-emerald-50 border-emerald-100"; 
       statusText = "신규 부대원 가입 대기";
       clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
-    } else if (noti.status.includes("REJECTED") || noti.status === "CANCEL_APPROVED") {
-      if (noti.status === "CANCEL_APPROVED") {
+    
+    // 🔥 [新增] 把 FORCE_CANCELLED (直權取消) 放進來一起判斷
+    } else if (noti.status.includes("REJECTED") || noti.status === "CANCEL_APPROVED" || noti.status === "FORCE_CANCELLED") {
+      
+      if (noti.status === "FORCE_CANCELLED") {
+        icon = "fa-triangle-exclamation"; color = "text-white"; bgColor = "bg-red-600 border-red-700 animate-pulse";
+        statusText = "지휘관 직권으로 휴가가 강제 취소되었습니다.";
+      } else if (noti.status === "CANCEL_APPROVED") {
         icon = "fa-calendar-minus"; color = "text-gray-500"; bgColor = "bg-gray-100 border-gray-200";
         statusText = "휴가 취소가 최종 승인되어 일수가 반환되었습니다.";
       } else {
         icon = "fa-circle-xmark"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
         statusText = "출타 신청이 반려되었습니다.";
       }
+      
       const targetDate = noti.startDate ? noti.startDate.split('T')[0] : '';
       clickAction = isIndex 
         ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');` 
@@ -353,7 +355,6 @@ function renderNotifications(notifications, role) {
     } else if (noti.status === "SYSTEM_NOTICE" || noti.type === "NOTICE") {
       icon = "fa-bullhorn"; color = "text-red-500"; bgColor = "bg-red-50 border-red-100";
       statusText = "새로운 필독 공지"; 
-      // 🔥 [修改] 點擊時呼叫已讀函數！
       clickAction = `window.markNoticeAsRead('${noti._id}')`;
     } else if (noti.status === "PASSWORD_RESET_REQ") {
       icon = "fa-key"; color = "text-rose-600"; bgColor = "bg-rose-50 border-rose-100";
@@ -506,11 +507,9 @@ window.renderInlineResults = function(results, query) {
   const resultsBox = document.getElementById("inlineSearchList");
   let html = "";
   
-  // 🔥 [新增] 權限防護：判斷當前使用者是不是長官
   const userRole = localStorage.getItem("role") || "soldier";
   const isManager = ["reviewer", "officer", "approver", "superadmin"].includes(userRole);
 
-  // 🔥 [修改] 只有長官 (isManager) 才能看到 users (부대원) 的結果
   const hasUsers = isManager && results.users && results.users.length > 0;
   const hasLeaves = results.leaves && results.leaves.length > 0;
   const hasNotices = results.notices && results.notices.length > 0;
@@ -521,7 +520,6 @@ window.renderInlineResults = function(results, query) {
     return;
   }
 
-  // 1. 人員 (現在只有長官能進入這塊邏輯)
   if (hasUsers) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-blue-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-users mr-1"></i>부대원</h4><div class="flex flex-col gap-0.5">`;
     results.users.forEach(u => {
@@ -538,7 +536,6 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 2. 假單
   if (hasLeaves) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-emerald-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-calendar-check mr-1"></i>출타 내역</h4><div class="flex flex-col gap-0.5">`;
     results.leaves.forEach(l => {
@@ -562,7 +559,6 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 3. 公告
   if (hasNotices) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-amber-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-solid fa-bullhorn mr-1"></i>공지사항</h4><div class="flex flex-col gap-0.5">`;
     results.notices.forEach(n => {
@@ -576,7 +572,6 @@ window.renderInlineResults = function(results, query) {
     html += `</div></div>`;
   }
 
-  // 4. 相簿
   if (hasGalleries) {
     html += `<div class="mb-1.5"><h4 class="text-[10px] font-black text-pink-500 mb-1 px-2 uppercase tracking-wider mt-1"><i class="fa-regular fa-image mr-1"></i>사진첩</h4><div class="flex flex-col gap-0.5">`;
     results.galleries.forEach(g => {
@@ -593,12 +588,10 @@ window.renderInlineResults = function(results, query) {
   resultsBox.innerHTML = html;
 };
 
-// 處理瀏覽器返回鍵
 window.addEventListener("popstate", () => {
   window.location.reload();
 });
 
-// 初始載入
 document.addEventListener("DOMContentLoaded", () => {
   applyRolePermissions();
   window.checkAndHighlightFocus(); 

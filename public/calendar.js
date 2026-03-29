@@ -1463,7 +1463,7 @@ window.executeSearchNavigation = async function(leaveId, type, startDateStr, isS
   if(dropdown) dropdown.classList.add("hidden");
   if(input) { input.value = ""; input.blur(); }
 
-  if (["reviewer", "officer", "approver", "superadmin"].includes(currentUserRole)) {
+  if ("reviewer", "officer", "approver", "superadmin".includes(currentUserRole)) {
     const isShortType = type === "외출" || type === "외박" || type.includes("외출") || type.includes("외박");
     const targetMode = isShortType ? "team-short" : "team-long";
     if (currentCalendarMode !== targetMode) {
