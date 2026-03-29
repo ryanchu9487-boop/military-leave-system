@@ -31,23 +31,17 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
   const now = new Date();
   const targetDate = new Date(startDate);
 
-  // 1. 判斷是否錯過申請死線 (Phase 1 vs Phase 2)
   const deadline = new Date(
     targetDate.getFullYear(),
     targetDate.getMonth() - 1,
     1
   );
   if (now > deadline) {
-    // 遲交者 (Phase 2)：直接扣 10萬分，永遠墊底，只能撿漏
     score -= 100000;
   }
 
-  // 2. 長假 (휴가) 專屬加分
   if (leaveType === "휴가") {
-    // 第 1 順位：新兵慰勞休假 (無敵星星)
     if (leaveReason.includes("신병위로휴가")) score += 50000;
-
-    // 第 2 順位：退伍前兩個月的末年休假 (말년휴가)
     if (user.dischargeDate) {
       const daysToDischarge =
         (new Date(user.dischargeDate) - targetDate) / (1000 * 60 * 60 * 24);
@@ -55,12 +49,10 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
     }
   }
 
-  // 3. 短假 (외출/외박) 專屬加分
   if (leaveType === "외출" || leaveType === "외박") {
-    if (leaveReason.includes("정기")) score += 10000; // 定期優先於特別
+    if (leaveReason.includes("정기")) score += 10000;
   }
 
-  // 4. 距離上次休假越久，分數越高 (每天 +10 分)
   const lastLeave = await Leave.findOne({
     userId: user._id,
     type: "휴가",
@@ -74,12 +66,9 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
     );
     score += Math.floor(daysSinceLastLeave * 10);
   } else {
-    // 從來沒放過假的人，給予極高補償分
     score += 5000;
   }
 
-  // 5. 終極平手判定 (Tie-breaker)
-  // 5-1. 入伍日越早越好 (老兵優待)
   if (user.enlistmentDate) {
     const daysServed = Math.max(
       0,
@@ -88,7 +77,6 @@ async function calculatePriorityScore(user, leaveType, leaveReason, startDate) {
     score += Math.floor(daysServed);
   }
 
-  // 5-2. 總出島次數越少越好 (扣分機制)
   const totalLeavesTaken = await Leave.countDocuments({
     userId: user._id,
     status: { $in: ["APPROVED", "PENDING_APPROVAL", "PENDING_REVIEW"] },
@@ -105,17 +93,14 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
   const org = await Organization.findById(orgId);
   if (!org) return;
 
-  // 🔥 1. 去資料庫精準算出「這個部隊目前真正有多少位勇士」
   const actualSoldierCount = await User.countDocuments({
     organizationId: orgId,
     role: "soldier",
-    status: "approved", // 只計算已經核准加入的勇士
+    status: "approved",
   });
 
-  // 🔥 2. 防呆機制：如果部隊目前沒半個人，系統先當作有 1 個人，避免算出來額度變成 0 導致錯誤
   const totalSoldiers = actualSoldierCount > 0 ? actualSoldierCount : 1;
 
-  // 🔥 3. 根據真實人數，計算出長假(休假)與短假(外泊/外出)的當天名額上限
   const defaultLimitLong = Math.floor(
     totalSoldiers * ((org.settings?.leaveRateLong || 20) / 100)
   );
@@ -188,7 +173,6 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
     iter.setDate(iter.getDate() + 1);
   }
 
-  // 🌟 [修復核心] 更新狀態與強制降階
   for (const leave of soldierLeaves) {
     const shouldBeWaitlisted = waitlistFlags[leave._id.toString()];
     let needsSave = false;
@@ -198,7 +182,6 @@ async function recalculateWaitlist(orgId, startDate, endDate) {
       needsSave = true;
     }
 
-    // 🔥 如果被判定為候補，但狀態卻是「已核准/等待核准」，強制打回「檢討待命」！
     if (
       leave.isWaitlisted &&
       ["PENDING_APPROVAL", "APPROVED"].includes(leave.status)
@@ -484,7 +467,6 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
       return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
     }
 
-    // 防呆：確認是不是本人的假單 (或者是長官幫忙刪)
     if (
       leave.userId.toString() !== req.user.userId &&
       !["reviewer", "officer", "approver", "superadmin"].includes(req.user.role)
@@ -496,9 +478,7 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
 
     const { status, organizationId, startDate, endDate } = leave;
 
-    // 情況 A：尚未核准 (一審或二審中) -> 直接刪除並立刻返還天數
     if (status === "PENDING_REVIEW" || status === "PENDING_APPROVAL") {
-      // 1. 跑迴圈把扣掉的假還回去
       for (const us of leave.usedSlots) {
         const slot = await LeaveSlot.findById(us.slotId);
         if (slot) {
@@ -507,19 +487,14 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
         }
       }
 
-      // 2. 從資料庫徹底刪除這張假單
       await Leave.findByIdAndDelete(req.params.id);
-
-      // 3. 重新計算這段時間的備取名單 (因為他讓出位子了，可能有人會從候補變成正取)
       await recalculateWaitlist(organizationId, startDate, endDate);
 
       return res.json({
         success: true,
         message: "휴가 신청이 취소되었으며, 사용된 일수가 즉시 반환되었습니다.",
       });
-    }
-    // 情況 B：已經最終核准 (APPROVED) -> 轉為取消待審核，長官同意後才還天數
-    else if (status === "APPROVED") {
+    } else if (status === "APPROVED") {
       leave.status = "CANCEL_REQ_REVIEW";
       await leave.save();
 
@@ -528,9 +503,7 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
         message:
           "이미 승인된 휴가입니다. 간부에게 '취소 요청'이 전달되었으며, 승인 후 일수가 반환됩니다.",
       });
-    }
-    // 其他情況 (例如已經在取消審核中了)
-    else {
+    } else {
       return res.status(400).json({
         error:
           "현재 취소할 수 없는 상태입니다. (이미 취소 진행 중이거나 처리됨)",
@@ -542,144 +515,7 @@ router.delete("/leaves/:id", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 3. 小鈴鐺通知 (最終修復版 - 解決轉型與通知遺失)
-// ==========================================
-router.get("/notifications", authMiddleware, async (req, res) => {
-  res.setHeader(
-    "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate"
-  );
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-
-  try {
-    const { userId, orgId, role } = req.user;
-    const mongoose = require("mongoose");
-
-    // 🔥 強制將 userId 轉換為 ObjectId，確保查詢絕對精準
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-    const currentUser = await User.findById(userObjectId).populate(
-      "organizationId"
-    );
-
-    let notifications = [];
-
-    // --- A. 休假相關通知 (Leaves) ---
-    if (role === "reviewer" || role === "officer") {
-      const leaves = await Leave.find({
-        organizationId: orgId,
-        status: { $in: ["PENDING_REVIEW", "CANCEL_REQ_REVIEW"] },
-      })
-        .populate("userId", "name rank")
-        .lean();
-      notifications.push(...leaves);
-    } else if (role === "approver" || role === "superadmin") {
-      const leaves = await Leave.find({
-        organizationId: orgId,
-        status: { $in: ["PENDING_APPROVAL", "CANCEL_REQ_APPROVAL"] },
-      })
-        .populate("userId", "name rank")
-        .lean();
-      notifications.push(...leaves);
-    } else if (role === "soldier") {
-      // 🔥 修正：確保勇士能看到所有被拒絕或被強制取消的假單
-      const leaves = await Leave.find({
-        userId: userObjectId,
-        // 加入所有會讓假單失效的狀態，確保通知不漏接
-        status: {
-          $in: [
-            "REJECTED_REVIEW",
-            "REJECTED_APPROVAL",
-            "CANCEL_APPROVED",
-            "FORCE_CANCELLED",
-          ],
-        },
-      })
-        .populate("userId", "name rank")
-        .sort({ updatedAt: -1 }) // 務必按更新時間排序，讓最新的取消通知排第一
-        .limit(20) // 限制數量避免效能問題
-        .lean();
-
-      notifications.push(...leaves);
-    }
-
-    // --- B. 人事與系統通知 (維持原樣) ---
-    if (
-      ["reviewer", "approver", "admin", "superadmin", "officer"].includes(role)
-    ) {
-      const pendingUsers = await User.find({
-        organizationId: orgId,
-        status: "pending",
-      }).lean();
-      pendingUsers.forEach((pu) => {
-        notifications.push({
-          _id: pu._id,
-          status: "NEW_MEMBER_PENDING",
-          reason: "신규 가입 승인 대기",
-          userId: { name: pu.name, rank: "신입" },
-          updatedAt: pu.createdAt,
-          createdAt: pu.createdAt,
-        });
-      });
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      const dischargingUsers = await User.find({
-        organizationId: orgId,
-        status: "approved",
-        dischargeDate: { $gte: today, $lt: tomorrow },
-      }).lean();
-      dischargingUsers.forEach((du) => {
-        notifications.push({
-          _id: du._id,
-          status: "DISCHARGE_TODAY",
-          reason: "오늘 전역 예정",
-          userId: { name: du.name, rank: du.rank },
-          updatedAt: new Date(),
-          createdAt: new Date(),
-        });
-      });
-
-      const resetUsers = await User.find({
-        organizationId: orgId,
-        resetRequested: true,
-      }).lean();
-      resetUsers.forEach((ru) => {
-        notifications.push({
-          _id: ru._id,
-          status: "PASSWORD_RESET_REQ",
-          reason: "비밀번호 초기화 요청",
-          userId: { name: ru.name, rank: ru.rank },
-          updatedAt: ru.updatedAt || new Date(),
-          createdAt: ru.updatedAt || new Date(),
-        });
-      });
-    }
-
-    // --- C. 排序與置頂 ---
-    notifications.sort(
-      (a, b) =>
-        new Date(b.updatedAt || b.createdAt || 0) -
-        new Date(a.updatedAt || a.createdAt || 0)
-    );
-
-    res.json({
-      success: true,
-      userInfo: {
-        name: currentUser.name,
-        role: currentUser.role,
-        unitName: currentUser.organizationId?.name,
-      },
-      notifications,
-    });
-  } catch (error) {
-    console.error("🔔 Notifications API Error:", error);
-    res.status(500).json({ error: "알림 정보를 불러오는데 실패했습니다." });
-  }
-});
+// 💡 註：這裡原本有一個 /notifications，已經幫你刪除以避免跟 server.js 衝突。
 
 router.put("/leaves/:id/reject", authMiddleware, async (req, res) => {
   try {
@@ -829,7 +665,6 @@ router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
         .json({ error: "이미 취소되거나 거절된 휴가입니다." });
     }
 
-    // 🔥 [權限嚴格區分]
     if (["reviewer", "officer"].includes(role)) {
       if (leave.status !== "PENDING_APPROVAL") {
         return res.status(400).json({
@@ -846,7 +681,6 @@ router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
       }
     }
 
-    // 🔥 [防呆修復] 確保 usedSlots 存在且為陣列，避免舊資料造成 for...of 迴圈崩潰
     if (leave.usedSlots && Array.isArray(leave.usedSlots)) {
       for (const us of leave.usedSlots) {
         if (!us.slotId) continue;
@@ -858,17 +692,15 @@ router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
       }
     }
 
-    // 在 routes.js 的 force-cancel 邏輯中
     leave.status = "FORCE_CANCELLED";
     leave.reason = `[직권취소] ${cancelReason || "사유 없음"} (기존 사유: ${
       leave.reason || "없음"
     })`;
 
-    // 確保這張假單被標記為「已變動」，讓小鈴鐺抓得到最新的
-    leave.markModified("status");
+    // 🔥 [중요 수정] 데이터베이스에서 'updatedAt' 시간을 강제로 지금으로 갱신시켜 줍니다!
+    leave.updatedAt = new Date();
     await leave.save();
 
-    // 🔥 [防呆修復] 確保日期存在才去重算候補名單
     if (leave.startDate && leave.endDate && req.user.orgId) {
       await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
     }
@@ -878,7 +710,6 @@ router.put("/leaves/:id/force-cancel", authMiddleware, async (req, res) => {
       message: "휴가가 강제 취소되었으며 일수가 반환되었습니다.",
     });
   } catch (error) {
-    // 💡 這裡會把真實的錯誤原因印在 CodeSandbox 的 Terminal 上
     console.error("🔥 Force Cancel Error 세부 정보:", error);
     res
       .status(500)
@@ -900,14 +731,11 @@ router.put("/leaves/:id/manual-override", authMiddleware, async (req, res) => {
     if (!leave)
       return res.status(404).json({ error: "휴가를 찾을 수 없습니다." });
 
-    // 切換狀態 (如果是 true 就變 false，反之亦然)
     leave.isManualOverride = !leave.isManualOverride;
-    // 如果長官賦予了特權，這張假單瞬間脫離候補
     if (leave.isManualOverride) leave.isWaitlisted = false;
 
     await leave.save();
 
-    // 重新計算這段期間的其他人
     await recalculateWaitlist(req.user.orgId, leave.startDate, leave.endDate);
 
     res.json({ success: true, isManualOverride: leave.isManualOverride });
@@ -1024,13 +852,11 @@ router.delete(
         return res.status(404).json({ error: "부대 설정을 찾을 수 없습니다." });
       }
 
-      // 刪除指定的特殊期間
       org.settings.specialRates = org.settings.specialRates.filter(
         (r) => r._id.toString() !== req.params.rateId
       );
       await org.save();
 
-      // 觸發核彈重算
       const activeLeaves = await Leave.find({
         organizationId: orgId,
         status: {
@@ -1072,7 +898,7 @@ router.post(
   async (req, res) => {
     try {
       const { orgId, role } = req.user;
-      const { year, month, mode } = req.body; // 🔥 接收前端傳來的年份、月份、模式
+      const { year, month, mode } = req.body;
 
       if (!["reviewer", "officer", "approver", "superadmin"].includes(role)) {
         return res.status(403).json({ error: "일괄 결재 권한이 없습니다." });
@@ -1082,17 +908,14 @@ router.post(
       let newStatus = "PENDING_APPROVAL";
       let isApprover = false;
 
-      // 判斷是否為最終核准者
       if (role === "approver" || role === "superadmin") {
         targetStatus = "PENDING_APPROVAL";
         newStatus = "APPROVED";
         isApprover = true;
       }
 
-      // 🔥 建立基礎查詢條件
       const query = { organizationId: orgId, status: targetStatus };
 
-      // 1. 加入月份過濾 (只核准該月份有重疊到的假單)
       if (year && month) {
         const startDateOfMonth = new Date(year, month - 1, 1);
         const endDateOfMonth = new Date(year, month, 0, 23, 59, 59);
@@ -1100,17 +923,15 @@ router.post(
         query.endDate = { $gte: startDateOfMonth };
       }
 
-      // 2. 加入類別過濾 (長假 vs 短假)
       if (mode === "team-long") {
-        query.type = { $not: /외출|외박/ }; // 排除外出、外宿，剩下的就是長假
+        query.type = { $not: /외출|외박/ };
       } else if (mode === "team-short") {
-        query.type = /외출|외박/; // 包含外出或外宿
+        query.type = /외출|외박/;
       }
 
-      // 如果是檢討者 (Phase 1)，必須避開候補
       if (!isApprover) query.isWaitlisted = false;
 
-      const totalPending = await Leave.countDocuments(query); // 算出真正符合條件的總數
+      const totalPending = await Leave.countDocuments(query);
 
       const updatePayload = { status: newStatus };
       if (isApprover) {
@@ -1125,7 +946,6 @@ router.post(
         $set: updatePayload,
       });
 
-      // 如果是最終核准，觸發候補重新計算
       if (isApprover && leaveUpdate.modifiedCount > 0) {
         const approvedLeaves = await Leave.find({
           organizationId: orgId,
@@ -1185,7 +1005,6 @@ router.post(
         return res.status(403).json({ error: "권한이 없습니다." });
       }
 
-      // 尋找目標：狀態為 PENDING_REVIEW 且被標記為候補 (isWaitlisted: true)
       const query = {
         organizationId: orgId,
         status: "PENDING_REVIEW",
@@ -1209,7 +1028,6 @@ router.post(
       let rejectedCount = 0;
 
       for (const leave of leavesToReject) {
-        // 退還假單額度
         for (const us of leave.usedSlots) {
           const slot = await LeaveSlot.findById(us.slotId);
           if (slot) {
@@ -1217,7 +1035,7 @@ router.post(
             await slot.save();
           }
         }
-        leave.status = "REJECTED_REVIEW"; // 標記為檢討者拒絕
+        leave.status = "REJECTED_REVIEW";
         await leave.save();
         rejectedCount++;
       }
@@ -1236,7 +1054,7 @@ router.post(
 );
 
 // ==========================================
-// 🔥 [小鈴鐺專屬] 安全一鍵結算 (嚴格白名單模式：拒絕候補、拒絕取消申請、拒絕人事異動)
+// 🔥 [小鈴鐺專屬] 安全一鍵結算
 // ==========================================
 router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
   try {
@@ -1257,7 +1075,6 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
       newStatus = "APPROVED";
     }
 
-    // 1. 算一下小鈴鐺裡總共有多少待辦事項 (假單 + 取消單)
     const totalPendingLeaves = await Leave.countDocuments({
       organizationId: orgId,
       status: {
@@ -1265,8 +1082,6 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
       },
     });
 
-    // 2. 🛡️ 極度嚴格過濾：只放行【一般假單】且【非候補】。
-    // (完全不更新 CANCEL_REQ，逼迫長官手動點開取消申請)
     const leaveUpdate = await Leave.updateMany(
       { organizationId: orgId, status: targetStatus, isWaitlisted: false },
       {
@@ -1278,16 +1093,14 @@ router.post("/leaves/approve-all", authMiddleware, async (req, res) => {
       }
     );
 
-    // 如果是最終承認者 (approver)，需要扣除已核准假單的配額
     if (role === "approver" || role === "superadmin") {
       const approvedLeaves = await Leave.find({
         organizationId: orgId,
         status: "APPROVED",
-        approverId: req.user.userId, // 找剛剛被我核准的
-        approvedAt: { $gte: new Date(Date.now() - 5000) }, // 確保是這 5 秒內核准的
+        approverId: req.user.userId,
+        approvedAt: { $gte: new Date(Date.now() - 5000) },
       });
 
-      // 重新計算 Waitlist (確保無誤)
       if (approvedLeaves.length > 0) {
         const minDate = new Date(
           Math.min(...approvedLeaves.map((l) => new Date(l.startDate)))
@@ -1382,9 +1195,6 @@ router.get("/leaves/user-history/:userId", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 드래그 앤 드롭: 두 휴가의 우선순위(점수) 맞바꾸기
-// ==========================================
 router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
   try {
     if (
@@ -1409,7 +1219,6 @@ router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "권한이 없습니다." });
     }
 
-    // 🔥 [修復核心] 擋下已經被最終核准的假單！
     if (leave1.status === "APPROVED" || leave2.status === "APPROVED") {
       return res
         .status(400)
@@ -1443,9 +1252,6 @@ router.put("/leaves/swap-priority", authMiddleware, async (req, res) => {
   }
 });
 
-// ==========================================
-// 🔥 [新增] 單一假單詳細資料查詢 (給審核頁面專用，不受小鈴鐺權限限制)
-// ==========================================
 router.get("/leaves/detail/:id", authMiddleware, async (req, res) => {
   try {
     const leave = await Leave.findById(req.params.id)
@@ -1453,7 +1259,6 @@ router.get("/leaves/detail/:id", authMiddleware, async (req, res) => {
         "userId",
         "name rank serviceNumber role promoToIlbyung promoToSangbyung promoToByungjang"
       )
-      // 🔥 [新增] 魔法 Populate：把申請單裡使用的休假 ID (slotId)，還原成真實的假單名字和類型
       .populate("usedSlots.slotId", "type reason")
       .lean();
 

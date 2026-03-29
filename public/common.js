@@ -371,7 +371,16 @@ function renderNotifications(notifications, role) {
         statusText = "신규 부대원 가입 대기";
         clickAction = `window.closeNotifications(); spaNavigate('/adduser');`;
 
-        // 🔥 [新增] 把 FORCE_CANCELLED (直權取消) 放進來一起判斷
+        // 🔥 [新增] 용사가 승인되었을 때 표시할 로직!
+      } else if (noti.status === "APPROVED") {
+        icon = "fa-check-double";
+        color = "text-emerald-500";
+        bgColor = "bg-emerald-50 border-emerald-100";
+        statusText = "출타가 최종 승인되었습니다! 달력을 확인하세요.";
+        const targetDate = noti.startDate ? noti.startDate.split("T")[0] : "";
+        clickAction = isIndex
+          ? `window.closeNotifications(); if(typeof executeSearchNavigation === 'function') executeSearchNavigation('${noti._id}', '${noti.type}', '${targetDate}');`
+          : `window.closeNotifications(); spaNavigate('/?focus=${noti._id}&date=${targetDate}&type=${noti.type}');`;
       } else if (
         noti.status.includes("REJECTED") ||
         noti.status === "CANCEL_APPROVED" ||
@@ -380,13 +389,13 @@ function renderNotifications(notifications, role) {
         if (noti.status === "FORCE_CANCELLED") {
           icon = "fa-triangle-exclamation";
           color = "text-white";
-          bgColor = "bg-red-600 border-red-700 animate-pulse";
-          statusText = "지휘관 직권으로 휴가가 강제 취소되었습니다.";
+          bgColor = "bg-red-600 border-red-700 animate-pulse shadow-md";
+          statusText = "🚨 지휘관 직권으로 휴가가 강제 회수되었습니다.";
         } else if (noti.status === "CANCEL_APPROVED") {
           icon = "fa-calendar-minus";
           color = "text-gray-500";
           bgColor = "bg-gray-100 border-gray-200";
-          statusText = "휴가 취소가 최종 승인되어 일수가 반환되었습니다.";
+          statusText = "휴가 취소가 승인되어 일수가 반환되었습니다.";
         } else {
           icon = "fa-circle-xmark";
           color = "text-red-500";
@@ -443,7 +452,7 @@ function renderNotifications(notifications, role) {
             )}</span>
           </div>
           <p class="text-xs text-slate-600 line-clamp-1 font-medium">${statusText} <span class="text-slate-400 font-normal">- ${
-        noti.reason
+        noti.reason || ""
       }</span></p>
           ${actionButtons}
         </div>
